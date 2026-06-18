@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.claude/
+.env
+.env.*
+bookings.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log

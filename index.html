@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sales B2B</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0d0d0d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+/* ── RESET & ROOT ───────────────────────────────────────────── */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased}
+:root{
+  --bg:#0d0d0d;
+  --surface:#161616;
+  --card:#1c1c1c;
+  --card-hover:#222;
+  --border:rgba(255,255,255,.07);
+  --border2:rgba(255,255,255,.04);
+  --text:#f0f0f0;
+  --text2:#a0a0a0;
+  --text3:#555;
+  --blue:#3b82f6;
+  --blue-dim:rgba(59,130,246,.12);
+  --green:#22c55e;
+  --green-dim:rgba(34,197,94,.12);
+  --red:#ef4444;
+  --red-dim:rgba(239,68,68,.12);
+  --orange:#f97316;
+  --orange-dim:rgba(249,115,22,.12);
+  --amber:#f59e0b;
+  --radius:14px;
+  --radius-sm:10px;
+  --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+  --nav-h:58px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif}
+
+/* ── SCROLLBAR ──────────────────────────────────────────────── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px}
+
+/* ── WINDOW CHROME ──────────────────────────────────────────── */
+.titlebar{height:38px;background:rgba(10,10,10,.95);display:flex;align-items:center;padding:0 16px;gap:8px;border-bottom:1px solid rgba(255,255,255,.04);position:fixed;top:0;left:0;right:0;z-index:200}
+.dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.dot.r{background:#ff5f57}.dot.y{background:#ffbd2e}.dot.g{background:#28c940}
+
+/* ── NAV ────────────────────────────────────────────────────── */
+nav{height:var(--nav-h);background:rgba(13,13,13,.92);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:center;position:fixed;top:38px;left:0;right:0;z-index:100;padding:0 20px}
+.nav-home,.nav-settings{position:absolute;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:10px;border:none;background:transparent;color:var(--text2);cursor:pointer;font-size:18px;transition:.15s}
+.nav-home{left:20px}.nav-settings{right:20px}
+.nav-home:hover,.nav-settings:hover,.nav-home.active,.nav-settings.active{background:rgba(255,255,255,.07);color:var(--text)}
+.nav-pills{display:flex;gap:1px;background:rgba(255,255,255,.05);border-radius:12px;padding:4px}
+.nav-pill{background:none;border:none;color:var(--text2);padding:6px 20px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:500;letter-spacing:.01em;transition:.15s;white-space:nowrap}
+.nav-pill:hover{color:var(--text);background:rgba(255,255,255,.05)}
+.nav-pill.active{background:rgba(255,255,255,.1);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+
+/* ── LAYOUT ─────────────────────────────────────────────────── */
+.app{min-height:100vh}
+.page{display:none;min-height:100vh;overflow-y:auto;padding:118px 36px 40px}
+.page.active{display:block}
+
+/* ── TYPOGRAPHY ─────────────────────────────────────────────── */
+.page-title{font-size:38px;font-weight:700;letter-spacing:-.02em;line-height:1.1;color:var(--text)}
+.section-title{font-size:14px;font-weight:600;color:var(--text2);margin:24px 0 10px;text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+
+/* ── CARDS ──────────────────────────────────────────────────── */
+.card{background:var(--card);border-radius:var(--radius);border:1px solid var(--border);padding:20px}
+.card.green{background:rgba(34,197,94,.08);border-color:rgba(34,197,94,.15)}
+.card.blue{background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.15)}
+.card.orange{background:rgba(249,115,22,.08);border-color:rgba(249,115,22,.15)}
+.card.red{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.15)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+/* ── BUTTONS ─────────────────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:7px;border:none;border-radius:var(--radius-sm);padding:9px 16px;font-size:13.5px;font-weight:500;cursor:pointer;transition:.15s;font-family:inherit;white-space:nowrap}
+.btn-primary{background:var(--blue);color:#fff}.btn-primary:hover{background:#2563eb}
+.btn-ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border)}.btn-ghost:hover{background:rgba(255,255,255,.1)}
+.btn-danger{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.2)}.btn-danger:hover{background:rgba(239,68,68,.2)}
+.btn-sm{padding:6px 12px;font-size:12.5px;border-radius:8px}
+.btn-icon{background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:.15s}.btn-icon:hover{color:var(--red);background:var(--red-dim)}
+.fab{position:fixed;bottom:28px;right:28px;width:52px;height:52px;border-radius:50%;background:var(--blue);border:none;color:#fff;font-size:24px;cursor:pointer;box-shadow:0 4px 20px rgba(59,130,246,.45);display:flex;align-items:center;justify-content:center;z-index:50;transition:.2s}.fab:hover{transform:scale(1.08);box-shadow:0 6px 28px rgba(59,130,246,.55)}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+
+/* ── BADGES ─────────────────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.02em}
+.badge-orange{background:var(--orange-dim);color:var(--orange)}
+.badge-green{background:var(--green-dim);color:var(--green)}
+.badge-gray{background:rgba(120,120,120,.15);color:#888}
+.badge-blue{background:var(--blue-dim);color:var(--blue)}
+.badge-red{background:var(--red-dim);color:var(--red)}
+
+/* ── FORMS ──────────────────────────────────────────────────── */
+.form-group{margin-bottom:13px}
+label{display:block;font-size:11.5px;color:var(--text2);margin-bottom:5px;font-weight:500;letter-spacing:.02em}
+input,select,textarea{width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);color:var(--text);padding:9px 12px;border-radius:9px;font-size:13.5px;outline:none;font-family:inherit;transition:.15s}
+input:focus,select:focus,textarea:focus{border-color:rgba(59,130,246,.5);background:rgba(59,130,246,.04)}
+input::placeholder{color:var(--text3)}
+select option{background:#1e1e1e;color:var(--text)}
+textarea{resize:vertical;min-height:72px;line-height:1.5}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ── FILTER TABS ─────────────────────────────────────────────── */
+.filter-tabs{display:flex;gap:2px;background:rgba(255,255,255,.04);border-radius:10px;padding:3px;margin-bottom:18px;width:fit-content;border:1px solid var(--border)}
+.filter-tab{background:none;border:none;color:var(--text2);padding:5px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-family:inherit;transition:.15s}
+.filter-tab.active{background:rgba(255,255,255,.09);color:var(--text)}
+.sub-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px}
+.sub-tab{background:none;border:none;color:var(--text2);padding:10px 20px;cursor:pointer;font-size:14px;font-weight:500;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;transition:.15s}
+.sub-tab.active{color:var(--text);border-bottom-color:var(--blue)}
+.sub-tab:hover{color:var(--text)}
+
+/* ── LIST ROWS ──────────────────────────────────────────────── */
+.list-row{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;background:var(--card);border-radius:12px;margin-bottom:7px;cursor:pointer;border:1px solid var(--border);transition:.15s}
+.list-row:hover{background:var(--card-hover);border-color:rgba(255,255,255,.1)}
+.list-row-title{font-size:14px;font-weight:600;color:var(--text)}
+.list-row-sub{font-size:12px;color:var(--text2);margin-top:2px}
+
+/* ── HOME ───────────────────────────────────────────────────── */
+.home-welcome{font-size:44px;font-weight:700;letter-spacing:-.025em;margin-bottom:22px;color:var(--text)}
+.add-ev-btn{width:100%;display:flex;align-items:center;gap:12px;padding:15px 20px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);color:var(--text2);cursor:pointer;font-size:14px;font-family:inherit;margin-bottom:16px;transition:.15s;text-align:left}
+.add-ev-btn:hover{background:var(--card-hover);color:var(--text);border-color:rgba(255,255,255,.1)}
+.add-ev-btn .icon{width:32px;height:32px;background:rgba(59,130,246,.15);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.stat-val{font-size:26px;font-weight:700;margin-top:4px;letter-spacing:-.01em}
+.stat-lbl{font-size:12px;color:var(--text2);margin-top:4px}
+.card-icon-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.card-icon-dot{width:8px;height:8px;border-radius:50%}
+
+/* ── CALENDAR ───────────────────────────────────────────────── */
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-range{font-size:15px;font-weight:600}
+.cal-nav-btns{display:flex;gap:4px}
+.cal-wrap{border-radius:14px;border:1px solid var(--border);overflow:hidden;background:var(--card)}
+.cal-grid{display:grid;grid-template-columns:52px repeat(7,1fr)}
+.cal-head-corner{background:rgba(255,255,255,.03);border-bottom:1px solid var(--border)}
+.cal-head-day{background:rgba(255,255,255,.03);border-bottom:1px solid var(--border);border-left:1px solid var(--border);padding:10px 0;text-align:center}
+.cal-day-abbr{font-size:10.5px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;font-weight:500}
+.cal-day-num{font-size:18px;font-weight:600;margin-top:2px;width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%}
+.cal-day-num.today{background:var(--blue);color:#fff}
+.cal-time-cell{height:60px;font-size:11px;color:var(--text3);padding:4px 8px 0;text-align:right;border-bottom:1px solid var(--border2);background:var(--card)}
+.cal-ev-cell{height:60px;border-left:1px solid var(--border2);border-bottom:1px solid var(--border2);position:relative;background:var(--card)}
+.cal-ev-cell:hover{background:rgba(255,255,255,.015)}
+.cal-event{position:absolute;left:3px;right:3px;border-radius:7px;padding:4px 7px;font-size:11px;font-weight:500;cursor:pointer;overflow:hidden;z-index:2;color:#fff;transition:.1s}
+.cal-event:hover{filter:brightness(1.1)}
+.cal-event.blue{background:#2563eb}
+.cal-event.red{background:#dc2626}
+.cal-event.green{background:#16a34a}
+.cal-event .ev-time{font-size:9.5px;opacity:.8;margin-top:1px}
+.cal-event .ev-loc{font-size:9.5px;opacity:.7}
+
+/* ── PROJECT DETAIL ─────────────────────────────────────────── */
+.detail-back{display:flex;align-items:center;gap:12px;margin-bottom:22px}
+.task-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border2)}
+.task-item:last-child{border-bottom:none}
+.task-cb{width:17px;height:17px;cursor:pointer;accent-color:var(--blue)}
+.task-lbl{flex:1;font-size:13.5px}
+.task-lbl.done{text-decoration:line-through;color:var(--text2)}
+
+/* ── QUOTE PREVIEW ──────────────────────────────────────────── */
+.qp-wrap{background:#fff;color:#111;padding:44px;border-radius:10px;font-size:12.5px;line-height:1.65}
+.qp-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px}
+.qp-logo-box{border:1.5px dashed #d1d5db;padding:18px 22px;border-radius:8px;text-align:center;font-size:10.5px;color:#9ca3af;max-width:200px}
+.qp-company-info{text-align:right;font-size:11.5px;color:#4b5563;line-height:1.7}
+.qp-company-info strong{display:block;font-size:13px;color:#111;margin-bottom:2px}
+.qp-hr{border:none;border-top:1px solid #e5e7eb;margin:22px 0}
+.qp-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
+.qp-title{font-size:30px;font-weight:900;letter-spacing:1.5px;color:#111}
+.qp-num{font-size:12px;color:#6b7280;margin-top:2px}
+.qp-dates{text-align:right;font-size:11.5px;color:#6b7280;line-height:1.8}
+.qp-dates strong{color:#111}
+.qp-dates .valid{color:#16a34a;font-weight:600}
+.qp-boxes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:26px}
+.qp-box{border:1px solid #e5e7eb;border-radius:8px;padding:14px 16px;font-size:11.5px;color:#374151;line-height:1.7}
+.qp-box-lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;font-weight:600;margin-bottom:5px}
+.qp-box strong{display:block;font-size:13px;color:#111}
+.qp-table{width:100%;border-collapse:collapse;margin-bottom:22px}
+.qp-table th{background:#f9fafb;padding:9px 14px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6b7280;border-bottom:1px solid #e5e7eb}
+.qp-table td{padding:9px 14px;border-bottom:1px solid #f3f4f6;font-size:12px;color:#374151}
+.qp-table th:last-child,.qp-table td:last-child{text-align:right}
+.qp-totals{display:flex;justify-content:flex-end}
+.qp-tot-table{width:260px;font-size:12.5px}
+.qp-tot-table td{padding:4px 0;color:#374151}
+.qp-tot-table td:last-child{text-align:right}
+.qp-tot-row td{font-size:15px;font-weight:800;color:#111;border-top:1.5px solid #e5e7eb;padding-top:10px}
+
+/* ── FINANCE ─────────────────────────────────────────────────── */
+.fin-period-bar{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+.fin-seg{display:flex;gap:2px;background:rgba(255,255,255,.05);border-radius:10px;padding:3px;border:1px solid var(--border)}
+.fin-seg-btn{background:none;border:none;color:var(--text2);padding:5px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-family:inherit;transition:.15s}
+.fin-seg-btn.active{background:var(--blue);color:#fff}
+.fin-period-lbl{font-size:15px;font-weight:600;min-width:160px;text-align:center}
+.tx-row{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--border2);cursor:pointer;transition:.1s;border-radius:4px}
+.tx-row:last-child{border-bottom:none}
+.tx-row:hover{opacity:.85}
+.tx-dot{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.tx-dot.income{background:var(--green-dim);color:var(--green)}
+.tx-dot.expense{background:var(--red-dim);color:var(--red)}
+.tx-name{font-size:14px;font-weight:500}
+.tx-cat{font-size:12px;color:var(--text2);margin-top:1px}
+.tx-amt{margin-left:auto;font-size:15px;font-weight:600}
+.tx-amt.income{color:var(--green)}.tx-amt.expense{color:var(--red)}
+.tx-date{font-size:12px;color:var(--text2);margin-left:6px;flex-shrink:0}
+
+/* ── QUOTE SERVICE LINE ──────────────────────────────────────── */
+.svc-line{display:grid;grid-template-columns:1.4fr .7fr .9fr .9fr 28px;gap:8px;align-items:center;margin-bottom:8px}
+
+/* ── MODAL ──────────────────────────────────────────────────── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.overlay.open{display:flex}
+.modal{background:#1a1a1a;border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:28px;width:100%;max-width:500px;max-height:92vh;overflow-y:auto;position:relative;box-shadow:0 25px 60px rgba(0,0,0,.7)}
+.modal-lg{max-width:740px}
+.modal-xl{max-width:860px}
+.modal h2{font-size:18px;font-weight:700;margin-bottom:20px;letter-spacing:-.01em}
+.modal-close{position:absolute;top:14px;right:14px;background:rgba(255,255,255,.07);border:none;color:var(--text2);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:.15s}
+.modal-close:hover{background:rgba(255,255,255,.12);color:var(--text)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- title bar (decorative) -->
+  <div class="titlebar">
+    <div class="dot r"></div>
+    <div class="dot y"></div>
+    <div class="dot g"></div>
+  </div>
+
+  <!-- nav -->
+  <nav>
+    <button class="nav-home active" onclick="showPage('home')" title="Strona główna">⌂</button>
+    <div class="nav-pills">
+      <button class="nav-pill" onclick="showPage('calendar')">Terminarz</button>
+      <button class="nav-pill" onclick="showPage('projects')">Projekty</button>
+      <button class="nav-pill" onclick="showPage('clients')">Klienci</button>
+      <button class="nav-pill" onclick="showPage('finance')">Finanse</button>
+    </div>
+    <button class="nav-settings" onclick="showPage('settings')" title="Ustawienia">⚙</button>
+  </nav>
+
+  <!-- ── HOME ── -->
+    <div id="page-home" class="page active">
+      <div class="home-welcome" id="home-welcome">Witaj, Mateusz.</div>
+      <button class="add-ev-btn" onclick="openAddEvent()">
+        <div class="icon">📅</div>
+        <span>Dodaj nowe wydarzenie w terminarzu</span>
+      </button>
+      <div class="grid2" style="margin-bottom:22px">
+        <div class="card">
+          <div class="card-icon-row"><div class="card-icon-dot" style="background:var(--blue)"></div><span style="font-size:11.5px;color:var(--text2);font-weight:500">Dziś</span></div>
+          <div style="font-size:21px;font-weight:700;letter-spacing:-.01em" id="home-date">—</div>
+          <div style="font-size:12.5px;color:var(--text2);margin-top:2px" id="home-weekday"></div>
+        </div>
+        <div class="card orange">
+          <div class="card-icon-row"><div class="card-icon-dot" style="background:var(--amber)"></div><span style="font-size:11.5px;color:var(--text2);font-weight:500">Najbliższe wydarzenie</span></div>
+          <div style="font-size:18px;font-weight:700" id="home-next-ev">—</div>
+          <div style="font-size:12px;color:var(--text2);margin-top:3px" id="home-next-ev-time"></div>
+        </div>
+        <div class="card green">
+          <div class="card-icon-row"><div class="card-icon-dot" style="background:var(--green)"></div><span style="font-size:11.5px;color:var(--text2);font-weight:500" id="lbl-income">Przychód — Czerwiec</span></div>
+          <div class="stat-val" style="color:var(--green)" id="home-income">0,00 PLN</div>
+        </div>
+        <div class="card blue">
+          <div class="card-icon-row"><div class="card-icon-dot" style="background:var(--blue)"></div><span style="font-size:11.5px;color:var(--text2);font-weight:500" id="lbl-netto">Dochód Netto — Czerwiec</span></div>
+          <div class="stat-val" style="color:var(--blue)" id="home-netto">0,00 PLN</div>
+        </div>
+      </div>
+      <div class="section-title">Aktywne projekty</div>
+      <div id="home-projects"></div>
+    </div>
+
+    <!-- ── CALENDAR ── -->
+    <div id="page-calendar" class="page">
+      <div class="cal-header">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="cal-nav-btns">
+            <button class="btn btn-ghost btn-sm" onclick="calPrev()">‹</button>
+            <button class="btn btn-ghost btn-sm" onclick="calNext()">›</button>
+          </div>
+          <span class="cal-range" id="cal-range"></span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-primary btn-sm" onclick="calToday()">Dziś</button>
+        </div>
+      </div>
+      <div class="cal-wrap">
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+      <button class="fab" onclick="openAddEvent()">+</button>
+    </div>
+
+    <!-- ── PROJECTS ── -->
+    <div id="page-projects" class="page">
+      <div id="proj-list-view">
+        <div class="page-header">
+          <div class="page-title">Projekty</div>
+          <button class="btn btn-primary" onclick="openNewProject()">+ Nowy projekt</button>
+        </div>
+        <div class="filter-tabs">
+          <button class="filter-tab active" onclick="filterProj('all',this)">Wszystkie</button>
+          <button class="filter-tab" onclick="filterProj('W trakcie',this)">W trakcie</button>
+          <button class="filter-tab" onclick="filterProj('Zakończony',this)">Zakończone</button>
+        </div>
+        <div id="proj-list"></div>
+      </div>
+      <div id="proj-detail-view" style="display:none"></div>
+    </div>
+
+    <!-- ── CLIENTS ── -->
+    <div id="page-clients" class="page">
+      <div class="page-header">
+        <div class="page-title">Klienci</div>
+        <button class="btn btn-primary" id="clients-add-btn" onclick="openNewClient()">+ Nowy klient</button>
+      </div>
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="clientSubTab('clients',this)">Klienci</button>
+        <button class="sub-tab" onclick="clientSubTab('quotes',this)">Wyceny</button>
+      </div>
+      <div id="cl-tab-clients">
+        <div id="cl-list"></div>
+      </div>
+      <div id="cl-tab-quotes" style="display:none">
+        <div id="quotes-list"></div>
+      </div>
+    </div>
+
+    <!-- ── FINANCE ── -->
+    <div id="page-finance" class="page">
+      <div class="page-header">
+        <div class="page-title">Finanse</div>
+        <button class="btn btn-primary" onclick="openAddTx()">+ Dodaj transakcję</button>
+      </div>
+      <div class="fin-period-bar">
+        <div class="fin-seg">
+          <button class="fin-seg-btn active" onclick="finPeriodSwitch('month',this)">Miesiąc</button>
+          <button class="fin-seg-btn" onclick="finPeriodSwitch('quarter',this)">Kwartał</button>
+          <button class="fin-seg-btn" onclick="finPeriodSwitch('year',this)">Rok</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="finNav(-1)">‹</button>
+        <span class="fin-period-lbl" id="fin-lbl"></span>
+        <button class="btn btn-ghost btn-sm" onclick="finNav(1)">›</button>
+        <button class="btn btn-ghost btn-sm" onclick="finGoToday()">Dziś</button>
+      </div>
+      <div class="grid3" style="margin-bottom:22px">
+        <div class="card green">
+          <div class="card-icon-row"><div class="card-icon-dot" style="background:var(--green)"></div><span style="font-size:11.5px;color:var(--text2)">Przychody</span></div>
+          <div style="font-size:26px;font-weight:700;color:var(--green);letter-spacing:-.01em" id="fin-income">0,00 PLN</div>
+        </div>
+        <div class="card red">
+          <div class="card-icon-row"><div class="card-icon-dot" style="background:var(--red)"></div><span style="font-size:11.5px;color:var(--text2)">Koszty</span></div>
+          <div style="font-size:26px;font-weight:700;color:var(--red);letter-spacing:-.01em" id="fin-exp">0,00 PLN</div>
+        </div>
+        <div class="card blue">
+          <div class="card-icon-row"><div class="card-icon-dot" style="background:var(--blue)"></div><span style="font-size:11.5px;color:var(--text2)">Dochód Netto</span></div>
+          <div style="font-size:26px;font-weight:700;color:var(--blue);letter-spacing:-.01em" id="fin-netto">0,00 PLN</div>
+        </div>
+      </div>
+      <div class="card" style="padding:0 20px">
+        <div style="padding:15px 0 12px;font-size:14px;font-weight:600;border-bottom:1px solid var(--border)">Transakcje</div>
+        <div id="tx-list"></div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ── -->
+    <div id="page-settings" class="page">
+      <div class="page-title" style="margin-bottom:28px">Ustawienia</div>
+      <div style="max-width:560px">
+        <div class="section-title">Twoje dane</div>
+        <div class="card" style="margin-bottom:18px">
+          <div class="form-group"><label>Imię (wyświetlane w powitaniu)</label><input id="s-name" placeholder="np. Mateusz"></div>
+        </div>
+        <div class="section-title">Dane firmy</div>
+        <div class="card" style="margin-bottom:18px">
+          <div class="row2">
+            <div class="form-group"><label>Nazwa firmy</label><input id="s-company" placeholder="Firma XYZ"></div>
+            <div class="form-group"><label>NIP</label><input id="s-nip" placeholder="123 123 12 12"></div>
+          </div>
+          <div class="form-group"><label>Adres</label><input id="s-address" placeholder="ul. Testowa 13"></div>
+          <div class="row2">
+            <div class="form-group"><label>Email</label><input id="s-email" type="email" placeholder="test@test.pl"></div>
+            <div class="form-group"><label>Telefon</label><input id="s-phone" placeholder="+48 500 000 000"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:0"><label>Strona www</label><input id="s-www" placeholder="www.test.pl"></div>
+        </div>
+        <div class="section-title">Finanse</div>
+        <div class="card" style="margin-bottom:18px">
+          <div class="form-group" style="margin-bottom:0"><label>Stawka VAT (%)</label><input id="s-vat" type="number" value="23" style="max-width:120px"></div>
+        </div>
+        <div class="section-title">Stawki domyślne</div>
+        <div class="card" style="margin-bottom:24px">
+          <div class="row2">
+            <div class="form-group"><label>Nagranie (PLN/h)</label><input id="s-rec" type="number" placeholder="110"></div>
+            <div class="form-group"><label>Montaż (PLN/h)</label><input id="s-edit" type="number" placeholder="85"></div>
+          </div>
+          <div class="form-group" style="margin-bottom:0"><label>Dojazd (PLN/km)</label><input id="s-travel" type="number" placeholder="1.15" step="0.01" style="max-width:140px"></div>
+        </div>
+        <button class="btn btn-primary" onclick="saveSettings()">Zapisz ustawienia</button>
+        <span id="s-ok" style="display:none;color:var(--green);font-size:13px;margin-left:12px">✓ Zapisano</span>
+      </div>
+    </div>
+
+</div><!-- /app -->
+
+<!-- ═══ MODALS ════════════════════════════════════════════════ -->
+
+<!-- Event -->
+<div class="overlay" id="m-event">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('m-event')">✕</button>
+    <h2 id="m-event-title">Nowe wydarzenie</h2>
+    <div class="form-group"><label>Nazwa</label><input id="ev-title" placeholder="np. Nagrania"></div>
+    <div class="row2">
+      <div class="form-group"><label>Typ</label>
+        <select id="ev-type">
+          <option>Nagrania</option><option>Spotkanie</option><option>Inne</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Data</label><input id="ev-date" type="date"></div>
+    </div>
+    <div class="row2">
+      <div class="form-group"><label>Od</label><input id="ev-start" type="time"></div>
+      <div class="form-group"><label>Do</label><input id="ev-end" type="time"></div>
+    </div>
+    <div class="form-group"><label>Lokalizacja</label><input id="ev-loc" placeholder="np. Warszawa"></div>
+    <div class="row2">
+      <div class="form-group"><label>Projekt</label><select id="ev-proj"></select></div>
+      <div class="form-group"><label>Klient</label><select id="ev-client"></select></div>
+    </div>
+    <div class="form-group"><label>Notatki</label><textarea id="ev-notes"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" id="ev-del-btn" style="display:none;margin-right:auto" onclick="deleteEvent()">Usuń</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-event')">Anuluj</button>
+      <button class="btn btn-primary btn-sm" onclick="saveEvent()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- Project -->
+<div class="overlay" id="m-project">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('m-project')">✕</button>
+    <h2>Nowy projekt</h2>
+    <div class="form-group"><label>Nazwa projektu</label><input id="pj-name" placeholder="np. FILM DOKUMENTALNY"></div>
+    <div class="form-group"><label>Klient</label><select id="pj-client"></select></div>
+    <div class="form-group"><label>Status</label>
+      <select id="pj-status">
+        <option>W trakcie</option><option>Zakończony</option><option>Szkic</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Opis</label><textarea id="pj-desc"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-project')">Anuluj</button>
+      <button class="btn btn-primary btn-sm" onclick="saveProject()">Utwórz</button>
+    </div>
+  </div>
+</div>
+
+<!-- Client -->
+<div class="overlay" id="m-client">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('m-client')">✕</button>
+    <h2 id="m-client-title">Nowy klient</h2>
+    <div class="row2">
+      <div class="form-group"><label>Imię i nazwisko</label><input id="cl-name" placeholder="Jan Nowak"></div>
+      <div class="form-group"><label>Firma</label><input id="cl-company" placeholder="Firma sp. z o.o."></div>
+    </div>
+    <div class="row2">
+      <div class="form-group"><label>NIP</label><input id="cl-nip" placeholder="123 123 12 12"></div>
+      <div class="form-group"><label>Telefon</label><input id="cl-phone" placeholder="+48 500 000 000"></div>
+    </div>
+    <div class="form-group"><label>Adres</label><input id="cl-address" placeholder="ul. Testowa 83, 00-000 Testów"></div>
+    <div class="form-group"><label>Email</label><input id="cl-email" type="email" placeholder="klient@mail.pl"></div>
+    <div class="form-group"><label>Notatki</label><textarea id="cl-notes"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" id="cl-del-btn" style="display:none;margin-right:auto" onclick="deleteClient()">Usuń</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-client')">Anuluj</button>
+      <button class="btn btn-primary btn-sm" onclick="saveClient()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transaction -->
+<div class="overlay" id="m-tx">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('m-tx')">✕</button>
+    <h2 id="m-tx-title">Nowa transakcja</h2>
+    <div class="form-group"><label>Typ</label>
+      <select id="tx-type" onchange="updateTxCats()">
+        <option value="income">Przychód</option><option value="expense">Koszt</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Nazwa</label><input id="tx-name" placeholder="np. Faktura 01/06"></div>
+    <div class="row2">
+      <div class="form-group"><label>Kwota (PLN)</label><input id="tx-amount" type="number" step="0.01" placeholder="0.00"></div>
+      <div class="form-group"><label>Kategoria</label><select id="tx-cat"></select></div>
+    </div>
+    <div class="form-group"><label>Data</label><input id="tx-date" type="date"></div>
+    <div class="form-group"><label>Notatki</label><textarea id="tx-notes"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" id="tx-del-btn" style="display:none;margin-right:auto" onclick="deleteTx()">Usuń</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-tx')">Anuluj</button>
+      <button class="btn btn-primary btn-sm" onclick="saveTx()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quote Editor -->
+<div class="overlay" id="m-quote">
+  <div class="modal modal-lg">
+    <button class="modal-close" onclick="closeM('m-quote')">✕</button>
+    <h2 id="m-quote-title">Nowa wycena</h2>
+    <div class="row2">
+      <div class="form-group"><label>Klient</label><select id="q-client"></select></div>
+      <div class="form-group"><label>Status</label>
+        <select id="q-status">
+          <option>Szkic</option><option>Wysłana</option><option>Zaakceptowana</option><option>Odrzucona</option>
+        </select>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="form-group"><label>Data wystawienia</label><input id="q-issue" type="date"></div>
+      <div class="form-group"><label>Ważna do</label><input id="q-valid" type="date"></div>
+    </div>
+    <div style="font-size:11.5px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Usługi</div>
+    <div id="q-svc-lines"></div>
+    <button class="btn btn-ghost btn-sm" onclick="addSvcLine()" style="margin-bottom:14px">+ Dodaj usługę</button>
+    <div style="text-align:right;font-size:13px;color:var(--text2)" id="q-totals-preview"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" id="q-del-btn" style="display:none;margin-right:auto" onclick="deleteQuote()">Usuń</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-quote')">Anuluj</button>
+      <button class="btn btn-ghost btn-sm" onclick="previewQuoteCurrent()">Podgląd</button>
+      <button class="btn btn-primary btn-sm" onclick="saveQuote()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- Quote Preview -->
+<div class="overlay" id="m-quote-preview">
+  <div class="modal modal-xl" style="background:#e5e7eb;padding:20px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-weight:600;color:#111;font-size:15px">Podgląd wyceny</span>
+      <button class="btn btn-primary btn-sm" onclick="closeM('m-quote-preview')">Zamknij</button>
+    </div>
+    <div id="qp-content"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// DATA LAYER
+// ═══════════════════════════════════════════════════════════════
+const DB={get(k){try{return JSON.parse(localStorage.getItem(k))||null}catch{return null}},set(k,v){localStorage.setItem(k,JSON.stringify(v))}};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const gs=()=>DB.get('settings')||{name:'Mateusz',companyName:'Firma XYZ',nip:'123 123 12 12',address:'Testowa 13',email:'test@test.pl',phone:'+48 500 000 000',www:'www.test.pl',vatRate:23,rates:{recording:110,editing:85,travel:1.15}};
+const gc=()=>DB.get('clients')||[];
+const gp=()=>DB.get('projects')||[];
+const ge=()=>DB.get('events')||[];
+const gq=()=>DB.get('quotes')||[];
+const gt=()=>DB.get('transactions')||[];
+
+// Seed
+(function seed(){
+  if(DB.get('seeded'))return;
+  const cid=uid();
+  DB.set('clients',[{id:cid,name:'Jan Nowak',company:'Testowa 83, 00-000 Testów',nip:'123 123 12 12',address:'Testowa 83, 00-000 Testów',email:'jnowak@mail.pl',phone:'+48 500 123 123',notes:''}]);
+  const p1=uid(),p2=uid();
+  DB.set('projects',[
+    {id:p1,name:'FILM DOKUMENTALNY',clientId:cid,status:'W trakcie',description:'',tasks:[{id:uid(),text:'Nagrania',done:true},{id:uid(),text:'Montaż',done:true},{id:uid(),text:'Korekcja kolorów',done:false}],notes:''},
+    {id:p2,name:'RELACJA Z EVENTU',clientId:cid,status:'W trakcie',description:'',tasks:[{id:uid(),text:'Nagrania',done:false}],notes:''}
+  ]);
+  DB.set('events',[
+    {id:uid(),title:'Nagrania',type:'Nagrania',date:'2026-06-09',startTime:'08:00',endTime:'12:00',location:'Warszawa',projectId:p1,clientId:cid,notes:''},
+    {id:uid(),title:'Spotkanie',type:'Spotkanie',date:'2026-06-11',startTime:'14:00',endTime:'16:00',location:'Białystok',projectId:'',clientId:cid,notes:''},
+    {id:uid(),title:'Nagrania',type:'Nagrania',date:'2026-06-12',startTime:'09:00',endTime:'14:00',location:'Wrocław',projectId:p2,clientId:cid,notes:''}
+  ]);
+  const now=new Date(),m=now.getMonth(),y=now.getFullYear();
+  const d=n=>new Date(y,m,n).toISOString().slice(0,10);
+  DB.set('transactions',[
+    {id:uid(),type:'expense',name:'Składka ZUS',category:'Podatki/ZUS',amount:829,date:d(10),notes:''},
+    {id:uid(),type:'expense',name:'Paliwo',category:'Transport',amount:325,date:d(9),notes:''},
+    {id:uid(),type:'income',name:'Faktura 02/06',category:'Faktura',amount:2250,date:d(9),notes:''},
+    {id:uid(),type:'expense',name:'Karta SD',category:'Sprzęt',amount:180,date:d(8),notes:''},
+    {id:uid(),type:'income',name:'Faktura 01/06',category:'Faktura',amount:2890,date:d(6),notes:''}
+  ]);
+  DB.set('seeded',true);
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════════
+const MGEN=['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
+const MNOM=['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
+const DAYS_PL=['Niedziela','Poniedziałek','Wtorek','Środa','Czwartek','Piątek','Sobota'];
+const DAYS_SHORT=['NIEDZ.','PON.','WT.','ŚR.','CZW.','PT.','SOB.'];
+const todayStr=()=>new Date().toISOString().slice(0,10);
+const toD=s=>new Date(s+'T00:00:00');
+const fmtDate=s=>{const d=toD(s);return`${d.getDate()} ${MGEN[d.getMonth()]} ${d.getFullYear()}`};
+const fmtMoney=v=>new Intl.NumberFormat('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v)+' PLN';
+const clientName=id=>(gc().find(c=>c.id===id)||{}).name||'—';
+const projName=id=>(gp().find(p=>p.id===id)||{}).name||'—';
+const badgeCls=s=>s==='W trakcie'?'badge-orange':s==='Zakończony'?'badge-green':s==='Zaakceptowana'?'badge-green':s==='Wysłana'?'badge-blue':s==='Odrzucona'?'badge-red':'badge-gray';
+
+// ═══════════════════════════════════════════════════════════════
+// NAV
+// ═══════════════════════════════════════════════════════════════
+let curPage='home';
+function showPage(p){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-pill').forEach(x=>x.classList.remove('active'));
+  document.querySelector('.nav-home').classList.toggle('active',p==='home');
+  document.querySelector('.nav-settings').classList.toggle('active',p==='settings');
+  document.getElementById('page-'+p).classList.add('active');
+  const tabs=['calendar','projects','clients','finance'];
+  const i=tabs.indexOf(p);
+  if(i>=0)document.querySelectorAll('.nav-pill')[i].classList.add('active');
+  curPage=p;
+  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings})[p]?.();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// HOME
+// ═══════════════════════════════════════════════════════════════
+function renderHome(){
+  const s=gs();
+  document.getElementById('home-welcome').textContent=`Witaj, ${s.name||'…'}.`;
+  const n=new Date();
+  document.getElementById('home-date').textContent=`${n.getDate()} ${MGEN[n.getMonth()]} ${n.getFullYear()}`;
+  document.getElementById('home-weekday').textContent=DAYS_PL[n.getDay()];
+  const now=new Date();
+  const upcoming=ge().filter(e=>`${e.date}T${e.startTime}`>=now.toISOString().slice(0,16)).sort((a,b)=>(a.date+a.startTime).localeCompare(b.date+b.startTime));
+  if(upcoming.length){
+    document.getElementById('home-next-ev').textContent=upcoming[0].title;
+    document.getElementById('home-next-ev-time').textContent=`${fmtDate(upcoming[0].date)}, ${upcoming[0].startTime} – ${upcoming[0].endTime}`;
+  }else{
+    document.getElementById('home-next-ev').textContent='Brak nadchodzących';
+    document.getElementById('home-next-ev-time').textContent='';
+  }
+  const txs=gt().filter(t=>{const d=toD(t.date);return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth()});
+  const inc=txs.filter(t=>t.type==='income').reduce((a,t)=>a+t.amount,0);
+  const exp=txs.filter(t=>t.type==='expense').reduce((a,t)=>a+t.amount,0);
+  const mon=MNOM[n.getMonth()];
+  document.getElementById('home-income').textContent=fmtMoney(inc);
+  document.getElementById('home-netto').textContent=fmtMoney(inc-exp);
+  document.getElementById('lbl-income').textContent=`Przychód — ${mon}`;
+  document.getElementById('lbl-netto').textContent=`Dochód Netto — ${mon}`;
+  const active=gp().filter(p=>p.status==='W trakcie');
+  const el=document.getElementById('home-projects');
+  if(!active.length){el.innerHTML='<div style="color:var(--text2);font-size:14px;padding:12px 0">Brak aktywnych projektów</div>';return}
+  el.innerHTML=active.map(p=>{
+    const done=p.tasks.filter(t=>t.done).length,total=p.tasks.length;
+    return`<div class="list-row" onclick="goToProj('${p.id}')">
+      <div><div class="list-row-title">${p.name}</div><div class="list-row-sub">${clientName(p.clientId)}</div></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="badge badge-orange">W trakcie</span>
+        <span style="font-size:13px;color:var(--text2)">${done}/${total} zadań</span>
+        <span style="color:var(--text3)">›</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function goToProj(id){showPage('projects');setTimeout(()=>openProjDetail(id),30)}
+
+// ═══════════════════════════════════════════════════════════════
+// CALENDAR
+// ═══════════════════════════════════════════════════════════════
+let calOff=0;
+function calWeekStart(off=calOff){const d=new Date();const day=d.getDay()||7;d.setDate(d.getDate()-day+1+off*7);d.setHours(0,0,0,0);return d}
+function calPrev(){calOff--;renderCal()}
+function calNext(){calOff++;renderCal()}
+function calToday(){calOff=0;renderCal()}
+
+function renderCal(){
+  const ws=calWeekStart();
+  const we=new Date(ws);we.setDate(we.getDate()+6);
+  const fmt=d=>`${d.getDate()} ${MGEN[d.getMonth()].slice(0,3)}`;
+  document.getElementById('cal-range').textContent=`${fmt(ws)} – ${fmt(we)} ${we.getFullYear()}`;
+  const ts=todayStr();
+  const days=Array.from({length:7},(_,i)=>{const d=new Date(ws);d.setDate(d.getDate()+i);return d});
+  const evs=ge();
+  const HOURS=Array.from({length:11},(_,i)=>i+8);
+  let h='';
+  // header
+  h+=`<div class="cal-head-corner"></div>`;
+  days.forEach((d,i)=>{
+    const ds=d.toISOString().slice(0,10);
+    const isTd=ds===ts;
+    h+=`<div class="cal-head-day"><div class="cal-day-abbr">${DAYS_SHORT[(i+1)%7]||DAYS_SHORT[0]}</div><div class="cal-day-num${isTd?' today':''}">${d.getDate()}</div></div>`;
+  });
+  // body
+  HOURS.forEach(hr=>{
+    h+=`<div class="cal-time-cell">${String(hr).padStart(2,'0')}:00</div>`;
+    days.forEach(d=>{
+      const ds=d.toISOString().slice(0,10);
+      const cellEvs=evs.filter(e=>{
+        if(e.date!==ds)return false;
+        return parseInt(e.startTime.split(':')[0])===hr;
+      });
+      const eHtml=cellEvs.map(e=>{
+        const sm=parseInt(e.startTime.split(':')[1]);
+        const eh=parseInt(e.endTime.split(':')[0]),em=parseInt(e.endTime.split(':')[1]);
+        const sh2=parseInt(e.startTime.split(':')[0]);
+        const dur=(eh*60+em)-(sh2*60+sm);
+        const top=(sm/60)*60,height=Math.max((dur/60)*60,26);
+        const col=e.type==='Nagrania'?'blue':e.type==='Spotkanie'?'red':'green';
+        return`<div class="cal-event ${col}" style="top:${top}px;height:${height}px" onclick="openEditEvent('${e.id}')">
+          <div style="font-weight:600;font-size:11px">${e.title}</div>
+          <div class="ev-time">${e.startTime} – ${e.endTime}</div>
+          ${e.location?`<div class="ev-loc">↑ ${e.location}</div>`:''}
+          ${e.clientId?`<div class="ev-loc" style="margin-top:1px">👤 ${clientName(e.clientId)}</div>`:''}
+        </div>`;
+      }).join('');
+      h+=`<div class="cal-ev-cell" onclick="openAddEventDate('${ds}',${hr})">${eHtml}</div>`;
+    });
+  });
+  document.getElementById('cal-grid').innerHTML=h;
+}
+
+let editEvId=null;
+function openAddEvent(){
+  editEvId=null;
+  document.getElementById('m-event-title').textContent='Nowe wydarzenie';
+  document.getElementById('ev-title').value='';
+  document.getElementById('ev-type').value='Nagrania';
+  document.getElementById('ev-date').value=todayStr();
+  document.getElementById('ev-start').value='09:00';
+  document.getElementById('ev-end').value='12:00';
+  document.getElementById('ev-loc').value='';
+  document.getElementById('ev-notes').value='';
+  document.getElementById('ev-del-btn').style.display='none';
+  fillEvSelects('','');
+  openM('m-event');
+}
+function openAddEventDate(date,hr){openAddEvent();document.getElementById('ev-date').value=date;document.getElementById('ev-start').value=String(hr).padStart(2,'0')+':00';document.getElementById('ev-end').value=String(Math.min(hr+2,22)).padStart(2,'0')+':00'}
+function openEditEvent(id){
+  const e=ge().find(x=>x.id===id);if(!e)return;
+  editEvId=id;
+  document.getElementById('m-event-title').textContent='Edytuj wydarzenie';
+  document.getElementById('ev-title').value=e.title;
+  document.getElementById('ev-type').value=e.type;
+  document.getElementById('ev-date').value=e.date;
+  document.getElementById('ev-start').value=e.startTime;
+  document.getElementById('ev-end').value=e.endTime;
+  document.getElementById('ev-loc').value=e.location||'';
+  document.getElementById('ev-notes').value=e.notes||'';
+  document.getElementById('ev-del-btn').style.display='inline-flex';
+  fillEvSelects(e.projectId,e.clientId);
+  openM('m-event');
+}
+function fillEvSelects(pid,cid){
+  document.getElementById('ev-proj').innerHTML='<option value="">— brak —</option>'+gp().map(p=>`<option value="${p.id}"${p.id===pid?' selected':''}>${p.name}</option>`).join('');
+  document.getElementById('ev-client').innerHTML='<option value="">— brak —</option>'+gc().map(c=>`<option value="${c.id}"${c.id===cid?' selected':''}>${c.name}</option>`).join('');
+}
+function saveEvent(){
+  const evs=ge();
+  const obj={id:editEvId||uid(),title:document.getElementById('ev-title').value.trim(),type:document.getElementById('ev-type').value,date:document.getElementById('ev-date').value,startTime:document.getElementById('ev-start').value,endTime:document.getElementById('ev-end').value,location:document.getElementById('ev-loc').value,projectId:document.getElementById('ev-proj').value,clientId:document.getElementById('ev-client').value,notes:document.getElementById('ev-notes').value};
+  if(!obj.title||!obj.date){alert('Podaj nazwę i datę.');return}
+  if(editEvId){const i=evs.findIndex(x=>x.id===editEvId);evs[i]=obj}else evs.push(obj);
+  DB.set('events',evs);closeM('m-event');
+  if(curPage==='calendar')renderCal();else if(curPage==='home')renderHome();
+}
+function deleteEvent(){
+  if(!editEvId||!confirm('Usunąć wydarzenie?'))return;
+  DB.set('events',ge().filter(x=>x.id!==editEvId));closeM('m-event');
+  if(curPage==='calendar')renderCal();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// PROJECTS
+// ═══════════════════════════════════════════════════════════════
+let projFilter='all';
+function filterProj(f,btn){projFilter=f;document.querySelectorAll('.filter-tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');renderProj()}
+function renderProj(){
+  let ps=gp();if(projFilter!=='all')ps=ps.filter(p=>p.status===projFilter);
+  const el=document.getElementById('proj-list');
+  if(!ps.length){el.innerHTML='<div style="color:var(--text2);padding:16px 0;font-size:14px">Brak projektów</div>';return}
+  el.innerHTML=ps.map(p=>{
+    const done=p.tasks.filter(t=>t.done).length,total=p.tasks.length;
+    return`<div class="list-row" onclick="openProjDetail('${p.id}')">
+      <div><div class="list-row-title">${p.name}</div><div class="list-row-sub">${clientName(p.clientId)}</div></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="badge ${badgeCls(p.status)}">${p.status}</span>
+        <span style="font-size:13px;color:var(--text2)">${done}/${total} zadań</span>
+        <span style="color:var(--text3)">›</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+function openNewProject(){
+  document.getElementById('pj-name').value='';
+  document.getElementById('pj-status').value='W trakcie';
+  document.getElementById('pj-desc').value='';
+  document.getElementById('pj-client').innerHTML='<option value="">— brak —</option>'+gc().map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  openM('m-project');
+}
+function saveProject(){
+  const name=document.getElementById('pj-name').value.trim();if(!name){alert('Podaj nazwę.');return}
+  const ps=gp();
+  ps.push({id:uid(),name,clientId:document.getElementById('pj-client').value,status:document.getElementById('pj-status').value,description:document.getElementById('pj-desc').value,tasks:[],notes:''});
+  DB.set('projects',ps);closeM('m-project');renderProj();
+}
+function openProjDetail(id){
+  const p=gp().find(x=>x.id===id);if(!p)return;
+  document.getElementById('proj-list-view').style.display='none';
+  const dv=document.getElementById('proj-detail-view');dv.style.display='block';
+  renderProjDetail(p);
+}
+function renderProjDetail(p){
+  const cs=gc();
+  const evs=ge().filter(e=>e.projectId===p.id);
+  const dv=document.getElementById('proj-detail-view');
+  dv.innerHTML=`
+    <div class="detail-back">
+      <button class="btn btn-ghost btn-sm" onclick="closeProjDetail()">‹ Projekty</button>
+      <h2 style="font-size:22px;font-weight:700;flex:1">${p.name}</h2>
+      <span class="badge ${badgeCls(p.status)}">${p.status}</span>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div class="row2">
+        <div class="form-group"><label>Klient</label>
+          <select onchange="updateProjField('${p.id}','clientId',this.value)">
+            <option value="">— brak —</option>
+            ${cs.map(c=>`<option value="${c.id}"${c.id===p.clientId?' selected':''}>${c.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label>Status</label>
+          <select onchange="updateProjField('${p.id}','status',this.value)">
+            <option${p.status==='W trakcie'?' selected':''}>W trakcie</option>
+            <option${p.status==='Zakończony'?' selected':''}>Zakończony</option>
+            <option${p.status==='Szkic'?' selected':''}>Szkic</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:14px;font-weight:600">Zadania</div>
+        <button class="btn btn-ghost btn-sm" onclick="addTask('${p.id}')">+ Dodaj zadanie</button>
+      </div>
+      <div id="tasks-${p.id}">
+        ${p.tasks.map(t=>`<div class="task-item" id="ti-${t.id}">
+          <input type="checkbox" class="task-cb" ${t.done?'checked':''} onchange="toggleTask('${p.id}','${t.id}',this.checked)">
+          <span class="task-lbl${t.done?' done':''}">${t.text}</span>
+          <button class="btn-icon" onclick="removeTask('${p.id}','${t.id}')">✕</button>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:10px">Notatki</div>
+      <textarea rows="4" onblur="updateProjField('${p.id}','notes',this.value)">${p.notes||''}</textarea>
+    </div>
+    ${evs.length?`<div class="card" style="margin-bottom:12px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:10px">Powiązane wydarzenia</div>
+      ${evs.map(e=>`<div style="padding:7px 0;border-bottom:1px solid var(--border2);font-size:13px;color:var(--text2)">${e.title} — ${fmtDate(e.date)}, ${e.startTime}–${e.endTime}${e.location?' ↑ '+e.location:''}</div>`).join('')}
+    </div>`:''}
+    <div style="margin-top:16px">
+      <button class="btn btn-danger btn-sm" onclick="deleteProjConfirm('${p.id}')">Usuń projekt</button>
+    </div>`;
+}
+function closeProjDetail(){document.getElementById('proj-list-view').style.display='block';document.getElementById('proj-detail-view').style.display='none';renderProj()}
+function updateProjField(id,field,val){
+  const ps=gp(),i=ps.findIndex(x=>x.id===id);if(i<0)return;
+  ps[i][field]=val;DB.set('projects',ps);renderProjDetail(ps[i]);
+}
+function addTask(pid){
+  const text=prompt('Treść zadania:');if(!text)return;
+  const ps=gp(),i=ps.findIndex(x=>x.id===pid);
+  ps[i].tasks.push({id:uid(),text,done:false});DB.set('projects',ps);renderProjDetail(ps[i]);
+}
+function toggleTask(pid,tid,done){
+  const ps=gp(),i=ps.findIndex(x=>x.id===pid);
+  const t=ps[i].tasks.find(x=>x.id===tid);t.done=done;DB.set('projects',ps);
+  const el=document.querySelector(`#ti-${tid} .task-lbl`);
+  if(el)el.className='task-lbl'+(done?' done':'');
+}
+function removeTask(pid,tid){
+  const ps=gp(),i=ps.findIndex(x=>x.id===pid);
+  ps[i].tasks=ps[i].tasks.filter(x=>x.id!==tid);DB.set('projects',ps);renderProjDetail(ps[i]);
+}
+function deleteProjConfirm(id){
+  if(!confirm('Usunąć projekt?'))return;
+  DB.set('projects',gp().filter(x=>x.id!==id));closeProjDetail();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// CLIENTS
+// ═══════════════════════════════════════════════════════════════
+let clSubTab='clients';
+function clientSubTab(tab,btn){
+  clSubTab=tab;
+  document.querySelectorAll('.sub-tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');
+  document.getElementById('cl-tab-clients').style.display=tab==='clients'?'block':'none';
+  document.getElementById('cl-tab-quotes').style.display=tab==='quotes'?'block':'none';
+  const addBtn=document.getElementById('clients-add-btn');
+  if(tab==='clients'){addBtn.textContent='+ Nowy klient';addBtn.onclick=openNewClient}
+  else{addBtn.textContent='+ Nowa wycena';addBtn.onclick=openNewQuote;renderQuotesList()}
+}
+function renderClients(){
+  const cs=gc();
+  const el=document.getElementById('cl-list');
+  if(!cs.length){el.innerHTML='<div style="color:var(--text2);padding:16px 0;font-size:14px">Brak klientów</div>';return}
+  el.innerHTML=cs.map(c=>`<div class="list-row" onclick="openEditClient('${c.id}')">
+    <div><div class="list-row-title">${c.name}</div><div class="list-row-sub">${c.company||'—'}</div></div>
+    <div style="text-align:right;font-size:12.5px;color:var(--text2)"><div>${c.email||''}</div><div>${c.phone||''}</div></div>
+  </div>`).join('');
+}
+let editClId=null;
+function openNewClient(){
+  editClId=null;document.getElementById('m-client-title').textContent='Nowy klient';
+  ['name','company','nip','address','email','phone','notes'].forEach(f=>document.getElementById('cl-'+f).value='');
+  document.getElementById('cl-del-btn').style.display='none';openM('m-client');
+}
+function openEditClient(id){
+  const c=gc().find(x=>x.id===id);if(!c)return;
+  editClId=id;document.getElementById('m-client-title').textContent='Edytuj klienta';
+  document.getElementById('cl-name').value=c.name||'';document.getElementById('cl-company').value=c.company||'';
+  document.getElementById('cl-nip').value=c.nip||'';document.getElementById('cl-address').value=c.address||'';
+  document.getElementById('cl-email').value=c.email||'';document.getElementById('cl-phone').value=c.phone||'';
+  document.getElementById('cl-notes').value=c.notes||'';
+  document.getElementById('cl-del-btn').style.display='inline-flex';openM('m-client');
+}
+function saveClient(){
+  const cs=gc();
+  const obj={id:editClId||uid(),name:document.getElementById('cl-name').value.trim(),company:document.getElementById('cl-company').value,nip:document.getElementById('cl-nip').value,address:document.getElementById('cl-address').value,email:document.getElementById('cl-email').value,phone:document.getElementById('cl-phone').value,notes:document.getElementById('cl-notes').value};
+  if(!obj.name){alert('Podaj imię i nazwisko.');return}
+  if(editClId){const i=cs.findIndex(x=>x.id===editClId);cs[i]=obj}else cs.push(obj);
+  DB.set('clients',cs);closeM('m-client');renderClients();
+}
+function deleteClient(){
+  if(!editClId||!confirm('Usunąć klienta?'))return;
+  DB.set('clients',gc().filter(x=>x.id!==editClId));closeM('m-client');renderClients();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QUOTES
+// ═══════════════════════════════════════════════════════════════
+function renderQuotesList(){
+  const qs=gq().slice().sort((a,b)=>b.issueDate.localeCompare(a.issueDate));
+  const el=document.getElementById('quotes-list');
+  if(!qs.length){el.innerHTML='<div style="color:var(--text2);padding:16px 0;font-size:14px">Brak wycen</div>';return}
+  el.innerHTML=qs.map(q=>`<div class="list-row">
+    <div onclick="openEditQuote('${q.id}')" style="flex:1;cursor:pointer">
+      <div class="list-row-title">${clientName(q.clientId)} — ${q.number||''}</div>
+      <div class="list-row-sub">${fmtDate(q.issueDate)}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span class="badge ${badgeCls(q.status)}">${q.status}</span>
+      <span style="font-weight:600;font-size:15px">${fmtMoney(q.grossTotal||0)}</span>
+      <button class="btn btn-ghost btn-sm" onclick="previewQuoteById('${q.id}')">Podgląd</button>
+    </div>
+  </div>`).join('');
+}
+let editQId=null,svcLines=[];
+function openNewQuote(){
+  editQId=null;svcLines=[];
+  document.getElementById('m-quote-title').textContent='Nowa wycena';
+  document.getElementById('q-client').innerHTML='<option value="">— wybierz —</option>'+gc().map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('q-status').value='Szkic';
+  const t=todayStr();document.getElementById('q-issue').value=t;
+  const v=new Date(t);v.setDate(v.getDate()+30);document.getElementById('q-valid').value=v.toISOString().slice(0,10);
+  document.getElementById('q-del-btn').style.display='none';
+  addSvcLine();openM('m-quote');
+}
+function openEditQuote(id){
+  const q=gq().find(x=>x.id===id);if(!q)return;
+  editQId=id;svcLines=JSON.parse(JSON.stringify(q.services||[]));
+  document.getElementById('m-quote-title').textContent='Edytuj wycenę';
+  document.getElementById('q-client').innerHTML='<option value="">— wybierz —</option>'+gc().map(c=>`<option value="${c.id}"${c.id===q.clientId?' selected':''}>${c.name}</option>`).join('');
+  document.getElementById('q-status').value=q.status;
+  document.getElementById('q-issue').value=q.issueDate;
+  document.getElementById('q-valid').value=q.validUntil;
+  document.getElementById('q-del-btn').style.display='inline-flex';
+  renderSvcLines();openM('m-quote');
+}
+function addSvcLine(){
+  const s=gs();svcLines.push({type:'Nagranie',quantity:1,unit:'h',rate:s.rates?.recording||110,amount:s.rates?.recording||110});
+  renderSvcLines();
+}
+function renderSvcLines(){
+  const el=document.getElementById('q-svc-lines');
+  if(!svcLines.length){el.innerHTML='';updateQTotals();return}
+  el.innerHTML=svcLines.map((l,i)=>`<div class="svc-line">
+    <select onchange="slSet(${i},'type',this.value)" style="font-size:12.5px">
+      ${['Nagranie','Montaż','Dojazd','Dodatkowe koszty'].map(t=>`<option${l.type===t?' selected':''}>${t}</option>`).join('')}
+    </select>
+    <input type="number" value="${l.quantity}" step="0.5" min="0" placeholder="Ilość" style="font-size:12.5px" onchange="slSet(${i},'quantity',parseFloat(this.value)||0)">
+    <input type="number" value="${l.rate}" step="0.01" min="0" placeholder="Stawka" style="font-size:12.5px" onchange="slSet(${i},'rate',parseFloat(this.value)||0)">
+    <input type="number" value="${l.amount.toFixed(2)}" readonly style="font-size:12.5px;opacity:.6">
+    <button class="btn-icon" onclick="rmSvcLine(${i})">✕</button>
+  </div>`).join('');
+  updateQTotals();
+}
+function slSet(i,field,val){
+  svcLines[i][field]=val;const l=svcLines[i];
+  if(l.type==='Dodatkowe koszty'){l.unit='';l.amount=l.rate}
+  else if(l.type==='Dojazd'){l.unit='km';l.amount=l.quantity*l.rate}
+  else{l.unit='h';l.amount=l.quantity*l.rate}
+  renderSvcLines();
+}
+function rmSvcLine(i){svcLines.splice(i,1);renderSvcLines()}
+function updateQTotals(){
+  const net=svcLines.reduce((s,l)=>s+l.amount,0);
+  const vat=parseFloat(gs().vatRate)||23;
+  document.getElementById('q-totals-preview').innerHTML=`Netto: <strong>${fmtMoney(net)}</strong> &nbsp;|&nbsp; VAT ${vat}%: <strong>${fmtMoney(net*vat/100)}</strong> &nbsp;|&nbsp; Brutto: <strong style="color:var(--text)">${fmtMoney(net*(1+vat/100))}</strong>`;
+}
+function saveQuote(){
+  const clientId=document.getElementById('q-client').value;if(!clientId){alert('Wybierz klienta.');return}
+  const qs=gq();
+  const vat=parseFloat(gs().vatRate)||23;
+  const net=svcLines.reduce((s,l)=>s+l.amount,0);
+  const vatAmt=net*vat/100;const gross=net+vatAmt;
+  const prevSt=editQId?qs.find(x=>x.id===editQId)?.status:null;
+  const newSt=document.getElementById('q-status').value;
+  const num=editQId?qs.find(x=>x.id===editQId)?.number:`${String(qs.length+1).padStart(3,'0')}/${new Date().getFullYear()}`;
+  const obj={id:editQId||uid(),number:num,clientId,status:newSt,issueDate:document.getElementById('q-issue').value,validUntil:document.getElementById('q-valid').value,services:JSON.parse(JSON.stringify(svcLines)),netTotal:net,vatAmount:vatAmt,grossTotal:gross};
+  if(editQId){const i=qs.findIndex(x=>x.id===editQId);qs[i]=obj}else qs.push(obj);
+  DB.set('quotes',qs);
+  if(newSt==='Zaakceptowana'&&prevSt!=='Zaakceptowana'){
+    const txs=gt();const cl=gc().find(x=>x.id===clientId);
+    txs.push({id:uid(),type:'income',name:`Wycena ${num}${cl?' – '+cl.name:''}`,category:'Faktura',amount:gross,date:todayStr(),notes:'Automatycznie z wyceny'});
+    DB.set('transactions',txs);
+  }
+  closeM('m-quote');renderQuotesList();
+}
+function deleteQuote(){
+  if(!editQId||!confirm('Usunąć wycenę?'))return;
+  DB.set('quotes',gq().filter(x=>x.id!==editQId));closeM('m-quote');renderQuotesList();
+}
+function previewQuoteCurrent(){
+  const clientId=document.getElementById('q-client').value;
+  const issue=document.getElementById('q-issue').value;
+  const valid=document.getElementById('q-valid').value;
+  const num=editQId?gq().find(x=>x.id===editQId)?.number:`001/${new Date().getFullYear()}`;
+  const vat=parseFloat(gs().vatRate)||23;
+  const net=svcLines.reduce((s,l)=>s+l.amount,0);
+  const vatAmt=net*vat/100;
+  renderQPreview({clientId,issueDate:issue,validUntil:valid,number:num,services:svcLines,netTotal:net,vatAmount:vatAmt,grossTotal:net+vatAmt});
+  openM('m-quote-preview');
+}
+function previewQuoteById(id){const q=gq().find(x=>x.id===id);if(!q)return;renderQPreview(q);openM('m-quote-preview')}
+function renderQPreview(q){
+  const s=gs(),cl=gc().find(x=>x.id===q.clientId)||{};
+  document.getElementById('qp-content').innerHTML=`<div class="qp-wrap">
+    <div class="qp-top">
+      <div class="qp-logo-box">SWOJE LOGO WGRASZ<br><strong>W ZAKŁADCE USTAWIENIA</strong></div>
+      <div class="qp-company-info"><strong>${s.companyName||'Firma'}</strong>${s.address?'<br>'+s.address:''}${s.nip?'<br>NIP: '+s.nip:''}${s.email?'<br>'+s.email:''}${s.phone?'<br>'+s.phone:''}${s.www?'<br>'+s.www:''}</div>
+    </div>
+    <hr class="qp-hr">
+    <div class="qp-title-row">
+      <div><div class="qp-title">WYCENA</div><div class="qp-num">Nr ${q.number||'—'}</div></div>
+      <div class="qp-dates">Data wystawienia:<br><strong>${q.issueDate?fmtDate(q.issueDate):''}</strong><br><br>Wycena ważna do:<br><span class="valid">${q.validUntil?fmtDate(q.validUntil):''}</span></div>
+    </div>
+    <div class="qp-boxes">
+      <div class="qp-box"><div class="qp-box-lbl">Wystawca</div><strong>${s.companyName||''}</strong>${s.address?'<div>'+s.address+'</div>':''}${s.nip?'<div>NIP: '+s.nip+'</div>':''}${s.email?'<div>'+s.email+'</div>':''}${s.phone?'<div>'+s.phone+'</div>':''}</div>
+      <div class="qp-box"><div class="qp-box-lbl">Klient</div><strong>${cl.name||'—'}</strong>${cl.address?'<div>'+cl.address+'</div>':''}${cl.nip?'<div>NIP: '+cl.nip+'</div>':''}${cl.email?'<div>'+cl.email+'</div>':''}${cl.phone?'<div>'+cl.phone+'</div>':''}</div>
+    </div>
+    <table class="qp-table"><thead><tr><th>Usługa</th><th>Ilość</th><th>Stawka</th><th>Kwota</th></tr></thead><tbody>
+      ${(q.services||[]).map(l=>`<tr><td>${l.type}</td><td>${l.type==='Dodatkowe koszty'?'—':l.quantity+' '+(l.unit||'')}</td><td>${l.type==='Dodatkowe koszty'?'—':fmtMoney(l.rate)+'/'+(l.unit||'')}</td><td>${fmtMoney(l.amount)}</td></tr>`).join('')}
+    </tbody></table>
+    <div class="qp-totals"><table class="qp-tot-table">
+      <tr><td>Wartość netto:</td><td>${fmtMoney(q.netTotal||0)}</td></tr>
+      <tr><td>VAT ${s.vatRate||23}%:</td><td>${fmtMoney(q.vatAmount||0)}</td></tr>
+      <tr class="qp-tot-row"><td>RAZEM BRUTTO:</td><td>${fmtMoney(q.grossTotal||0)}</td></tr>
+    </table></div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// FINANCE
+// ═══════════════════════════════════════════════════════════════
+let finType='month',finDate=new Date();
+function finPeriodSwitch(t,btn){finType=t;document.querySelectorAll('.fin-seg-btn').forEach(x=>x.classList.remove('active'));btn.classList.add('active');renderFin()}
+function finNav(d){
+  if(finType==='month')finDate=new Date(finDate.getFullYear(),finDate.getMonth()+d,1);
+  else if(finType==='quarter')finDate=new Date(finDate.getFullYear(),finDate.getMonth()+d*3,1);
+  else finDate=new Date(finDate.getFullYear()+d,0,1);
+  renderFin();
+}
+function finGoToday(){finDate=new Date();renderFin()}
+function renderFin(){
+  let lbl='';
+  if(finType==='month')lbl=`${MNOM[finDate.getMonth()]} ${finDate.getFullYear()}`;
+  else if(finType==='quarter')lbl=`Q${Math.floor(finDate.getMonth()/3)+1} ${finDate.getFullYear()}`;
+  else lbl=String(finDate.getFullYear());
+  document.getElementById('fin-lbl').textContent=lbl;
+  const txs=gt().filter(t=>{
+    const d=toD(t.date);
+    if(finType==='month')return d.getFullYear()===finDate.getFullYear()&&d.getMonth()===finDate.getMonth();
+    if(finType==='quarter')return d.getFullYear()===finDate.getFullYear()&&Math.floor(d.getMonth()/3)===Math.floor(finDate.getMonth()/3);
+    return d.getFullYear()===finDate.getFullYear();
+  }).sort((a,b)=>b.date.localeCompare(a.date));
+  const inc=txs.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+  const exp=txs.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+  document.getElementById('fin-income').textContent=fmtMoney(inc);
+  document.getElementById('fin-exp').textContent=fmtMoney(exp);
+  document.getElementById('fin-netto').textContent=fmtMoney(inc-exp);
+  const dayFmt=s=>{const d=toD(s);return`${d.getDate()} ${MGEN[d.getMonth()].slice(0,3)}`};
+  const el=document.getElementById('tx-list');
+  if(!txs.length){el.innerHTML='<div style="color:var(--text2);padding:18px 0;font-size:14px">Brak transakcji w tym okresie</div>';return}
+  el.innerHTML=txs.map(t=>`<div class="tx-row" onclick="openEditTx('${t.id}')">
+    <div class="tx-dot ${t.type==='income'?'income':'expense'}">${t.type==='income'?'↓':'↑'}</div>
+    <div><div class="tx-name">${t.name}</div><div class="tx-cat">${t.category||''}</div></div>
+    <span class="tx-amt ${t.type==='income'?'income':'expense'}">${t.type==='income'?'+':'-'}${fmtMoney(t.amount)}</span>
+    <span class="tx-date">${dayFmt(t.date)}</span>
+  </div>`).join('');
+}
+let editTxId=null;
+function openAddTx(){
+  editTxId=null;document.getElementById('m-tx-title').textContent='Nowa transakcja';
+  document.getElementById('tx-type').value='income';document.getElementById('tx-name').value='';
+  document.getElementById('tx-amount').value='';document.getElementById('tx-date').value=todayStr();
+  document.getElementById('tx-notes').value='';document.getElementById('tx-del-btn').style.display='none';
+  updateTxCats();openM('m-tx');
+}
+function openEditTx(id){
+  const t=gt().find(x=>x.id===id);if(!t)return;
+  editTxId=id;document.getElementById('m-tx-title').textContent='Edytuj transakcję';
+  document.getElementById('tx-type').value=t.type;document.getElementById('tx-name').value=t.name;
+  document.getElementById('tx-amount').value=t.amount;document.getElementById('tx-date').value=t.date;
+  document.getElementById('tx-notes').value=t.notes||'';
+  document.getElementById('tx-del-btn').style.display='inline-flex';
+  updateTxCats(t.category);openM('m-tx');
+}
+function updateTxCats(sel){
+  const type=document.getElementById('tx-type').value;
+  const cats=type==='expense'?['Podatki/ZUS','Transport','Sprzęt','Inne']:['Faktura','Inne'];
+  document.getElementById('tx-cat').innerHTML=cats.map(c=>`<option${c===sel?' selected':''}>${c}</option>`).join('');
+}
+function saveTx(){
+  const txs=gt();
+  const obj={id:editTxId||uid(),type:document.getElementById('tx-type').value,name:document.getElementById('tx-name').value.trim(),category:document.getElementById('tx-cat').value,amount:parseFloat(document.getElementById('tx-amount').value)||0,date:document.getElementById('tx-date').value,notes:document.getElementById('tx-notes').value};
+  if(!obj.name){alert('Podaj nazwę.');return}
+  if(editTxId){const i=txs.findIndex(x=>x.id===editTxId);txs[i]=obj}else txs.push(obj);
+  DB.set('transactions',txs);closeM('m-tx');renderFin();
+}
+function deleteTx(){
+  if(!editTxId||!confirm('Usunąć transakcję?'))return;
+  DB.set('transactions',gt().filter(x=>x.id!==editTxId));closeM('m-tx');renderFin();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════
+function loadSettings(){
+  const s=gs();
+  document.getElementById('s-name').value=s.name||'';document.getElementById('s-company').value=s.companyName||'';
+  document.getElementById('s-nip').value=s.nip||'';document.getElementById('s-address').value=s.address||'';
+  document.getElementById('s-email').value=s.email||'';document.getElementById('s-phone').value=s.phone||'';
+  document.getElementById('s-www').value=s.www||'';document.getElementById('s-vat').value=s.vatRate||23;
+  document.getElementById('s-rec').value=s.rates?.recording||110;
+  document.getElementById('s-edit').value=s.rates?.editing||85;
+  document.getElementById('s-travel').value=s.rates?.travel||1.15;
+}
+function saveSettings(){
+  DB.set('settings',{name:document.getElementById('s-name').value,companyName:document.getElementById('s-company').value,nip:document.getElementById('s-nip').value,address:document.getElementById('s-address').value,email:document.getElementById('s-email').value,phone:document.getElementById('s-phone').value,www:document.getElementById('s-www').value,vatRate:parseFloat(document.getElementById('s-vat').value)||23,rates:{recording:parseFloat(document.getElementById('s-rec').value)||110,editing:parseFloat(document.getElementById('s-edit').value)||85,travel:parseFloat(document.getElementById('s-travel').value)||1.15}});
+  const ok=document.getElementById('s-ok');ok.style.display='inline';setTimeout(()=>ok.style.display='none',2200);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════════════
+function openM(id){document.getElementById(id).classList.add('open')}
+function closeM(id){document.getElementById(id).classList.remove('open')}
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
+
+// ═══════════════════════════════════════════════════════════════
+// PWA
+// ═══════════════════════════════════════════════════════════════
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+renderHome();
+</script>
+</body>
+</html>
