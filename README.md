@@ -4,6 +4,16 @@ Desktopowa aplikacja Electron do zarzadzania sprzedaza B2B, spotkaniami i genero
 
 ## Uruchomienie
 
+Najprosciej: pobierz gotowy instalator z folderu `installer`:
+
+```text
+installer/Sales-B2B-Setup-1.0.0.exe
+```
+
+Po pobraniu uruchom plik `.exe` i przejdz instalacje.
+
+## Uruchomienie z kodu
+
 1. Zainstaluj Node.js.
 2. Pobierz repozytorium.
 3. W folderze projektu uruchom:
