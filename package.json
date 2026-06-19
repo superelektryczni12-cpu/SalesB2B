@@ -1,6 +1,6 @@
 {
   "name": "sales-b2b",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "System zarządzania B2B dla freelancerów",
   "main": "main.js",
   "scripts": {
@@ -16,17 +16,32 @@
     },
     "files": [
       "main.js",
+      "backend.js",
       "preload.js",
+      "supabase-config.json",
       "renderer/**/*",
       "assets/**/*"
     ],
     "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "assets/icon.png"
     },
     "mac": {
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ],
       "icon": "assets/icon.png",
       "category": "public.app-category.business",
@@ -37,7 +52,10 @@
     "dmg": {
       "title": "Sales B2B ${version}",
       "backgroundColor": "#0d0d0d",
-      "window": { "width": 540, "height": 380 }
+      "window": {
+        "width": 540,
+        "height": 380
+      }
     },
     "nsis": {
       "oneClick": false,
@@ -49,5 +67,8 @@
   "devDependencies": {
     "electron": "^35.7.5",
     "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.2"
   }
 }

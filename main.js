@@ -3,6 +3,7 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
+const backend = require('./backend');
 
 const GOOGLE_API_KEY = 'AIzaSyAkAJfARQ2P1WUO7__-1IvPuAeeFDBK0lA';
 
@@ -45,6 +46,15 @@ ipcMain.handle('get-place-details', async (_e, placeId) => {
   const data = await httpsGet(url);
   return data.result || {};
 });
+
+ipcMain.handle('backend-status', () => backend.backendStatus());
+ipcMain.handle('auth-restore', () => backend.restoreSession());
+ipcMain.handle('auth-login', (_e, email, password) => backend.signIn(email, password));
+ipcMain.handle('auth-register', (_e, account) => backend.signUp(account));
+ipcMain.handle('auth-logout', () => backend.signOut());
+ipcMain.handle('employees-list', () => backend.listEmployees());
+ipcMain.handle('employees-save', (_e, employee) => backend.saveEmployee(employee));
+ipcMain.handle('employees-delete', (_e, id) => backend.deleteEmployee(id));
 
 nativeTheme.themeSource = 'dark';
 

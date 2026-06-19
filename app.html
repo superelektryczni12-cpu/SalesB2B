@@ -330,8 +330,8 @@ textarea{resize:vertical;min-height:70px}
   <div class="settings-section">
     <h3>Stawki domyślne</h3>
     <div class="row2">
-      <div class="form-group"><label>Nagranie (PLN/h)</label><input id="s-rate-rec" type="number" placeholder="110"></div>
-      <div class="form-group"><label>Montaż (PLN/h)</label><input id="s-rate-edit" type="number" placeholder="85"></div>
+      <div class="form-group"><label>Wdrożenie systemu (PLN/h)</label><input id="s-rate-rec" type="number" placeholder="180"></div>
+      <div class="form-group"><label>Automatyzacja procesów (PLN/h)</label><input id="s-rate-edit" type="number" placeholder="200"></div>
     </div>
     <div class="form-group"><label>Dojazd (PLN/km)</label><input id="s-rate-travel" type="number" placeholder="1.15" step="0.01" style="max-width:140px"></div>
   </div>
@@ -346,11 +346,12 @@ textarea{resize:vertical;min-height:70px}
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-event')">✕</button>
     <h2 id="modal-event-title">Nowe wydarzenie</h2>
-    <div class="form-group"><label>Nazwa</label><input id="ev-title" placeholder="np. Nagrania"></div>
+    <div class="form-group"><label>Nazwa</label><input id="ev-title" placeholder="np. Wdrożenie systemu"></div>
     <div class="form-group">
       <label>Typ</label>
       <select id="ev-type">
-        <option value="Nagrania">Nagrania</option>
+        <option value="Wdrożenie">Wdrożenie</option>
+        <option value="Warsztat">Warsztat</option>
         <option value="Spotkanie">Spotkanie</option>
         <option value="Inne">Inne</option>
       </select>
@@ -379,7 +380,7 @@ textarea{resize:vertical;min-height:70px}
   <div class="modal">
     <button class="modal-close" onclick="closeModal('modal-project')">✕</button>
     <h2>Nowy projekt</h2>
-    <div class="form-group"><label>Nazwa projektu</label><input id="proj-name" placeholder="np. FILM DOKUMENTALNY"></div>
+    <div class="form-group"><label>Nazwa projektu</label><input id="proj-name" placeholder="np. WDROŻENIE SYSTEMU CRM"></div>
     <div class="form-group"><label>Klient</label><select id="proj-client"><option value="">— brak —</option></select></div>
     <div class="form-group">
       <label>Status</label>
@@ -500,7 +501,7 @@ const DB = {
   set(k,v){localStorage.setItem(k,JSON.stringify(v))}
 };
 
-function getSettings(){return DB.get('settings')||{name:'Mateusz',companyName:'Firma XYZ',nip:'123 123 12 12',address:'Testowa 13',email:'test@test.pl',phone:'+48 500 000 000',www:'www.test.pl',vatRate:23,rates:{recording:110,editing:85,travel:1.15}}}
+function getSettings(){return DB.get('settings')||{name:'Mateusz',companyName:'Firma XYZ',nip:'123 123 12 12',address:'Testowa 13',email:'test@test.pl',phone:'+48 500 000 000',www:'www.test.pl',vatRate:23,rates:{implementation:180,automation:200,travel:1.15}}}
 function getClients(){return DB.get('clients')||[]}
 function getProjects(){return DB.get('projects')||[]}
 function getEvents(){return DB.get('events')||[]}
@@ -516,13 +517,13 @@ function seedData(){
   DB.set('clients',[{id:clientId,name:'Jan Nowak',company:'Testowa 83, 00-000 Testów',nip:'123 123 12 12',address:'Testowa 83, 00-000 Testów',email:'jnowak@mail.pl',phone:'+48 500 123 123',notes:''}]);
   const p1=uid(),p2=uid();
   DB.set('projects',[
-    {id:p1,name:'FILM DOKUMENTALNY',clientId,status:'W trakcie',description:'',tasks:[{id:uid(),text:'Nagrania',done:true},{id:uid(),text:'Montaż',done:true},{id:uid(),text:'Korekcja kolorów',done:false}],notes:''},
-    {id:p2,name:'RELACJA Z EVENTU',clientId,status:'W trakcie',description:'',tasks:[{id:uid(),text:'Nagrania',done:false}],notes:''}
+    {id:p1,name:'WDROŻENIE SYSTEMU CRM',clientId,status:'W trakcie',description:'',tasks:[{id:uid(),text:'Analiza procesów',done:true},{id:uid(),text:'Konfiguracja systemu',done:true},{id:uid(),text:'Integracja danych',done:false}],notes:''},
+    {id:p2,name:'AUTOMATYZACJA OBSŁUGI LEADÓW',clientId,status:'W trakcie',description:'',tasks:[{id:uid(),text:'Mapowanie procesu',done:false}],notes:''}
   ]);
   DB.set('events',[
-    {id:uid(),title:'Nagrania',type:'Nagrania',date:'2026-06-09',startTime:'08:00',endTime:'12:00',location:'Warszawa',projectId:p1,clientId,notes:''},
+    {id:uid(),title:'Wdrożenie CRM',type:'Wdrożenie',date:'2026-06-09',startTime:'08:00',endTime:'12:00',location:'Warszawa',projectId:p1,clientId,notes:''},
     {id:uid(),title:'Spotkanie',type:'Spotkanie',date:'2026-06-11',startTime:'14:00',endTime:'16:00',location:'Białystok',projectId:'',clientId,notes:''},
-    {id:uid(),title:'Nagrania',type:'Nagrania',date:'2026-06-12',startTime:'09:00',endTime:'14:00',location:'Wrocław',projectId:p2,clientId,notes:''}
+    {id:uid(),title:'Warsztat procesowy',type:'Warsztat',date:'2026-06-12',startTime:'09:00',endTime:'14:00',location:'Wrocław',projectId:p2,clientId,notes:''}
   ]);
   const today=new Date();
   const m=today.getMonth(),y=today.getFullYear();
@@ -670,7 +671,7 @@ function renderCalendar(){
         const dur=(eh*60+em)-(sh*60+sm);
         const top=(sm/60)*60;
         const height=Math.max((dur/60)*60,24);
-        const col=e.type==='Nagrania'?'blue':e.type==='Spotkanie'?'red':'green';
+        const col=e.type==='Wdrożenie'?'blue':e.type==='Spotkanie'?'red':'green';
         return`<div class="cal-event ${col}" style="top:${top}px;height:${height}px" onclick="openEditEvent('${e.id}')">
           <div>${e.title}</div>
           <div style="font-size:10px;opacity:.85">${e.startTime} – ${e.endTime}</div>
@@ -689,7 +690,7 @@ function openAddEvent(){
   editingEventId=null;
   document.getElementById('modal-event-title').textContent='Nowe wydarzenie';
   document.getElementById('ev-title').value='';
-  document.getElementById('ev-type').value='Nagrania';
+  document.getElementById('ev-type').value='Wdrożenie';
   document.getElementById('ev-date').value=today();
   document.getElementById('ev-start').value='09:00';
   document.getElementById('ev-end').value='12:00';
@@ -991,7 +992,8 @@ function openEditQuote(id){
 }
 function addServiceLine(){
   const s=getSettings();
-  serviceLines.push({type:'Nagranie',quantity:1,unit:'h',rate:s.rates?.recording||110,amount:s.rates?.recording||110});
+  const rate=s.rates?.implementation||180;
+  serviceLines.push({type:'Wdrożenie systemu',quantity:1,unit:'h',rate,amount:rate});
   renderServiceLines();
 }
 function renderServiceLines(){
@@ -1000,8 +1002,10 @@ function renderServiceLines(){
   el.innerHTML=serviceLines.map((l,i)=>`
     <div class="service-line" style="margin-bottom:8px">
       <select onchange="slChange(${i},'type',this.value)" style="font-size:12px">
-        <option${l.type==='Nagranie'?' selected':''}>Nagranie</option>
-        <option${l.type==='Montaż'?' selected':''}>Montaż</option>
+        <option${l.type==='Wdrożenie systemu'?' selected':''}>Wdrożenie systemu</option>
+        <option${l.type==='Automatyzacja procesu'?' selected':''}>Automatyzacja procesu</option>
+        <option${l.type==='Integracja systemów'?' selected':''}>Integracja systemów</option>
+        <option${l.type==='Konsultacja technologiczna'?' selected':''}>Konsultacja technologiczna</option>
         <option${l.type==='Dojazd'?' selected':''}>Dojazd</option>
         <option${l.type==='Dodatkowe koszty'?' selected':''}>Dodatkowe koszty</option>
       </select>
@@ -1240,12 +1244,12 @@ function loadSettings(){
   document.getElementById('s-phone').value=s.phone||'';
   document.getElementById('s-www').value=s.www||'';
   document.getElementById('s-vat').value=s.vatRate||23;
-  document.getElementById('s-rate-rec').value=s.rates?.recording||110;
-  document.getElementById('s-rate-edit').value=s.rates?.editing||85;
+  document.getElementById('s-rate-rec').value=s.rates?.implementation||180;
+  document.getElementById('s-rate-edit').value=s.rates?.automation||200;
   document.getElementById('s-rate-travel').value=s.rates?.travel||1.15;
 }
 function saveSettings(){
-  DB.set('settings',{name:document.getElementById('s-name').value,companyName:document.getElementById('s-company').value,nip:document.getElementById('s-nip').value,address:document.getElementById('s-address').value,email:document.getElementById('s-email').value,phone:document.getElementById('s-phone').value,www:document.getElementById('s-www').value,vatRate:parseFloat(document.getElementById('s-vat').value)||23,rates:{recording:parseFloat(document.getElementById('s-rate-rec').value)||110,editing:parseFloat(document.getElementById('s-rate-edit').value)||85,travel:parseFloat(document.getElementById('s-rate-travel').value)||1.15}});
+  DB.set('settings',{name:document.getElementById('s-name').value,companyName:document.getElementById('s-company').value,nip:document.getElementById('s-nip').value,address:document.getElementById('s-address').value,email:document.getElementById('s-email').value,phone:document.getElementById('s-phone').value,www:document.getElementById('s-www').value,vatRate:parseFloat(document.getElementById('s-vat').value)||23,rates:{implementation:parseFloat(document.getElementById('s-rate-rec').value)||180,automation:parseFloat(document.getElementById('s-rate-edit').value)||200,travel:parseFloat(document.getElementById('s-rate-travel').value)||1.15}});
   const ok=document.getElementById('settings-saved');ok.style.display='block';setTimeout(()=>ok.style.display='none',2000);
 }
 
