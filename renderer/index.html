@@ -261,6 +261,17 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .lead-avatar{width:40px;height:40px;border-radius:10px;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .lead-name{font-size:14px;font-weight:600}
 .lead-meta{font-size:12px;color:var(--text2);margin-top:2px}
+.lead-score{min-width:108px;text-align:center;padding:7px 9px;border-radius:8px;border:1px solid var(--border);font-size:11px;font-weight:600;line-height:1.35}
+.lead-score strong{display:block;font-size:15px;color:var(--text)}
+.lead-score.s1{background:rgba(239,68,68,.1);color:var(--red)}
+.lead-score.s2{background:rgba(249,115,22,.1);color:var(--orange)}
+.lead-score.s3{background:rgba(245,158,11,.1);color:var(--amber)}
+.lead-score.s4{background:rgba(59,130,246,.1);color:var(--blue)}
+.lead-score.s5{background:rgba(34,197,94,.1);color:var(--green)}
+.lead-facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:4px;padding-top:4px}
+.lead-analysis{margin-top:14px;padding:14px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.lead-analysis-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:8px}
+.lead-evidence{font-size:12.5px;color:var(--text2);line-height:1.65}
 .lead-expand{display:none;padding:0 18px 16px;border-top:1px solid var(--border2)}
 .lead-expand.open{display:block}
 .lead-field{margin-top:10px}
@@ -465,7 +476,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   <!-- AI GENERATOR PANEL -->
   <div class="ai-gen-panel">
     <div style="font-size:13px;font-weight:600;color:var(--blue);margin-bottom:14px;display:flex;align-items:center;gap:6px">✦ Generator firm — AI Cold Outreach</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:flex-end">
+    <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:flex-end">
       <div class="form-group" style="margin-bottom:0">
         <label>Branża</label>
         <select id="gen-industry">
@@ -499,15 +510,6 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
           <option value="podkarpackie">Podkarpackie</option>
           <option value="swietokrzyskie">Świętokrzyskie</option>
           <option value="opolskie">Opolskie</option>
-        </select>
-      </div>
-      <div class="form-group" style="margin-bottom:0">
-        <label>Wielkość (pracownicy)</label>
-        <select id="gen-size">
-          <option value="5-10">5–10 osób (startup/mała)</option>
-          <option value="10-25">10–25 osób</option>
-          <option value="25-50">25–50 osób</option>
-          <option value="1-5">1–5 osób (mikro)</option>
         </select>
       </div>
       <button class="btn btn-primary" onclick="generateAICompanies()" id="gen-btn">Generuj firmy</button>
@@ -756,7 +758,11 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     </div>
     <div class="row2">
       <div class="form-group"><label>Miasto</label><input id="co-city" placeholder="Warszawa"></div>
-      <div class="form-group"><label>Liczba pracowników</label><input id="co-size" placeholder="5–10"></div>
+      <div class="form-group"><label>Ulica</label><input id="co-street" placeholder="ul. Testowa 10"></div>
+    </div>
+    <div class="row2">
+      <div class="form-group"><label>Liczba pracowników (jeśli potwierdzona)</label><input id="co-size" placeholder="Brak danych"></div>
+      <div class="form-group"><label>Ocena Google / liczba opinii</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><input id="co-rating" type="number" min="0" max="5" step="0.1" placeholder="4.8"><input id="co-reviews" type="number" min="0" step="1" placeholder="125"></div></div>
     </div>
     <div class="row2">
       <div class="form-group"><label>Telefon</label><input id="co-phone" placeholder="+48 500 000 000"></div>
@@ -1520,6 +1526,112 @@ let editCompanyId = null;
 
 const LEAD_STATUS_LABELS = { nowy:'Nowy', zadzwoniono:'Zadzwoniono', zainteresowany:'Zainteresowany', follow_up:'Follow-up', odrzucony:'Odrzucony' };
 const LEAD_STATUS_BADGE = { nowy:'badge-new-lead', zadzwoniono:'badge-called', zainteresowany:'badge-interested', follow_up:'badge-follow', odrzucony:'badge-rejected' };
+const GOOGLE_TYPE_LABELS = {
+  accounting:'Księgowość', advertising_agency:'Agencja reklamowa', consulting_agency:'Doradztwo',
+  employment_agency:'Agencja zatrudnienia', finance:'Finanse', insurance_agency:'Ubezpieczenia',
+  lawyer:'Usługi prawne', moving_company:'Transport / przeprowadzki', real_estate_agency:'Nieruchomości',
+  software_company:'Oprogramowanie', store:'Handel', travel_agency:'Turystyka',
+};
+const LEAD_SCORE_LABELS = {1:'Nie warto dzwonić',2:'Niski priorytet',3:'Do weryfikacji',4:'Warto zadzwonić',5:'Dzwoń od razu'};
+const SYSTEM_NEEDS_BY_INDUSTRY = {
+  general:['CRM i uporządkowanie kontaktów','Elektroniczny obieg dokumentów','Automatyzacja powtarzalnych zadań','Integracja sprzedaży, księgowości i poczty','Raportowanie zarządcze i kontrola dostępu'],
+  marketing:['CRM i obsługa leadów','Automatyzacja kampanii','Raportowanie wyników i BI','Obieg akceptacji materiałów','Integracje formularzy, reklam i poczty'],
+  software:['CRM sprzedażowy','Zarządzanie projektami i zasobami','Helpdesk i obsługa zgłoszeń','Automatyzacja fakturowania','Monitoring usług i raportowanie'],
+  ecommerce:['ERP lub integracja księgowości','OMS/WMS i obsługa zamówień','CRM i marketing automation','Integracje marketplace i kurierów','Analityka sprzedaży i marży'],
+  real_estate:['CRM dla ofert i klientów','Automatyzacja obsługi zapytań','Obieg dokumentów i e-podpis','Publikacja ofert w wielu portalach','Raportowanie pracy agentów'],
+  consulting:['CRM i pipeline sprzedaży','Zarządzanie projektami i czasem','Obieg ofert i umów','Baza wiedzy i dokumentów','Fakturowanie i rentowność projektów'],
+  hr:['ATS i zarządzanie rekrutacją','CRM kandydatów i klientów','Automatyzacja onboardingu','Obieg dokumentów pracowniczych','Raportowanie rekrutacji'],
+  logistics:['TMS/WMS','Zarządzanie flotą i trasami','Elektroniczny obieg zleceń','Integracje GPS, księgowości i klientów','Portal klienta i status przesyłki'],
+  finance:['System księgowy lub ERP','OCR i obieg dokumentów','Automatyzacja rozliczeń','Raportowanie zarządcze','Kontrola dostępu i cyberbezpieczeństwo'],
+  legal:['CRM klientów i spraw','Elektroniczny obieg dokumentów','Terminarz spraw i terminów','Bezpieczne archiwum oraz kontrola dostępu','Automatyzacja rozliczeń i raportowania czasu'],
+  healthcare:['Rejestracja wizyt i przypomnienia','Elektroniczna dokumentacja i bezpieczny obieg danych','CRM pacjentów lub klientów','Rozliczenia i integracje płatności','Raportowanie pracy placówki'],
+  manufacturing:['ERP i planowanie produkcji','Magazyn oraz śledzenie materiałów','Kontrola jakości i obieg zleceń','Utrzymanie ruchu i ewidencja maszyn','Raportowanie kosztów i wydajności'],
+  construction:['CRM ofert i inwestycji','Zarządzanie projektami, ekipami i harmonogramem','Obieg kosztorysów, umów i protokołów','Ewidencja sprzętu i materiałów','Raportowanie kosztów oraz postępu prac'],
+  hospitality:['Rezerwacje i obsługa klientów','CRM oraz automatyczne wiadomości','Integracje płatności i księgowości','Zarządzanie personelem i grafiki','Raportowanie obłożenia i sprzedaży'],
+  automotive:['CRM klientów i pojazdów','Kalendarz zleceń oraz przypomnienia','Magazyn części i integracje dostawców','Cyfrowy obieg zleceń serwisowych','Raportowanie rentowności usług'],
+  education:['CRM kursantów lub klientów','Zapisy, płatności i przypomnienia','Platforma materiałów lub szkoleń','Harmonogram zajęć i prowadzących','Raportowanie frekwencji i wyników'],
+};
+
+function esc(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
+function safeExternalUrl(value){try{const url=new URL(/^https?:\/\//i.test(value)?value:`https://${value}`);return ['http:','https:'].includes(url.protocol)?esc(url.href):'#';}catch{return '#';}}
+function placeTypeLabels(types){
+  const ignored=new Set(['establishment','point_of_interest','premise','political']);
+  return [...new Set((types||[]).filter(type=>!ignored.has(type)).map(type=>GOOGLE_TYPE_LABELS[type]||type.replaceAll('_',' ')))];
+}
+function capitalNumber(value){
+  if(value===null||value===undefined||value==='')return null;
+  const number=Number(String(value).replace(/\s/g,'').replace(',','.'));
+  return Number.isFinite(number)?number:null;
+}
+function formatCapital(value,currency='PLN'){
+  const number=capitalNumber(value);
+  return number===null?'Brak danych':`${new Intl.NumberFormat('pl-PL',{maximumFractionDigits:2}).format(number)} ${currency||'PLN'}`;
+}
+function calculateLeadEstimate(company){
+  const rating=company.rating!==null&&company.rating!==undefined&&company.rating!==''&&Number.isFinite(Number(company.rating))?Number(company.rating):null;
+  const reviews=Math.max(0,Number(company.ratingsTotal)||0);
+  const capital=capitalNumber(company.shareCapital);
+  const reasons=[];
+  const limitations=[];
+  let points=0;
+
+  if(rating!==null){
+    reasons.push(`Ocena Google: ${rating.toFixed(1)}/5`);
+    points+=rating>=4.7?18:rating>=4.3?14:rating>=4?10:rating>=3.5?5:0;
+  }else limitations.push('Brak oceny Google');
+  if(reviews>0){
+    reasons.push(`Liczba opinii Google: ${reviews}`);
+    points+=reviews>=500?20:reviews>=100?16:reviews>=25?11:reviews>=5?6:2;
+  }else limitations.push('Brak opinii Google');
+  if(company.www){points+=12;reasons.push('Firma ma stronę internetową');}else limitations.push('Brak strony internetowej');
+  if(company.phone){points+=10;reasons.push('Dostępny numer telefonu');}else limitations.push('Brak numeru telefonu');
+  if(company.businessStatus==='OPERATIONAL'){points+=6;reasons.push('Status Google: firma działa');}
+  if(company.websiteDescription){points+=5;reasons.push('Strona firmy zawiera opis działalności');}
+  if(company.krs){points+=7;reasons.push(`Potwierdzony wpis KRS ${company.krs}`);}
+  if(capital!==null){
+    reasons.push(`Kapitał zakładowy z KRS: ${formatCapital(company.shareCapital,company.shareCapitalCurrency)}`);
+    points+=capital>=5000000?20:capital>=500000?14:capital>=100000?8:4;
+  }else limitations.push('Brak potwierdzonego kapitału zakładowego');
+
+  const leadScore=points>=78?5:points>=58?4:points>=38?3:points>=20?2:1;
+  let estimatedScale='Brak podstaw do oszacowania';
+  if(company.size&&company.sizeSource==='manual')estimatedScale=`Dane wprowadzone ręcznie: ${company.size}`;
+  else if(capital!==null)estimatedScale=capital>=5000000?'Szacunek: średnia lub duża':capital>=500000?'Szacunek: mała lub średnia':'Szacunek: mikro lub mała';
+  else if(reviews>=200)estimatedScale='Szacunek: rozpoznawalna firma o dużej widoczności';
+  else if(reviews>=25&&company.www)estimatedScale='Szacunek: aktywna mikro lub mała firma';
+
+  let budgetPotential='Brak podstaw do oszacowania';
+  if(capital!==null)budgetPotential=capital>=5000000?'Szacunek: wysoki':capital>=500000?'Szacunek: średni lub wysoki':capital>=100000?'Szacunek: średni':'Szacunek: niski lub średni';
+  else if(points>=58)budgetPotential='Szacunek: średni lub wysoki na podstawie obecności online';
+  else if(points>=38)budgetPotential='Szacunek: średni na podstawie obecności online';
+  else if(points>=20)budgetPotential='Szacunek: niski lub średni na podstawie obecności online';
+
+  limitations.push('Zapotrzebowanie na usługę wymaga potwierdzenia w rozmowie');
+  return {leadScore,leadScoreLabel:LEAD_SCORE_LABELS[leadScore],scorePoints:points,scoreReasons:reasons,scoreLimitations:limitations,estimatedScale,budgetPotential};
+}
+function typicalSystemNeeds(company){
+  const text=[company.primaryActivity,company.websiteDescription,company.industry,...(company.googleTypes||[])].filter(Boolean).join(' ').toLowerCase();
+  let key=company.industryKey||'';
+  if(/rekrut|zatrud|kadry|hr\b/.test(text))key='hr';
+  else if(/transport|logist|magazyn|spedy/.test(text))key='logistics';
+  else if(/księg|rachunk|finans|ubezpiecz/.test(text))key='finance';
+  else if(/prawn|adwokat|radca|notari|lawyer/.test(text))key='legal';
+  else if(/medycz|lekar|stomat|dent|fizjoter|rehabilit|clinic|hospital|health/.test(text))key='healthcare';
+  else if(/produk|przemysł|fabryk|manufactur/.test(text))key='manufacturing';
+  else if(/budow|remont|instalac|construction|contractor/.test(text))key='construction';
+  else if(/hotel|restaur|gastronom|catering|lodging|food/.test(text))key='hospitality';
+  else if(/samoch|motoryz|warsztat|mechanik|automotive|car_/.test(text))key='automotive';
+  else if(/szkol|eduk|kurs|training|university/.test(text))key='education';
+  else if(/nieruchom|property|real estate/.test(text))key='real_estate';
+  else if(/sklep|handel|sprzedaż detal|e-commerce|commerce/.test(text))key='ecommerce';
+  else if(/oprogram|software|programowan|informatycz|\bit\b/.test(text))key='software';
+  else if(/marketing|reklam|social media/.test(text))key='marketing';
+  else if(/doradz|konsult/.test(text))key='consulting';
+  if(!SYSTEM_NEEDS_BY_INDUSTRY[key])key='general';
+  const items=SYSTEM_NEEDS_BY_INDUSTRY[key];
+  const basis=company.primaryActivity?'główna działalność w KRS':company.websiteDescription?'opis na stronie firmy':company.googleTypes?.length?'typy działalności Google':'kategoria wyszukiwania';
+  return {items,basis};
+}
 
 function filterCompanies(f, btn) {
   companiesFilter = f;
@@ -1533,6 +1645,7 @@ function renderCompanies() {
   const search = (document.getElementById('companies-search')?.value || '').toLowerCase();
   let list = companiesFilter === 'all' ? all : all.filter(c => c.status === companiesFilter);
   if (search) list = list.filter(c => (c.name+c.city+c.industry+c.contact).toLowerCase().includes(search));
+  list = [...list].sort((a,b)=>calculateLeadEstimate(b).leadScore-calculateLeadEstimate(a).leadScore);
 
   // Stats
   const statsEl = document.getElementById('companies-stats');
@@ -1562,6 +1675,13 @@ function renderCompanies() {
     const initials = (c.name||'?').split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase();
     const col = colorMap[c.industryKey] || '#3b82f6';
     const badge = `<span class="badge ${LEAD_STATUS_BADGE[c.status]||'badge-gray'}">${LEAD_STATUS_LABELS[c.status]||c.status}</span>`;
+    const estimate = calculateLeadEstimate(c);
+    const needs = typicalSystemNeeds(c);
+    const activity = c.primaryActivity || c.websiteDescription || c.editorialSummary || placeTypeLabels(c.googleTypes).join(', ') || 'Brak potwierdzonych danych';
+    const activitySource = c.primaryActivity?'KRS':c.websiteDescription?'strona firmy':c.editorialSummary?'Google':c.googleTypes?.length?'typy Google':'brak źródła';
+    const ratingText = c.rating!==null&&c.rating!==undefined ? `${Number(c.rating).toFixed(1)} ★` : 'Brak danych';
+    const reviewsText = c.ratingsTotal!==null&&c.ratingsTotal!==undefined ? `${c.ratingsTotal}` : 'Brak danych';
+    const manualSize = c.size&&c.sizeSource==='manual' ? c.size : '';
 
     // Assigned employee avatar
     let assignedHtml = '';
@@ -1582,10 +1702,11 @@ function renderCompanies() {
       <div class="lead-card-header" onclick="toggleCompany('${c.id}')">
         <div class="lead-avatar" style="background:${col}22;color:${col}">${initials}</div>
         <div style="flex:1">
-          <div class="lead-name">${c.name}</div>
-          <div class="lead-meta">${[c.industry,c.city,c.size?c.size+' os.':''].filter(Boolean).join(' · ')}</div>
+          <div class="lead-name">${esc(c.name)}</div>
+          <div class="lead-meta">${[c.city||'Miasto: brak danych',c.street||'Ulica: brak danych',`Google: ${ratingText}`,`${reviewsText} opinii`].map(esc).join(' · ')}</div>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
+          <div class="lead-score s${estimate.leadScore}"><strong>${estimate.leadScore}/5</strong>${esc(estimate.leadScoreLabel)}</div>
           ${assignedHtml}
           ${badge}
           ${c.phone?`<a href="tel:${c.phone}" onclick="event.stopPropagation()" style="background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.2);padding:5px 12px;border-radius:8px;font-size:12px;text-decoration:none;font-weight:500">📞 Zadzwoń</a>`:''}
@@ -1593,13 +1714,34 @@ function renderCompanies() {
         </div>
       </div>
       <div class="lead-expand" id="le-${c.id}">
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px;padding-top:4px">
-          ${c.phone?`<div class="lead-field"><div class="lead-field-lbl">Telefon</div><div class="lead-field-val">${c.phone}</div></div>`:''}
-          ${c.email?`<div class="lead-field"><div class="lead-field-lbl">Email</div><div class="lead-field-val"><a href="mailto:${c.email}" style="color:var(--blue)">${c.email}</a></div></div>`:''}
-          ${c.www?`<div class="lead-field"><div class="lead-field-lbl">WWW</div><div class="lead-field-val"><a href="https://${c.www}" target="_blank" style="color:var(--blue)">${c.www}</a></div></div>`:''}
+        <div class="lead-facts">
+          <div class="lead-field"><div class="lead-field-lbl">Miasto</div><div class="lead-field-val">${esc(c.city||'Brak danych')}</div></div>
+          <div class="lead-field"><div class="lead-field-lbl">Ulica</div><div class="lead-field-val">${esc(c.street||'Brak danych')}</div></div>
+          <div class="lead-field"><div class="lead-field-lbl">Ocena Google</div><div class="lead-field-val">${esc(ratingText)}</div></div>
+          <div class="lead-field"><div class="lead-field-lbl">Liczba opinii</div><div class="lead-field-val">${esc(reviewsText)}</div></div>
+          ${c.address?`<div class="lead-field"><div class="lead-field-lbl">Pełny adres Google</div><div class="lead-field-val">${esc(c.address)}</div></div>`:''}
+          ${c.legalName?`<div class="lead-field"><div class="lead-field-lbl">Nazwa rejestrowa</div><div class="lead-field-val">${esc(c.legalName)}</div></div>`:''}
+          ${c.phone?`<div class="lead-field"><div class="lead-field-lbl">Telefon</div><div class="lead-field-val">${esc(c.phone)}</div></div>`:''}
+          ${c.email?`<div class="lead-field"><div class="lead-field-lbl">Email</div><div class="lead-field-val"><a href="mailto:${esc(c.email)}" style="color:var(--blue)">${esc(c.email)}</a></div></div>`:''}
+          ${c.www?`<div class="lead-field"><div class="lead-field-lbl">WWW</div><div class="lead-field-val"><a href="${safeExternalUrl(c.www)}" target="_blank" style="color:var(--blue)">${esc(c.www)}</a></div></div>`:''}
           ${c.contact?`<div class="lead-field"><div class="lead-field-lbl">Osoba kontaktowa</div><div class="lead-field-val">${c.contact}</div></div>`:''}
-          ${c.linkedin?`<div class="lead-field"><div class="lead-field-lbl">LinkedIn</div><div class="lead-field-val"><a href="https://${c.linkedin}" target="_blank" style="color:var(--blue)">Otwórz profil</a></div></div>`:''}
-          ${c.size?`<div class="lead-field"><div class="lead-field-lbl">Pracownicy</div><div class="lead-field-val">${c.size}</div></div>`:''}
+          ${c.linkedin?`<div class="lead-field"><div class="lead-field-lbl">LinkedIn</div><div class="lead-field-val"><a href="${safeExternalUrl(c.linkedin)}" target="_blank" style="color:var(--blue)">Otwórz profil</a></div></div>`:''}
+          ${manualSize?`<div class="lead-field"><div class="lead-field-lbl">Pracownicy (dane ręczne)</div><div class="lead-field-val">${esc(manualSize)}</div></div>`:''}
+          ${c.krs?`<div class="lead-field"><div class="lead-field-lbl">KRS</div><div class="lead-field-val">${esc(c.krs)}</div></div>`:''}
+          ${c.nip?`<div class="lead-field"><div class="lead-field-lbl">NIP</div><div class="lead-field-val">${esc(c.nip)}</div></div>`:''}
+          ${c.regon?`<div class="lead-field"><div class="lead-field-lbl">REGON</div><div class="lead-field-val">${esc(c.regon)}</div></div>`:''}
+          ${c.legalForm?`<div class="lead-field"><div class="lead-field-lbl">Forma prawna (KRS)</div><div class="lead-field-val">${esc(c.legalForm)}</div></div>`:''}
+          ${c.shareCapital?`<div class="lead-field"><div class="lead-field-lbl">Kapitał zakładowy (KRS)</div><div class="lead-field-val">${esc(formatCapital(c.shareCapital,c.shareCapitalCurrency))}</div></div>`:''}
+          ${c.googleMapsUrl?`<div class="lead-field"><div class="lead-field-lbl">Źródło Google</div><div class="lead-field-val"><a href="${safeExternalUrl(c.googleMapsUrl)}" target="_blank" style="color:var(--blue)">Otwórz wizytówkę</a></div></div>`:''}
+          ${c.krsSourceUrl?`<div class="lead-field"><div class="lead-field-lbl">Źródło KRS</div><div class="lead-field-val"><a href="${safeExternalUrl(c.krsSourceUrl)}" target="_blank" style="color:var(--blue)">Otwórz odpis</a></div></div>`:''}
+        </div>
+        <div class="lead-analysis">
+          <div class="lead-analysis-title">Czym zajmuje się firma</div>
+          <div class="lead-field-val">${esc(activity)}</div><div class="lead-evidence">Źródło: ${esc(activitySource)}${c.primaryPkd?` · PKD ${esc(c.primaryPkd)}`:''}</div>
+          <div class="lead-analysis-title" style="margin-top:14px">Ocena leada ${estimate.leadScore}/5 · ${esc(estimate.leadScoreLabel)}</div>
+          <div class="lead-evidence"><strong>Skala:</strong> ${esc(estimate.estimatedScale)}<br><strong>Potencjał budżetowy:</strong> ${esc(estimate.budgetPotential)}<br><strong>Podstawa:</strong> ${estimate.scoreReasons.length?estimate.scoreReasons.map(esc).join(' · '):'Brak wystarczających sygnałów'}<br><strong>Ograniczenia:</strong> ${estimate.scoreLimitations.map(esc).join(' · ')}</div>
+          <div class="lead-analysis-title" style="margin-top:14px">Typowe potrzeby systemowe w tej branży</div>
+          <div class="lead-evidence">${needs.items.map(item=>`• ${esc(item)}`).join('<br>')}<br><span style="color:var(--text3)">Podstawa: ${esc(needs.basis)}. To typowe potrzeby branżowe, nie potwierdzone potrzeby tej konkretnej firmy.</span></div>
         </div>
         ${c.notes?`<div class="lead-field"><div class="lead-field-lbl">Notatki</div><div class="lead-field-val" style="white-space:pre-wrap">${c.notes}</div></div>`:''}
         <div style="display:flex;gap:16px;margin-top:14px;flex-wrap:wrap;align-items:flex-end">
@@ -1666,7 +1808,7 @@ function assignCompanySelf(id) {
 function openNewCompany() {
   editCompanyId = null;
   document.getElementById('m-company-title').textContent = 'Nowa firma';
-  ['name','industry','city','size','phone','email','www','linkedin','contact','notes'].forEach(f => document.getElementById('co-'+f).value = '');
+  ['name','industry','city','street','size','rating','reviews','phone','email','www','linkedin','contact','notes'].forEach(f => document.getElementById('co-'+f).value = '');
   document.getElementById('co-status').value = 'nowy';
   document.getElementById('co-del-btn').style.display = 'none';
   openM('m-company');
@@ -1680,7 +1822,10 @@ function openEditCompany(id) {
   document.getElementById('co-name').value = c.name || '';
   document.getElementById('co-industry').value = c.industry || '';
   document.getElementById('co-city').value = c.city || '';
+  document.getElementById('co-street').value = c.street || '';
   document.getElementById('co-size').value = c.size || '';
+  document.getElementById('co-rating').value = c.rating ?? '';
+  document.getElementById('co-reviews').value = c.ratingsTotal ?? '';
   document.getElementById('co-phone').value = c.phone || '';
   document.getElementById('co-email').value = c.email || '';
   document.getElementById('co-www').value = c.www || '';
@@ -1696,12 +1841,18 @@ function saveCompany() {
   const name = document.getElementById('co-name').value.trim();
   if (!name) { alert('Podaj nazwę firmy.'); return; }
   const cs = gCompanies();
+  const previous = editCompanyId ? cs.find(x=>x.id===editCompanyId) : null;
   const obj = {
+    ...(previous || {}),
     id: editCompanyId || uid(),
     name,
     industry: document.getElementById('co-industry').value,
     city: document.getElementById('co-city').value,
+    street: document.getElementById('co-street').value,
     size: document.getElementById('co-size').value,
+    sizeSource: document.getElementById('co-size').value ? 'manual' : (previous?.sizeSource||''),
+    rating: document.getElementById('co-rating').value ? parseFloat(document.getElementById('co-rating').value) : null,
+    ratingsTotal: document.getElementById('co-reviews').value ? parseInt(document.getElementById('co-reviews').value,10) : null,
     phone: document.getElementById('co-phone').value,
     email: document.getElementById('co-email').value,
     www: document.getElementById('co-www').value,
@@ -1709,8 +1860,9 @@ function saveCompany() {
     contact: document.getElementById('co-contact').value,
     notes: document.getElementById('co-notes').value,
     status: document.getElementById('co-status').value,
-    createdAt: editCompanyId ? (cs.find(x=>x.id===editCompanyId)?.createdAt||new Date().toISOString()) : new Date().toISOString(),
+    createdAt: editCompanyId ? (previous?.createdAt||new Date().toISOString()) : new Date().toISOString(),
   };
+  Object.assign(obj, calculateLeadEstimate(obj));
   if (editCompanyId) { const i = cs.findIndex(x=>x.id===editCompanyId); cs[i] = obj; } else cs.unshift(obj);
   DB.set('companies', cs);
   closeM('m-company');
@@ -1778,10 +1930,18 @@ async function fetchPlaceDetails(placeId) {
   return await window.electronAPI.getPlaceDetails(placeId);
 }
 
+async function fetchCompanyWebsiteFacts(website) {
+  if (!website) return { website:{}, krs:{} };
+  return await window.electronAPI.analyzeCompanyWebsite(website);
+}
+
+function addressPart(components,type){
+  return (components||[]).find(component=>(component.types||[]).includes(type))?.long_name||'';
+}
+
 async function generateAICompanies() {
   const industry = document.getElementById('gen-industry').value;
   const region = document.getElementById('gen-region').value;
-  const size = document.getElementById('gen-size').value;
   const btn = document.getElementById('gen-btn');
   const status = document.getElementById('gen-status');
 
@@ -1817,49 +1977,87 @@ async function generateAICompanies() {
           existingNames.add(place.name.toLowerCase());
 
           status.textContent = `Weryfikuję: ${place.name}...`;
-          let phone = '';
-          let www = '';
-          let ratingsTotal = place.user_ratings_total || 0;
+          let details = {};
           let isActive = true;
           try {
-            const details = await fetchPlaceDetails(place.place_id);
+            details = await fetchPlaceDetails(place.place_id);
             // Pomiń firmy definitywnie zamknięte wg szczegółów
             if (details.business_status === 'CLOSED_PERMANENTLY') { isActive = false; }
             if (details.business_status === 'CLOSED_TEMPORARILY') { isActive = false; }
-            phone = details.formatted_phone_number || '';
-            www = details.website || '';
-            if (details.user_ratings_total !== undefined) ratingsTotal = details.user_ratings_total;
           } catch {}
 
           if (!isActive) continue;
 
+          const phone = details.formatted_phone_number || '';
+          const www = details.website || '';
+          const rating = details.rating ?? place.rating ?? null;
+          const ratingsTotal = details.user_ratings_total ?? place.user_ratings_total ?? null;
+
           // Odfiltruj firmy bez żadnych recenzji i bez strony www i bez telefonu — prawdopodobnie martwe
-          if (ratingsTotal === 0 && !www && !phone) continue;
+          if ((ratingsTotal===null||ratingsTotal===0) && !www && !phone) continue;
 
-          const addr = place.formatted_address || '';
-          // Adres z Google: "ul. Kowalska 1, 00-001 Warszawa, Polska" — bierzemy przedostatni człon
-          const addrParts = addr.split(',').map(p => p.trim()).filter(Boolean);
-          const cityRaw = addrParts.length >= 2 ? addrParts[addrParts.length - 2] : city;
-          const cityMatch = cityRaw.replace(/^\d{2}-\d{3}\s+/, '') || city;
+          let research = {website:{},krs:{}};
+          if(www){
+            status.textContent = `Sprawdzam publiczne dane: ${place.name}...`;
+            try{research=await fetchCompanyWebsiteFacts(www);}catch{}
+          }
 
-          generated.push({
+          const components=details.address_components||[];
+          const cityName=addressPart(components,'locality')||addressPart(components,'postal_town');
+          const route=addressPart(components,'route');
+          const streetNumber=addressPart(components,'street_number');
+          const street=[route,streetNumber].filter(Boolean).join(' ');
+          const postalCode=addressPart(components,'postal_code');
+          const googleTypes=details.types||place.types||[];
+          const typeDescription=placeTypeLabels(googleTypes).join(', ');
+          const editorialSummary=details.editorial_summary?.overview||'';
+          const websiteDescription=research.website?.description||'';
+          const krsFacts=research.krs||{};
+          const confirmedActivity=krsFacts.primaryActivity||websiteDescription||editorialSummary||typeDescription;
+          const company={
             id: uid(),
             name: place.name,
-            industry: industryLabel,
+            industry: confirmedActivity || 'Brak potwierdzonych danych',
             industryKey: industry,
-            city: cityMatch.trim(),
-            address: addr,
-            size,
+            searchCategory: industryLabel,
+            city: cityName,
+            street,
+            postalCode,
+            address: details.formatted_address||place.formatted_address||'',
+            size: '',
+            sizeSource: '',
             phone,
             email: '',
             www,
             linkedin: '',
             contact: '',
-            notes: `Źródło: Google Places | Branża: ${industryLabel} | Region: ${region === 'all' ? 'cała Polska' : region} | Rating: ${place.rating ? place.rating + '★' : 'brak'}`,
+            rating,
+            ratingsTotal,
+            businessStatus: details.business_status||place.business_status||'',
+            googleTypes,
+            googleMapsUrl: details.url||'',
+            priceLevel: details.price_level??place.price_level??null,
+            editorialSummary,
+            websiteTitle: research.website?.title||'',
+            websiteDescription,
+            websiteFinalUrl: research.website?.finalUrl||www,
+            krs: krsFacts.krs||research.website?.krs||'',
+            nip: krsFacts.nip||research.website?.nip||'',
+            regon: krsFacts.regon||'',
+            legalName: krsFacts.legalName||'',
+            legalForm: krsFacts.legalForm||'',
+            primaryActivity: krsFacts.primaryActivity||'',
+            primaryPkd: krsFacts.primaryPkd||'',
+            shareCapital: krsFacts.shareCapital||'',
+            shareCapitalCurrency: krsFacts.shareCapitalCurrency||'',
+            krsSourceUrl: krsFacts.sourceUrl||'',
+            notes: `Źródła danych: Google Places${websiteDescription?' | strona firmy':''}${krsFacts.krs?' | KRS Ministerstwa Sprawiedliwości':''}. Kategoria wyszukiwania: ${industryLabel}.`,
             status: 'nowy',
             createdAt: new Date().toISOString(),
             googlePlaceId: place.place_id,
-          });
+          };
+          Object.assign(company,calculateLeadEstimate(company));
+          generated.push(company);
         }
       } catch (cityErr) {
         console.warn('Błąd dla miasta', city, cityErr);
@@ -1896,7 +2094,7 @@ function generateColdScript(id) {
   const el = document.getElementById('cold-'+id);
   const name = c.contact ? c.contact.split(' ')[0] : 'Dzień dobry';
   const firma = c.name;
-  const temat = c.industry || 'Waszej branży';
+  const temat = c.searchCategory || c.primaryActivity || c.industry || 'Waszej branży';
 
   const script = `SKRYPT COLD CALL — ${firma.toUpperCase()}
 

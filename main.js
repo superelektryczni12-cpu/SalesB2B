@@ -3,6 +3,7 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 const backend = require('./backend');
+const { analyzeCompanyWebsite } = require('./company-research');
 
 const GOOGLE_API_KEY = 'AIzaSyAkAJfARQ2P1WUO7__-1IvPuAeeFDBK0lA';
 
@@ -40,11 +41,13 @@ ipcMain.handle('search-places', async (_e, query, city) => {
 });
 
 ipcMain.handle('get-place-details', async (_e, placeId) => {
-  const fields = 'name,formatted_address,formatted_phone_number,website,rating,user_ratings_total,business_status,opening_hours';
+  const fields = 'name,formatted_address,address_components,formatted_phone_number,website,rating,user_ratings_total,business_status,opening_hours,types,editorial_summary,price_level,url';
   const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=${fields}&language=pl&key=${GOOGLE_API_KEY}`;
   const data = await httpsGet(url);
   return data.result || {};
 });
+
+ipcMain.handle('analyze-company-website', (_e, website) => analyzeCompanyWebsite(website));
 
 ipcMain.handle('backend-status', () => backend.backendStatus());
 ipcMain.handle('auth-restore', () => backend.restoreSession());

@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateBookingStatus: (id, status) => ipcRenderer.invoke('update-booking-status', id, status),
   searchPlaces: (query, city) => ipcRenderer.invoke('search-places', query, city),
   getPlaceDetails: (placeId) => ipcRenderer.invoke('get-place-details', placeId),
+  analyzeCompanyWebsite: (website) => ipcRenderer.invoke('analyze-company-website', website),
   backendStatus: () => ipcRenderer.invoke('backend-status'),
   restoreSession: () => ipcRenderer.invoke('auth-restore'),
   login: (email, password) => ipcRenderer.invoke('auth-login', email, password),

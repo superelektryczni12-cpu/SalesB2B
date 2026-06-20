@@ -17,12 +17,14 @@ Pierwsza osoba rejestrujaca sie tworzy organizacje i otrzymuje role administrato
 
 Wszystkie dane robocze aplikacji sa zapisywane w `user_app_data` z identyfikatorem zalogowanego uzytkownika. Dane sa odtwarzane po zalogowaniu na dowolnym komputerze, a lokalna pamiec pelni tylko role cache.
 
+Generator firm zapisuje fakty zwracane przez Google Places, publiczne informacje ze strony firmy oraz - gdy strona ujawnia numer KRS - oficjalne dane z API Krajowego Rejestru Sadowego. Priorytet leada, skala i potencjal budzetowy sa wyraznie oznaczone jako szacunki; aplikacja pokazuje ich podstawy i ograniczenia.
+
 ## Uruchomienie
 
 Najprosciej: pobierz gotowy instalator z folderu `installer`:
 
 ```text
-installer/Sales-B2B-Setup-1.2.0.exe
+installer/Sales-B2B-Setup-1.3.0.exe
 ```
 
 Po pobraniu uruchom plik `.exe` i przejdz instalacje.
