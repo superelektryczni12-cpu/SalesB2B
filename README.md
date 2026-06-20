@@ -7,19 +7,22 @@ Desktopowa aplikacja Electron do zarzadzania sprzedaza B2B, spotkaniami i genero
 Aplikacja korzysta z Supabase Auth oraz PostgreSQL. Hasla nie sa zapisywane w aplikacji ani w `localStorage`.
 
 1. Utworz projekt w Supabase.
-2. Otworz `SQL Editor`, wklej caly plik `supabase-setup.sql` i kliknij `Run`.
+2. Otworz `SQL Editor`, wklej caly plik `supabase-setup.sql` i kliknij `Run`. Dla istniejacego projektu wystarczy nowa migracja `supabase-user-data.sql`.
 3. W `Project Settings -> API` skopiuj `Project URL` oraz klucz `anon`/`publishable`.
 4. Wstaw te dwie wartosci do `supabase-config.json`.
-5. Zbuduj nowy instalator poleceniem `npm.cmd run build`.
+5. Wdroż funkcje `supabase/functions/bright-processor` jako Edge Function o nazwie `bright-processor`.
+6. Zbuduj nowy instalator poleceniem `npm.cmd run build`.
 
-Pierwsza osoba rejestrujaca sie bez zaproszenia tworzy organizacje i otrzymuje role administratora. Administrator dodaje pracownika przez jego e-mail, role i uprawnienia. Pracownik rejestruje sie tym samym adresem e-mail i ustawia wlasne haslo.
+Pierwsza osoba rejestrujaca sie tworzy organizacje i otrzymuje role administratora. Administrator tworzy pracownikowi kompletne konto, podajac jego e-mail, haslo, role i uprawnienia. Pracownik od razu loguje sie otrzymanymi danymi i nie przechodzi rejestracji ani potwierdzania e-maila.
+
+Wszystkie dane robocze aplikacji sa zapisywane w `user_app_data` z identyfikatorem zalogowanego uzytkownika. Dane sa odtwarzane po zalogowaniu na dowolnym komputerze, a lokalna pamiec pelni tylko role cache.
 
 ## Uruchomienie
 
 Najprosciej: pobierz gotowy instalator z folderu `installer`:
 
 ```text
-installer/Sales-B2B-Setup-1.1.0.exe
+installer/Sales-B2B-Setup-1.2.0.exe
 ```
 
 Po pobraniu uruchom plik `.exe` i przejdz instalacje.

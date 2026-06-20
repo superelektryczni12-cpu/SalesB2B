@@ -299,7 +299,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <div class="login-field"><label>Hasło</label><input id="l-pass" type="password" placeholder="••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
     <button class="btn btn-primary" id="auth-submit" style="width:100%;justify-content:center;padding:11px;margin-top:8px" onclick="doLogin()">Zaloguj się</button>
     <div class="login-err" id="l-err"></div>
-    <button class="auth-switch" id="auth-switch" onclick="toggleAuthMode()">Nie masz konta? Utwórz konto</button>
+    <button class="auth-switch" id="auth-switch" onclick="toggleAuthMode()">Pierwsze uruchomienie? Utwórz konto administratora</button>
     <div class="backend-status" id="backend-status"></div>
   </div>
 </div>
@@ -796,8 +796,9 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     </div>
     <div class="row2">
       <div class="form-group"><label>E-mail pracownika</label><input id="emp-login" type="email" placeholder="jan@firma.pl"></div>
-      <div class="form-group"><label>Status konta</label><input id="emp-status" value="Oczekuje na rejestrację" readonly></div>
+      <div class="form-group"><label>Hasło</label><input id="emp-pass" type="password" placeholder="Minimum 8 znaków"></div>
     </div>
+    <div class="form-group"><label>Status konta</label><input id="emp-status" value="Gotowe do utworzenia" readonly></div>
     <div style="font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">Dostęp do sekcji</div>
     <div class="perm-grid">
       <label class="perm-check"><input type="checkbox" value="terminarz" class="perm-cb"> Terminarz</label>
@@ -816,7 +817,30 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 </div>
 
 <script>
-const DB={get(k){try{return JSON.parse(localStorage.getItem(k))||null}catch{return null}},set(k,v){localStorage.setItem(k,JSON.stringify(v))}};
+let currentUser=null;
+let employeesCache=[];
+let authMode='login';
+let cloudWriteChain=Promise.resolve();
+let suppressCloudWrites=false;
+const USER_DATA_KEYS=['settings','clients','projects','events','quotes','transactions','companies','manual_meetings','seeded'];
+
+function userStorageKey(key){return currentUser?`salesb2b:${currentUser.id}:${key}`:null;}
+function showCloudError(message){
+  let badge=document.getElementById('cloud-error');
+  if(!badge){badge=document.createElement('div');badge.id='cloud-error';badge.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#301919;border:1px solid var(--red);color:var(--text);padding:11px 18px;border-radius:10px;font-size:12.5px;z-index:10000';document.body.appendChild(badge);}
+  badge.textContent=`Nie zapisano danych w chmurze: ${message}`;
+}
+function queueCloudWrite(key,value){
+  if(!currentUser||suppressCloudWrites||!window.electronAPI)return;
+  cloudWriteChain=cloudWriteChain
+    .then(()=>window.electronAPI.saveUserData(key,value))
+    .then(()=>document.getElementById('cloud-error')?.remove())
+    .catch(error=>{showCloudError(error.message||'błąd połączenia');});
+}
+const DB={
+  get(key){const storageKey=userStorageKey(key);if(!storageKey)return null;try{return JSON.parse(localStorage.getItem(storageKey))??null}catch{return null}},
+  set(key,value){const storageKey=userStorageKey(key);if(!storageKey)return;localStorage.setItem(storageKey,JSON.stringify(value));queueCloudWrite(key,value)}
+};
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const gs=()=>DB.get('settings')||{name:'Mateusz',companyName:'Firma XYZ',nip:'123 123 12 12',address:'Testowa 13',email:'test@test.pl',phone:'+48 500 000 000',www:'www.test.pl',vatRate:23,rates:{implementation:180,automation:200,travel:1.15}};
 const gc=()=>DB.get('clients')||[];
@@ -832,10 +856,6 @@ const gEmps=()=>employeesCache;
 const avatarColors = ['#3b82f6','#22c55e','#f97316','#a855f7','#ef4444','#14b8a6'];
 function empColor(name){ let h=0;for(const c of name)h=c.charCodeAt(0)+((h<<5)-h);return avatarColors[Math.abs(h)%avatarColors.length]; }
 function empInitials(name){ return (name||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase(); }
-
-let currentUser=null;
-let employeesCache=[];
-let authMode='login';
 
 function getCurrentUser(){ return currentUser; }
 function getCurrentUserAny(){ return currentUser; }
@@ -859,11 +879,40 @@ function toggleAuthMode(){
   const registering=authMode==='register';
   document.getElementById('reg-name-field').style.display=registering?'block':'none';
   document.getElementById('reg-company-field').style.display=registering?'block':'none';
-  document.getElementById('login-sub').textContent=registering?'Utwórz swoje konto lub przyjmij zaproszenie':'Zaloguj się do swojego konta';
-  document.getElementById('auth-submit').textContent=registering?'Utwórz konto':'Zaloguj się';
-  document.getElementById('auth-switch').textContent=registering?'Masz już konto? Zaloguj się':'Nie masz konta? Utwórz konto';
+  document.getElementById('login-sub').textContent=registering?'Utwórz konto administratora i firmę':'Zaloguj się do swojego konta';
+  document.getElementById('auth-submit').textContent=registering?'Utwórz konto administratora':'Zaloguj się';
+  document.getElementById('auth-switch').textContent=registering?'Masz już konto? Zaloguj się':'Pierwsze uruchomienie? Utwórz konto administratora';
   document.getElementById('l-pass').onkeydown=()=>{};
   showAuthMessage('');
+}
+
+async function hydrateUserData(){
+  const remote=await window.electronAPI.loadUserData();
+  suppressCloudWrites=true;
+  try{
+    USER_DATA_KEYS.forEach(key=>localStorage.removeItem(userStorageKey(key)));
+    Object.entries(remote||{}).forEach(([key,value])=>{
+      if(USER_DATA_KEYS.includes(key))localStorage.setItem(userStorageKey(key),JSON.stringify(value));
+    });
+  }finally{suppressCloudWrites=false;}
+
+  const hasRemoteData=USER_DATA_KEYS.some(key=>Object.prototype.hasOwnProperty.call(remote||{},key));
+  if(!hasRemoteData&&!localStorage.getItem('salesb2b:legacy-migrated')){
+    for(const key of USER_DATA_KEYS){
+      const legacy=localStorage.getItem(key);
+      if(legacy===null)continue;
+      try{DB.set(key,JSON.parse(legacy));}catch{}
+    }
+    localStorage.setItem('salesb2b:legacy-migrated',currentUser.id);
+  }
+  seedUserData();
+  await cloudWriteChain;
+}
+
+async function activateUser(user){
+  currentUser=user;
+  await hydrateUserData();
+  showApp(currentUser);
 }
 
 async function doLogin(){
@@ -874,9 +923,8 @@ async function doLogin(){
   showAuthMessage('Logowanie...',false);
   try{
     const result=await window.electronAPI.login(email,pass);
-    currentUser=result.user;
+    await activateUser(result.user);
     showAuthMessage('');
-    showApp(currentUser);
   }catch(error){showAuthMessage(error.message||'Nie udało się zalogować.');}
 }
 
@@ -885,7 +933,7 @@ async function doRegister(){
   const companyName=document.getElementById('l-company').value.trim();
   const email=document.getElementById('l-user').value.trim();
   const password=document.getElementById('l-pass').value;
-  if(!fullName||!email||password.length<6){showAuthMessage('Podaj imię, e-mail i hasło mające co najmniej 6 znaków.');return;}
+  if(!fullName||!companyName||!email||password.length<8){showAuthMessage('Podaj imię, nazwę firmy, e-mail i hasło mające co najmniej 8 znaków.');return;}
   showAuthMessage('Tworzenie konta...',false);
   try{
     const result=await window.electronAPI.register({email,password,fullName,companyName});
@@ -893,13 +941,13 @@ async function doRegister(){
       showAuthMessage('Sprawdź skrzynkę e-mail i potwierdź rejestrację.',false);
       return;
     }
-    currentUser=result.user;
+    await activateUser(result.user);
     showAuthMessage('');
-    showApp(currentUser);
   }catch(error){showAuthMessage(error.message||'Nie udało się utworzyć konta.');}
 }
 
 async function doLogout(){
+  await cloudWriteChain;
   try{await window.electronAPI.logout();}catch{}
   currentUser=null;
   employeesCache=[];
@@ -932,14 +980,16 @@ function updateNav(user){
 // EMPLOYEES
 // ══════════════════════════════
 let editEmpId=null;
-function openNewEmployee(){editEmpId=null;document.getElementById('m-emp-title').textContent='Nowy pracownik';document.getElementById('emp-name').value='';document.getElementById('emp-login').value='';document.getElementById('emp-status').value='Oczekuje na rejestrację';document.getElementById('emp-role').value='handlowiec';document.querySelectorAll('.perm-cb').forEach(c=>c.checked=false);document.getElementById('emp-del-btn').style.display='none';openM('m-employee');}
+function openNewEmployee(){editEmpId=null;document.getElementById('m-emp-title').textContent='Nowy pracownik';document.getElementById('emp-name').value='';document.getElementById('emp-login').value='';document.getElementById('emp-pass').value='';document.getElementById('emp-pass').placeholder='Minimum 8 znaków';document.getElementById('emp-status').value='Gotowe do utworzenia';document.getElementById('emp-role').value='handlowiec';document.querySelectorAll('.perm-cb').forEach(c=>c.checked=false);document.getElementById('emp-del-btn').style.display='none';openM('m-employee');}
 function openEditEmployee(id){
   const e=gEmps().find(x=>x.id===id);if(!e)return;
   editEmpId=id;
   document.getElementById('m-emp-title').textContent='Edytuj pracownika';
   document.getElementById('emp-name').value=e.full_name||'';
   document.getElementById('emp-login').value=e.email||'';
-  document.getElementById('emp-status').value=e.status==='active'?'Aktywne':'Oczekuje na rejestrację';
+  document.getElementById('emp-pass').value='';
+  document.getElementById('emp-pass').placeholder='Puste = bez zmiany hasła';
+  document.getElementById('emp-status').value=e.status==='active'?'Konto aktywne':'Konto oczekujące';
   document.getElementById('emp-role').value=e.role||'handlowiec';
   document.querySelectorAll('.perm-cb').forEach(c=>c.checked=(e.permissions||[]).includes(c.value));
   document.getElementById('emp-del-btn').style.display=e.role==='admin'?'none':'inline-flex';
@@ -948,10 +998,11 @@ function openEditEmployee(id){
 async function saveEmployee(){
   const name=document.getElementById('emp-name').value.trim();
   const email=document.getElementById('emp-login').value.trim();
-  if(!name||!email){alert('Wypełnij imię i e-mail pracownika.');return;}
+  const password=document.getElementById('emp-pass').value;
+  if(!name||!email||(!editEmpId&&password.length<8)){alert('Wypełnij imię, e-mail i hasło mające co najmniej 8 znaków.');return;}
   const perms=[...document.querySelectorAll('.perm-cb:checked')].map(c=>c.value);
   try{
-    await window.electronAPI.saveEmployee({id:editEmpId,email,fullName:name,role:document.getElementById('emp-role').value,permissions:perms});
+    await window.electronAPI.saveEmployee({id:editEmpId,email,password,fullName:name,role:document.getElementById('emp-role').value,permissions:perms});
     closeM('m-employee');
     await loadEmployees();
   }catch(error){alert(error.message||'Nie udało się zapisać pracownika.');}
@@ -972,10 +1023,10 @@ function renderEmployees(){
   const el=document.getElementById('employees-list');if(!el)return;
   const emps=gEmps().filter(e=>e.role!=='admin');
   if(!emps.length){el.innerHTML='<div style="color:var(--text2);font-size:13px;margin-bottom:8px">Brak pracowników.</div>';return;}
-  el.innerHTML=emps.map(e=>`<div class="emp-row"><div class="emp-avatar" style="background:${empColor(e.full_name)}22;color:${empColor(e.full_name)}">${empInitials(e.full_name)}</div><div class="emp-info"><div class="emp-name">${e.full_name}</div><div class="emp-role">${e.role||''} · ${e.email} · ${e.status==='active'?'konto aktywne':'oczekuje na rejestrację'}</div></div><button class="btn btn-ghost btn-sm" onclick="openEditEmployee('${e.id}')">Edytuj</button></div>`).join('');
+  el.innerHTML=emps.map(e=>`<div class="emp-row"><div class="emp-avatar" style="background:${empColor(e.full_name)}22;color:${empColor(e.full_name)}">${empInitials(e.full_name)}</div><div class="emp-info"><div class="emp-name">${e.full_name}</div><div class="emp-role">${e.role||''} · ${e.email} · ${e.status==='active'?'konto gotowe':'konto oczekujące'}</div></div><button class="btn btn-ghost btn-sm" onclick="openEditEmployee('${e.id}')">Edytuj</button></div>`).join('');
 }
 
-(function seed(){
+function seedUserData(){
   if(DB.get('seeded'))return;
   const cid=uid();
   DB.set('clients',[{id:cid,name:'Jan Nowak',company:'Testowa 83, 00-000 Testów',nip:'123 123 12 12',address:'Testowa 83, 00-000 Testów',email:'jnowak@mail.pl',phone:'+48 500 123 123',notes:''}]);
@@ -999,7 +1050,7 @@ function renderEmployees(){
     {id:uid(),type:'income',name:'Faktura 01/06',category:'Faktura',amount:2890,date:d(6),notes:''}
   ]);
   DB.set('seeded',true);
-})();
+}
 
 const MGEN=['stycznia','lutego','marca','kwietnia','maja','czerwca','lipca','sierpnia','września','października','listopada','grudnia'];
 const MNOM=['Styczeń','Luty','Marzec','Kwiecień','Maj','Czerwiec','Lipiec','Sierpień','Wrzesień','Październik','Listopad','Grudzień'];
@@ -1243,7 +1294,7 @@ async function assignMeeting(id, empId) {
   const b = meetingsData.find(x => x.id === id);
   if (!b) return;
   b.assignedTo = empId || null;
-  // Update bookings.json via API
+  // Update the signed-in user's booking in Supabase.
   try { await fetch('http://localhost:3721/booking/assign', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, assignedTo: empId||null}) }); } catch {}
   // Update or create calendar event with assignedTo
   const evs = ge();
@@ -1437,7 +1488,7 @@ function saveManualMeeting() {
   } else {
     meetingsData.unshift(obj);
   }
-  // Persist manual meetings in localStorage
+  // Persist manual meetings in the signed-in user's cloud data.
   const manuals = meetingsData.filter(x => x.manual);
   DB.set('manual_meetings', manuals);
   // If potwierdzone — add to calendar
@@ -1895,7 +1946,7 @@ if (window.electronAPI) {
     document.getElementById('backend-status').textContent=status.message||'';
     if(!status.configured)return;
     const restored=await window.electronAPI.restoreSession();
-    if(restored.user){currentUser=restored.user;showApp(currentUser);}
+    if(restored.user)await activateUser(restored.user);
   }catch(error){showAuthMessage(error.message||'Nie udało się połączyć z bazą.');}
 })();
 </script>

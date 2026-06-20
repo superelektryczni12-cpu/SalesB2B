@@ -2,7 +2,6 @@ const { app, BrowserWindow, nativeTheme, ipcMain, Menu, shell } = require('elect
 const path = require('path');
 const http = require('http');
 const https = require('https');
-const fs = require('fs');
 const backend = require('./backend');
 
 const GOOGLE_API_KEY = 'AIzaSyAkAJfARQ2P1WUO7__-1IvPuAeeFDBK0lA';
@@ -55,32 +54,18 @@ ipcMain.handle('auth-logout', () => backend.signOut());
 ipcMain.handle('employees-list', () => backend.listEmployees());
 ipcMain.handle('employees-save', (_e, employee) => backend.saveEmployee(employee));
 ipcMain.handle('employees-delete', (_e, id) => backend.deleteEmployee(id));
+ipcMain.handle('user-data-load', () => backend.loadUserData());
+ipcMain.handle('user-data-save', (_e, dataKey, value) => backend.saveUserData(dataKey, value));
 
 nativeTheme.themeSource = 'dark';
 
 const isMac = process.platform === 'darwin';
 
-// Store bookings in userData (~/Library/Application Support/Sales B2B on macOS)
-const BOOKINGS_FILE = path.join(app.getPath('userData'), 'bookings.json');
-
-function getBookings() {
-  try { return JSON.parse(fs.readFileSync(BOOKINGS_FILE, 'utf8')); }
-  catch { return []; }
-}
-function saveBookings(b) {
-  fs.writeFileSync(BOOKINGS_FILE, JSON.stringify(b, null, 2));
-}
-
 let mainWindow = null;
 
 // IPC handlers
-ipcMain.handle('get-bookings', () => getBookings());
-ipcMain.handle('update-booking-status', (_e, id, status) => {
-  const bookings = getBookings();
-  const b = bookings.find(x => x.id === id);
-  if (b) { b.status = status; saveBookings(bookings); }
-  return true;
-});
+ipcMain.handle('get-bookings', () => backend.getBookings());
+ipcMain.handle('update-booking-status', (_e, id, status) => backend.updateBookingStatus(id, status));
 
 // Local HTTP server — receives bookings from revforge.html
 const server = http.createServer((req, res) => {
@@ -93,15 +78,13 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && req.url === '/booking') {
     let body = '';
     req.on('data', c => body += c);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const booking = JSON.parse(body);
         booking.id = Date.now().toString();
         booking.createdAt = new Date().toISOString();
         booking.status = 'nowe';
-        const bookings = getBookings();
-        bookings.unshift(booking);
-        saveBookings(bookings);
+        await backend.addBooking(booking);
         if (mainWindow) mainWindow.webContents.send('new-booking', booking);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, id: booking.id }));
@@ -112,19 +95,22 @@ const server = http.createServer((req, res) => {
   } else if (req.method === 'POST' && req.url === '/booking/assign') {
     let body = '';
     req.on('data', c => body += c);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const { id, assignedTo } = JSON.parse(body);
-        const bookings = getBookings();
-        const b = bookings.find(x => x.id === id);
-        if (b) { b.assignedTo = assignedTo || null; saveBookings(bookings); }
+        await backend.assignBooking(id, assignedTo);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
       } catch { res.writeHead(400); res.end(); }
     });
   } else if (req.method === 'GET' && req.url === '/bookings') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(getBookings()));
+    backend.getBookings().then(bookings => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(bookings));
+    }).catch(() => {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end('{"error":"not_authenticated"}');
+    });
   } else {
     res.writeHead(404); res.end();
   }

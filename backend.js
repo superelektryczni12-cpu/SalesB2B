@@ -156,6 +156,31 @@ async function currentContext() {
   return getContext(supabase, data.user);
 }
 
+async function currentUser() {
+  const supabase = getClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error) throw error;
+  if (!data.user) throw new Error('Sesja wygasła. Zaloguj się ponownie.');
+  return data.user;
+}
+
+async function functionErrorMessage(error) {
+  try {
+    if (error?.context && typeof error.context.json === 'function') {
+      const body = await error.context.json();
+      if (body?.error) return body.error;
+    }
+  } catch {}
+  return error?.message || 'Błąd funkcji serwerowej.';
+}
+
+async function invokeEmployeeFunction(body) {
+  const { data, error } = await getClient().functions.invoke('bright-processor', { body });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 async function listEmployees() {
   const supabase = getClient();
   const context = await currentContext();
@@ -169,47 +194,75 @@ async function listEmployees() {
 }
 
 async function saveEmployee(employee) {
-  const supabase = getClient();
-  const context = await currentContext();
-  const payload = {
-    organization_id: context.organizationId,
-    email: employee.email.trim().toLowerCase(),
-    full_name: employee.fullName.trim(),
-    role: employee.role,
-    permissions: employee.permissions,
-  };
-
-  if (employee.id) {
-    const { data, error } = await supabase
-      .from('organization_members')
-      .update(payload)
-      .eq('id', employee.id)
-      .eq('organization_id', context.organizationId)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  }
-
-  const { data, error } = await supabase
-    .from('organization_members')
-    .insert({ ...payload, status: 'pending' })
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+  const result = await invokeEmployeeFunction({
+    action: employee.id ? 'update' : 'create',
+    ...employee,
+  });
+  return result.employee;
 }
 
 async function deleteEmployee(id) {
-  const supabase = getClient();
   const context = await currentContext();
   if (id === context.memberId) throw new Error('Nie możesz usunąć własnego konta.');
-  const { error } = await supabase
-    .from('organization_members')
-    .delete()
-    .eq('id', id)
-    .eq('organization_id', context.organizationId);
+  await invokeEmployeeFunction({ action: 'delete', id });
+  return true;
+}
+
+async function loadUserData() {
+  const supabase = getClient();
+  const user = await currentUser();
+  const { data, error } = await supabase
+    .from('user_app_data')
+    .select('data_key, value')
+    .eq('user_id', user.id);
   if (error) throw error;
+  return Object.fromEntries((data || []).map(row => [row.data_key, row.value]));
+}
+
+async function saveUserData(dataKey, value) {
+  const supabase = getClient();
+  const user = await currentUser();
+  const { error } = await supabase
+    .from('user_app_data')
+    .upsert({
+      user_id: user.id,
+      data_key: dataKey,
+      value,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,data_key' });
+  if (error) throw error;
+  return true;
+}
+
+async function getBookings() {
+  const data = await loadUserData();
+  return Array.isArray(data.bookings) ? data.bookings : [];
+}
+
+async function addBooking(booking) {
+  const bookings = await getBookings();
+  bookings.unshift(booking);
+  await saveUserData('bookings', bookings);
+  return booking;
+}
+
+async function updateBookingStatus(id, status) {
+  const bookings = await getBookings();
+  const booking = bookings.find(item => item.id === id);
+  if (booking) {
+    booking.status = status;
+    await saveUserData('bookings', bookings);
+  }
+  return true;
+}
+
+async function assignBooking(id, assignedTo) {
+  const bookings = await getBookings();
+  const booking = bookings.find(item => item.id === id);
+  if (booking) {
+    booking.assignedTo = assignedTo || null;
+    await saveUserData('bookings', bookings);
+  }
   return true;
 }
 
@@ -222,4 +275,10 @@ module.exports = {
   listEmployees,
   saveEmployee,
   deleteEmployee,
+  loadUserData,
+  saveUserData,
+  getBookings,
+  addBooking,
+  updateBookingStatus,
+  assignBooking,
 };
