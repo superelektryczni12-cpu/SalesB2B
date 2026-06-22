@@ -181,6 +181,20 @@ async function invokeEmployeeFunction(body) {
   return data;
 }
 
+async function generateSalesAI(action, payload) {
+  await currentUser();
+  const body = {
+    action,
+    company: payload?.company || {},
+    seller: payload?.seller || {},
+    note: payload?.note || '',
+  };
+  const { data, error } = await getClient().functions.invoke('sales-ai', { body });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 async function listEmployees() {
   const supabase = getClient();
   const context = await currentContext();
@@ -277,6 +291,7 @@ module.exports = {
   deleteEmployee,
   loadUserData,
   saveUserData,
+  generateSalesAI,
   getBookings,
   addBooking,
   updateBookingStatus,

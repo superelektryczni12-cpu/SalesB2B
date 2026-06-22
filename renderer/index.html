@@ -272,6 +272,23 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .lead-analysis{margin-top:14px;padding:14px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 .lead-analysis-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;margin-bottom:8px}
 .lead-evidence{font-size:12.5px;color:var(--text2);line-height:1.65}
+.sales-ai-panel{margin-top:14px;border:1px solid rgba(59,130,246,.2);background:rgba(59,130,246,.045);padding:14px;border-radius:8px}
+.sales-ai-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.sales-ai-title{font-size:12px;font-weight:700;color:var(--blue)}
+.sales-ai-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.sales-ai-box{border-left:2px solid var(--border);padding-left:10px;min-width:0}
+.sales-ai-box.fact{border-color:var(--green)}
+.sales-ai-box.hypothesis{border-color:var(--amber)}
+.sales-ai-label{font-size:10.5px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-bottom:5px}
+.sales-ai-copy{font-size:12.5px;color:var(--text);line-height:1.6;white-space:pre-wrap}
+.sales-ai-list{display:grid;gap:6px;font-size:12.5px;color:var(--text2);line-height:1.55}
+.sales-ai-tabs{display:flex;gap:4px;background:rgba(255,255,255,.04);padding:4px;border-radius:8px;margin-bottom:18px;width:max-content;max-width:100%}
+.sales-ai-tab{border:0;background:transparent;color:var(--text2);padding:8px 12px;border-radius:6px;cursor:pointer;font:inherit;font-size:12.5px;font-weight:600}
+.sales-ai-tab.active{background:rgba(59,130,246,.16);color:var(--blue)}
+.sales-ai-result{margin-top:14px;display:grid;gap:12px}
+.sales-ai-status{font-size:12px;color:var(--text2);min-height:18px;margin-top:10px}
+.sales-ai-status.error{color:var(--red)}
+.sales-ai-status.ok{color:var(--green)}
 .lead-expand{display:none;padding:0 18px 16px;border-top:1px solid var(--border2)}
 .lead-expand.open{display:block}
 .lead-field{margin-top:10px}
@@ -475,7 +492,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
   <!-- AI GENERATOR PANEL -->
   <div class="ai-gen-panel">
-    <div style="font-size:13px;font-weight:600;color:var(--blue);margin-bottom:14px;display:flex;align-items:center;gap:6px">✦ Generator firm — AI Cold Outreach</div>
+    <div style="font-size:13px;font-weight:600;color:var(--blue);margin-bottom:14px;display:flex;align-items:center;gap:6px">Generator firm z publicznych źródeł</div>
     <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:flex-end">
       <div class="form-group" style="margin-bottom:0">
         <label>Branża</label>
@@ -787,6 +804,41 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
       <button class="btn btn-danger btn-sm" id="co-del-btn" style="display:none;margin-right:auto" onclick="deleteCompany()">Usuń firmę</button>
       <button class="btn btn-ghost btn-sm" onclick="closeM('m-company')">Anuluj</button>
       <button class="btn btn-primary btn-sm" onclick="saveCompany()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- SALES AI MODAL -->
+<div class="overlay" id="m-company-ai">
+  <div class="modal modal-xl">
+    <button class="modal-close" onclick="closeM('m-company-ai')">✕</button>
+    <h2 id="sales-ai-company">Asystent handlowca</h2>
+    <div class="sales-ai-tabs">
+      <button class="sales-ai-tab active" id="sales-ai-tab-brief" onclick="switchSalesAIMode('brief')">Brief przed rozmową</button>
+      <button class="sales-ai-tab" id="sales-ai-tab-post" onclick="switchSalesAIMode('post')">Po rozmowie</button>
+    </div>
+
+    <div id="sales-ai-brief-pane">
+      <div id="sales-ai-brief-output" class="sales-ai-result"></div>
+      <div id="sales-ai-brief-status" class="sales-ai-status"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" onclick="closeM('m-company-ai')">Zamknij</button>
+        <button class="btn btn-primary btn-sm" id="sales-ai-brief-btn" onclick="generateCompanyBrief()">Generuj brief AI</button>
+      </div>
+    </div>
+
+    <div id="sales-ai-post-pane" style="display:none">
+      <div class="form-group">
+        <label>Notatka po rozmowie</label>
+        <textarea id="sales-ai-call-note" rows="7" placeholder="Najważniejsze informacje przekazane przez rozmówcę..."></textarea>
+      </div>
+      <div id="sales-ai-post-output" class="sales-ai-result"></div>
+      <div id="sales-ai-post-status" class="sales-ai-status"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost btn-sm" id="sales-ai-copy-btn" style="display:none" onclick="copySalesAIFollowUp()">Kopiuj follow-up</button>
+        <button class="btn btn-ghost btn-sm" id="sales-ai-save-btn" style="display:none" onclick="savePostCallAnalysis()">Zapisz w firmie</button>
+        <button class="btn btn-primary btn-sm" id="sales-ai-post-btn" onclick="analyzeCompanyCall()">Analizuj rozmowę</button>
+      </div>
     </div>
   </div>
 </div>
@@ -1280,7 +1332,7 @@ function renderMeetings() {
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
           ${b.status==='nowe'?`<button class="btn btn-primary btn-sm" onclick="confirmMeeting('${b.id}')">✓ Potwierdź spotkanie</button>`:''}
           ${b.status==='potwierdzone'?`<button class="btn btn-ghost btn-sm" onclick="markDone('${b.id}')">Oznacz jako odbyte</button>`:''}
-          <button class="btn btn-ghost btn-sm" onclick="generateAI('${b.id}')">✦ Generuj follow-up AI</button>
+          <button class="btn btn-ghost btn-sm" onclick="generateAI('${b.id}')">Przygotuj spotkanie</button>
           ${b.manual?`<button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openEditMeetingManual('${b.id}')">Edytuj</button>`:''}
         </div>
         <div id="ai-${b.id}"></div>
@@ -1410,7 +1462,7 @@ PYTANIA DO ZADANIA:
 CEL SPOTKANIA: ustalić konkretny następny krok (audyt / oferta / pilotaż)`;
 
   el.innerHTML = `<div class="ai-panel">
-    <div class="ai-panel-title">✦ Wygenerowane przez AI</div>
+    <div class="ai-panel-title">Asystent spotkania</div>
     <div class="ai-section">
       <div class="ai-section-lbl">📧 Follow-up email</div>
       <div class="ai-section-body">${followup}</div>
@@ -1682,6 +1734,7 @@ function renderCompanies() {
     const ratingText = c.rating!==null&&c.rating!==undefined ? `${Number(c.rating).toFixed(1)} ★` : 'Brak danych';
     const reviewsText = c.ratingsTotal!==null&&c.ratingsTotal!==undefined ? `${c.ratingsTotal}` : 'Brak danych';
     const manualSize = c.size&&c.sizeSource==='manual' ? c.size : '';
+    const aiOverview = renderCompanyAIOverview(c);
 
     // Assigned employee avatar
     let assignedHtml = '';
@@ -1724,7 +1777,7 @@ function renderCompanies() {
           ${c.phone?`<div class="lead-field"><div class="lead-field-lbl">Telefon</div><div class="lead-field-val">${esc(c.phone)}</div></div>`:''}
           ${c.email?`<div class="lead-field"><div class="lead-field-lbl">Email</div><div class="lead-field-val"><a href="mailto:${esc(c.email)}" style="color:var(--blue)">${esc(c.email)}</a></div></div>`:''}
           ${c.www?`<div class="lead-field"><div class="lead-field-lbl">WWW</div><div class="lead-field-val"><a href="${safeExternalUrl(c.www)}" target="_blank" style="color:var(--blue)">${esc(c.www)}</a></div></div>`:''}
-          ${c.contact?`<div class="lead-field"><div class="lead-field-lbl">Osoba kontaktowa</div><div class="lead-field-val">${c.contact}</div></div>`:''}
+          ${c.contact?`<div class="lead-field"><div class="lead-field-lbl">Osoba kontaktowa</div><div class="lead-field-val">${esc(c.contact)}</div></div>`:''}
           ${c.linkedin?`<div class="lead-field"><div class="lead-field-lbl">LinkedIn</div><div class="lead-field-val"><a href="${safeExternalUrl(c.linkedin)}" target="_blank" style="color:var(--blue)">Otwórz profil</a></div></div>`:''}
           ${manualSize?`<div class="lead-field"><div class="lead-field-lbl">Pracownicy (dane ręczne)</div><div class="lead-field-val">${esc(manualSize)}</div></div>`:''}
           ${c.krs?`<div class="lead-field"><div class="lead-field-lbl">KRS</div><div class="lead-field-val">${esc(c.krs)}</div></div>`:''}
@@ -1743,7 +1796,8 @@ function renderCompanies() {
           <div class="lead-analysis-title" style="margin-top:14px">Typowe potrzeby systemowe w tej branży</div>
           <div class="lead-evidence">${needs.items.map(item=>`• ${esc(item)}`).join('<br>')}<br><span style="color:var(--text3)">Podstawa: ${esc(needs.basis)}. To typowe potrzeby branżowe, nie potwierdzone potrzeby tej konkretnej firmy.</span></div>
         </div>
-        ${c.notes?`<div class="lead-field"><div class="lead-field-lbl">Notatki</div><div class="lead-field-val" style="white-space:pre-wrap">${c.notes}</div></div>`:''}
+        ${aiOverview}
+        ${c.notes?`<div class="lead-field"><div class="lead-field-lbl">Notatki</div><div class="lead-field-val" style="white-space:pre-wrap">${esc(c.notes)}</div></div>`:''}
         <div style="display:flex;gap:16px;margin-top:14px;flex-wrap:wrap;align-items:flex-end">
           <div>
             <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">Status</div>
@@ -1765,10 +1819,10 @@ function renderCompanies() {
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
           ${c.phone?`<a href="tel:${c.phone}" class="btn btn-primary btn-sm" style="text-decoration:none">📞 Zadzwoń</a>`:''}
           ${c.email?`<a href="mailto:${c.email}" class="btn btn-ghost btn-sm" style="text-decoration:none">✉ Wyślij email</a>`:''}
-          <button class="btn btn-ghost btn-sm" onclick="generateColdScript('${c.id}')">✦ Generuj skrypt cold call</button>
+          <button class="btn btn-primary btn-sm" onclick="openCompanyAI('${c.id}','brief')">Brief AI</button>
+          <button class="btn btn-ghost btn-sm" onclick="openCompanyAI('${c.id}','post')">Po rozmowie</button>
           <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openEditCompany('${c.id}')">Edytuj</button>
         </div>
-        <div id="cold-${c.id}"></div>
       </div>
     </div>`;
   }).join('');
@@ -1803,6 +1857,196 @@ function assignCompanySelf(id) {
   const u = getCurrentUserAny();
   if (!u) return;
   assignCompany(id, u.id);
+}
+
+let activeSalesAICompanyId = null;
+let pendingPostCallAnalysis = null;
+let displayedPostCallAnalysis = null;
+
+function aiArray(value){return Array.isArray(value)?value:[];}
+function aiStamp(value){
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?'':date.toLocaleString('pl-PL',{dateStyle:'short',timeStyle:'short'});
+}
+function aiList(items,empty='Brak danych'){
+  const values=aiArray(items).filter(Boolean);
+  return values.length?`<div class="sales-ai-list">${values.map(item=>`<div>• ${esc(item)}</div>`).join('')}</div>`:`<div class="sales-ai-copy" style="color:var(--text3)">${esc(empty)}</div>`;
+}
+function companySalesAIContext(company){
+  const estimate=calculateLeadEstimate(company);
+  const needs=typicalSystemNeeds(company);
+  const context={...company,...estimate,typicalSystemNeeds:needs.items,typicalNeedsBasis:needs.basis};
+  delete context.aiBrief;
+  delete context.aiPostCalls;
+  delete context.salesTasks;
+  return context;
+}
+function sellerSalesAIContext(){
+  const settings=gs();
+  return {
+    name:getCurrentUserAny()?.name||settings.name||'',
+    companyName:settings.companyName||'',
+    email:settings.email||'',
+    phone:settings.phone||'',
+    www:settings.www||'',
+  };
+}
+function setSalesAIStatus(id,message,type=''){
+  const el=document.getElementById(id);if(!el)return;
+  el.textContent=message||'';
+  el.className=`sales-ai-status${type?' '+type:''}`;
+}
+function renderCompanyAIOverview(company){
+  const brief=company.aiBrief;
+  const latest=aiArray(company.aiPostCalls)[0];
+  const tasks=aiArray(company.salesTasks).filter(task=>!task.done).slice(0,3);
+  if(!brief&&!latest&&!tasks.length)return '';
+  return `<div class="sales-ai-panel">
+    <div class="sales-ai-head"><div class="sales-ai-title">AI Asystent handlowca</div>${brief?.generatedAt?`<div style="font-size:10.5px;color:var(--text3)">${esc(aiStamp(brief.generatedAt))}</div>`:''}</div>
+    ${brief?`<div class="sales-ai-copy">${esc(brief.summary||'')}</div>`:''}
+    ${(latest?.analysis?.nextBestAction||brief?.nextBestAction)?`<div class="sales-ai-box hypothesis" style="margin-top:10px"><div class="sales-ai-label">Następny najlepszy krok</div><div class="sales-ai-copy">${esc(latest?.analysis?.nextBestAction||brief?.nextBestAction||'')}</div></div>`:''}
+    ${latest?`<div class="sales-ai-box fact" style="margin-top:10px"><div class="sales-ai-label">Ostatnia rozmowa</div><div class="sales-ai-copy">${esc(latest.analysis?.summary||'')}</div></div>`:''}
+    ${tasks.length?`<div style="margin-top:10px"><div class="sales-ai-label">Otwarte zadania</div><div class="sales-ai-list">${tasks.map(task=>`<label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" onchange="toggleSalesTask('${company.id}','${task.id}',this.checked)"><span>${esc(task.text)}</span></label>`).join('')}</div></div>`:''}
+  </div>`;
+}
+function renderSalesAIBrief(brief){
+  if(!brief)return '<div class="sales-ai-copy" style="color:var(--text3)">Brak wygenerowanego briefu.</div>';
+  const needs=aiArray(brief.likelyNeeds);
+  const objections=aiArray(brief.objections);
+  return `
+    <div class="sales-ai-panel"><div class="sales-ai-label">Podsumowanie</div><div class="sales-ai-copy">${esc(brief.summary)}</div></div>
+    <div class="sales-ai-grid">
+      <div class="sales-ai-box fact"><div class="sales-ai-label">Fakty ze źródeł</div>${aiList(brief.facts)}</div>
+      <div class="sales-ai-box hypothesis"><div class="sales-ai-label">Hipotezy do sprawdzenia</div>${aiList(brief.hypotheses)}</div>
+    </div>
+    <div class="sales-ai-panel"><div class="sales-ai-label">Prawdopodobne potrzeby</div><div class="sales-ai-list">${needs.length?needs.map(item=>`<div><strong>${esc(item.need)}</strong> · pewność ${esc(item.confidence)}<br><span style="color:var(--text3)">${esc(item.rationale)}</span></div>`).join(''):'<div>Brak podstaw do hipotez.</div>'}</div></div>
+    <div class="sales-ai-grid">
+      <div class="sales-ai-box"><div class="sales-ai-label">Otwarcie rozmowy</div><div class="sales-ai-copy">${esc(brief.opener)}</div></div>
+      <div class="sales-ai-box"><div class="sales-ai-label">Propozycja wartości</div><div class="sales-ai-copy">${esc(brief.valueProposition)}</div></div>
+    </div>
+    <div class="sales-ai-panel"><div class="sales-ai-label">Pytania diagnostyczne</div>${aiList(brief.discoveryQuestions)}</div>
+    <div class="sales-ai-panel"><div class="sales-ai-label">Obiekcje</div><div class="sales-ai-list">${objections.length?objections.map(item=>`<div><strong>${esc(item.objection)}</strong><br>${esc(item.response)}</div>`).join(''):'<div>Brak.</div>'}</div></div>
+    <div class="sales-ai-box fact"><div class="sales-ai-label">Następny najlepszy krok</div><div class="sales-ai-copy">${esc(brief.nextBestAction)}</div></div>
+    <div class="sales-ai-copy" style="color:var(--amber)">${esc(brief.caution)}</div>`;
+}
+function renderPostCallResult(analysis){
+  if(!analysis)return '';
+  return `
+    <div class="sales-ai-panel"><div class="sales-ai-label">Podsumowanie rozmowy</div><div class="sales-ai-copy">${esc(analysis.summary)}</div></div>
+    <div class="sales-ai-grid">
+      <div class="sales-ai-box fact"><div class="sales-ai-label">Potwierdzone fakty</div>${aiList(analysis.confirmedFacts)}</div>
+      <div class="sales-ai-box fact"><div class="sales-ai-label">Potwierdzone potrzeby</div>${aiList(analysis.confirmedNeeds)}</div>
+    </div>
+    <div class="lead-facts">
+      <div class="lead-field"><div class="lead-field-lbl">Budżet</div><div class="lead-field-val">${esc(analysis.budget)}</div></div>
+      <div class="lead-field"><div class="lead-field-lbl">Termin</div><div class="lead-field-val">${esc(analysis.timeline)}</div></div>
+      <div class="lead-field"><div class="lead-field-lbl">Decydent</div><div class="lead-field-val">${esc(analysis.decisionMaker)}</div></div>
+      <div class="lead-field"><div class="lead-field-lbl">Rekomendowany status</div><div class="lead-field-val">${esc(LEAD_STATUS_LABELS[analysis.recommendedStatus]||analysis.recommendedStatus)}</div></div>
+    </div>
+    <div class="sales-ai-grid">
+      <div class="sales-ai-box"><div class="sales-ai-label">Obiekcje</div>${aiList(analysis.objections)}</div>
+      <div class="sales-ai-box"><div class="sales-ai-label">Pytania bez odpowiedzi</div>${aiList(analysis.unansweredQuestions)}</div>
+    </div>
+    <div class="sales-ai-panel"><div class="sales-ai-label">Następny najlepszy krok</div><div class="sales-ai-copy">${esc(analysis.nextBestAction)}</div><div class="sales-ai-label" style="margin-top:12px">Zadania</div>${aiList(analysis.tasks)}</div>
+    <div class="sales-ai-panel"><div class="sales-ai-label">Follow-up · ${esc(analysis.followUpSubject)}</div><div class="sales-ai-copy">${esc(analysis.followUpEmail)}</div></div>
+    <div class="sales-ai-copy" style="color:var(--amber)">${esc(analysis.caution)}</div>`;
+}
+function openCompanyAI(id,mode='brief'){
+  const company=gCompanies().find(item=>item.id===id);if(!company)return;
+  activeSalesAICompanyId=id;
+  pendingPostCallAnalysis=null;
+  const latest=aiArray(company.aiPostCalls)[0];
+  displayedPostCallAnalysis=latest?.analysis||null;
+  document.getElementById('sales-ai-company').textContent=`Asystent · ${company.name}`;
+  document.getElementById('sales-ai-call-note').value='';
+  document.getElementById('sales-ai-brief-output').innerHTML=renderSalesAIBrief(company.aiBrief);
+  document.getElementById('sales-ai-brief-btn').textContent=company.aiBrief?'Odśwież brief AI':'Generuj brief AI';
+  document.getElementById('sales-ai-post-output').innerHTML=renderPostCallResult(displayedPostCallAnalysis);
+  document.getElementById('sales-ai-copy-btn').style.display=displayedPostCallAnalysis?'inline-flex':'none';
+  document.getElementById('sales-ai-save-btn').style.display='none';
+  setSalesAIStatus('sales-ai-brief-status',company.aiBrief?.generatedAt?`Wygenerowano ${aiStamp(company.aiBrief.generatedAt)}.`:'');
+  setSalesAIStatus('sales-ai-post-status',latest?.generatedAt?`Ostatnia zapisana analiza: ${aiStamp(latest.generatedAt)}.`:'');
+  switchSalesAIMode(mode);
+  openM('m-company-ai');
+}
+function switchSalesAIMode(mode){
+  const brief=mode!=='post';
+  document.getElementById('sales-ai-brief-pane').style.display=brief?'block':'none';
+  document.getElementById('sales-ai-post-pane').style.display=brief?'none':'block';
+  document.getElementById('sales-ai-tab-brief').classList.toggle('active',brief);
+  document.getElementById('sales-ai-tab-post').classList.toggle('active',!brief);
+}
+async function generateCompanyBrief(){
+  const company=gCompanies().find(item=>item.id===activeSalesAICompanyId);if(!company)return;
+  const button=document.getElementById('sales-ai-brief-btn');
+  button.disabled=true;button.textContent='Generuję...';
+  setSalesAIStatus('sales-ai-brief-status','Analizuję dostępne dane firmy...');
+  try{
+    const response=await window.electronAPI.generateSalesAI('brief',{company:companySalesAIContext(company),seller:sellerSalesAIContext()});
+    const companies=gCompanies();const index=companies.findIndex(item=>item.id===company.id);
+    if(index<0)return;
+    companies[index].aiBrief={...response.result,generatedAt:response.generatedAt,model:response.model};
+    DB.set('companies',companies);
+    document.getElementById('sales-ai-brief-output').innerHTML=renderSalesAIBrief(companies[index].aiBrief);
+    setSalesAIStatus('sales-ai-brief-status',`Brief zapisano ${aiStamp(response.generatedAt)}.`,'ok');
+    button.textContent='Odśwież brief AI';
+    renderCompanies();
+  }catch(error){
+    setSalesAIStatus('sales-ai-brief-status',error.message||'Nie udało się wygenerować briefu.','error');
+    button.textContent=company.aiBrief?'Odśwież brief AI':'Generuj brief AI';
+  }finally{button.disabled=false;}
+}
+async function analyzeCompanyCall(){
+  const company=gCompanies().find(item=>item.id===activeSalesAICompanyId);if(!company)return;
+  const note=document.getElementById('sales-ai-call-note').value.trim();
+  if(note.length<10){setSalesAIStatus('sales-ai-post-status','Wpisz krótką notatkę z rozmowy.','error');return;}
+  const button=document.getElementById('sales-ai-post-btn');
+  button.disabled=true;button.textContent='Analizuję...';
+  setSalesAIStatus('sales-ai-post-status','Porządkuję ustalenia i przygotowuję follow-up...');
+  try{
+    const response=await window.electronAPI.generateSalesAI('post_call',{company:companySalesAIContext(company),seller:sellerSalesAIContext(),note});
+    pendingPostCallAnalysis={analysis:response.result,note,generatedAt:response.generatedAt,model:response.model};
+    displayedPostCallAnalysis=response.result;
+    document.getElementById('sales-ai-post-output').innerHTML=renderPostCallResult(response.result);
+    document.getElementById('sales-ai-copy-btn').style.display='inline-flex';
+    document.getElementById('sales-ai-save-btn').style.display='inline-flex';
+    setSalesAIStatus('sales-ai-post-status','Analiza jest szkicem. Sprawdź ją przed zapisaniem.','ok');
+  }catch(error){setSalesAIStatus('sales-ai-post-status',error.message||'Nie udało się przeanalizować rozmowy.','error');}
+  finally{button.disabled=false;button.textContent='Analizuj rozmowę';}
+}
+function savePostCallAnalysis(){
+  if(!pendingPostCallAnalysis||!activeSalesAICompanyId)return;
+  const companies=gCompanies();const index=companies.findIndex(item=>item.id===activeSalesAICompanyId);if(index<0)return;
+  const company=companies[index];
+  const record={id:uid(),...pendingPostCallAnalysis};
+  company.aiPostCalls=[record,...aiArray(company.aiPostCalls)].slice(0,20);
+  company.salesTasks=[...aiArray(record.analysis.tasks).map(text=>({id:uid(),text,done:false,createdAt:record.generatedAt})),...aiArray(company.salesTasks)].slice(0,50);
+  company.nextBestAction=record.analysis.nextBestAction||'';
+  company.lastContactAt=record.generatedAt;
+  if(LEAD_STATUS_LABELS[record.analysis.recommendedStatus])company.status=record.analysis.recommendedStatus;
+  companies[index]=company;
+  DB.set('companies',companies);
+  pendingPostCallAnalysis=null;
+  document.getElementById('sales-ai-save-btn').style.display='none';
+  setSalesAIStatus('sales-ai-post-status','Analiza, status i zadania zostały zapisane.','ok');
+  renderCompanies();
+}
+function toggleSalesTask(companyId,taskId,done){
+  const companies=gCompanies();const index=companies.findIndex(item=>item.id===companyId);if(index<0)return;
+  const task=aiArray(companies[index].salesTasks).find(item=>item.id===taskId);if(!task)return;
+  task.done=Boolean(done);task.completedAt=done?new Date().toISOString():'';
+  DB.set('companies',companies);
+  renderCompanies();
+}
+async function copySalesAIFollowUp(){
+  const analysis=displayedPostCallAnalysis;if(!analysis)return;
+  const text=`Temat: ${analysis.followUpSubject||''}\n\n${analysis.followUpEmail||''}`;
+  try{
+    await navigator.clipboard.writeText(text);
+  }catch{
+    const area=document.createElement('textarea');area.value=text;area.style.position='fixed';area.style.opacity='0';document.body.appendChild(area);area.select();document.execCommand('copy');area.remove();
+  }
+  setSalesAIStatus('sales-ai-post-status','Follow-up skopiowany.','ok');
 }
 
 function openNewCompany() {
@@ -2086,41 +2330,6 @@ async function generateAICompanies() {
   status.textContent = `✓ Dodano ${generated.length} prawdziwych firm z Google Maps.`;
   setTimeout(() => { status.style.display = 'none'; }, 5000);
   renderCompanies();
-}
-
-function generateColdScript(id) {
-  const c = gCompanies().find(x => x.id === id);
-  if (!c) return;
-  const el = document.getElementById('cold-'+id);
-  const name = c.contact ? c.contact.split(' ')[0] : 'Dzień dobry';
-  const firma = c.name;
-  const temat = c.searchCategory || c.primaryActivity || c.industry || 'Waszej branży';
-
-  const script = `SKRYPT COLD CALL — ${firma.toUpperCase()}
-
-OPENING (pierwsze 5 sekund):
-"Dzień dobry, ${name}. Mówię z Operio — pomagamy firmom z ${temat} uporządkować procesy sprzedaży i operacje. Czy mam 90 sekund?"
-
-PROPOZYCJA WARTOŚCI:
-"Pracujemy z firmami ${c.size ? 'wielkości '+c.size+' osób' : 'Waszej wielkości'} — pomagamy im zamknąć więcej leadów i przestać tracić czas na ręczną pracę. Jedna firma z ${c.city||'Waszego regionu'} po 3 tygodniach miała +40% konwersji."
-
-PYTANIE DIAGNOZUJĄCE:
-"Jak u Was wygląda teraz lejek sprzedaży — czy handlowcy mają jasny system pracy z leadami?"
-
-OBIEKCJA — "nie mamy czasu":
-"Rozumiem, właśnie dlatego dzwonię — nasi klienci odzyskują średnio 6 godzin tygodniowo. Czy 30 minut rozmowy bez zobowiązań miałoby sens w tym tygodniu?"
-
-ZAMKNIĘCIE:
-"Super — jaki dzień w tym tygodniu jest dla Pana/Pani dobry? Mamy wolne terminy w środę i czwartek."
-
-MAIL FOLLOW-UP:
-Temat: "Jak ${firma} może zamknąć więcej leadów — Operio"
-Treść: "Dzień dobry, dziękuję za chwilę rozmowy. Jak wspominałem, pomagamy firmom takim jak ${firma} zbudować przewidywalny proces sprzedaży. Chętnie pokażę konkretny przykład w 30-minutowej rozmowie — czy pasuje Panu/Pani [DATA]?"`;
-
-  el.innerHTML = `<div class="ai-panel" style="margin-top:14px">
-    <div class="ai-panel-title">✦ Skrypt Cold Call — ${firma}</div>
-    <div class="ai-section-body" style="font-size:12.5px;white-space:pre-wrap;line-height:1.7">${script}</div>
-  </div>`;
 }
 
 // Słuchaj nowych rezerwacji z serwera (przez Electron IPC)

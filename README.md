@@ -19,12 +19,30 @@ Wszystkie dane robocze aplikacji sa zapisywane w `user_app_data` z identyfikator
 
 Generator firm zapisuje fakty zwracane przez Google Places, publiczne informacje ze strony firmy oraz - gdy strona ujawnia numer KRS - oficjalne dane z API Krajowego Rejestru Sadowego. Priorytet leada, skala i potencjal budzetowy sa wyraznie oznaczone jako szacunki; aplikacja pokazuje ich podstawy i ograniczenia.
 
+## AI Asystent handlowca
+
+Karta firmy zawiera dwa przeplywy AI:
+
+- brief przed rozmowa z rozdzieleniem faktow i hipotez,
+- analize notatki po rozmowie, rekomendowany status, zadania i szkic follow-upu do zatwierdzenia.
+
+Wyniki sa zapisywane wewnatrz rekordu firmy w `user_app_data`, dlatego naleza do zalogowanego uzytkownika. Wiadomosci nie sa wysylane automatycznie.
+
+AI dziala przez Edge Function `sales-ai`, aby klucz dostawcy nie trafil do aplikacji ani publicznego repozytorium:
+
+1. W Supabase utworz Edge Function o nazwie `sales-ai`.
+2. Wklej kod z `supabase/functions/sales-ai/index.ts` i wdroz funkcje.
+3. W `Edge Functions -> Secrets` dodaj sekret `OPENAI_API_KEY`.
+4. Opcjonalnie ustaw `OPENAI_MODEL`; bez tej wartosci funkcja korzysta z `gpt-5.5`.
+
+Ta funkcja nie wymaga dodatkowego SQL. Dostep otrzymuja tylko zalogowane, aktywne konta z `organization_members`.
+
 ## Uruchomienie
 
 Najprosciej: pobierz gotowy instalator z folderu `installer`:
 
 ```text
-installer/Sales-B2B-Setup-1.3.0.exe
+installer/Sales-B2B-Setup-1.4.0.exe
 ```
 
 Po pobraniu uruchom plik `.exe` i przejdz instalacje.
