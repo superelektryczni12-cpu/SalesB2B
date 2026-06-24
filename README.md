@@ -37,6 +37,18 @@ AI dziala przez Edge Function `sales-ai`, aby klucz dostawcy nie trafil do aplik
 
 Ta funkcja nie wymaga dodatkowego SQL. Dostep otrzymuja tylko zalogowane, aktywne konta z `organization_members`.
 
+## Droga Sprzedazy
+
+Zakladka prowadzi klienta przez etapy `Cold call -> Maly audyt -> Spotkanie ofertowe -> Duzy audyt -> Sprzedaz`, a nastepnie przez 12 miesiecy wspolpracy. Handlowiec widzi i edytuje wylacznie klientow zapisanych na swoim koncie. Przy utracie zapisuje etap, powod oraz opcjonalne wyjasnienie.
+
+Administrator i manager nie otrzymuja nazw firm ani danych kontaktowych. Widok zarzadzajacy pokazuje jedynie anonimowe liczby, konwersje, utraty, najczestsze powody oraz sredni czas na etapie.
+
+1. W Supabase utworz Edge Function o nazwie `sales-journey-stats`.
+2. Wklej kod z `supabase/functions/sales-journey-stats/index.ts`.
+3. Pozostaw wlaczona weryfikacje JWT i wdroz funkcje.
+
+Nie jest potrzebny dodatkowy SQL. Dane lejka korzystaja z istniejacej tabeli `user_app_data` i klucza `sales_journey`.
+
 ## Apollo - osoby decyzyjne
 
 Integracja Apollo wyszukuje osoby zarzadzajace na podstawie domeny firmy. Lista osob nie zuzywa kredytow Apollo; wzbogacenie wybranej osoby o e-mail i telefon jest wykonywane dopiero po potwierdzeniu uzytkownika i moze zuzyc kredyty planu Apollo.

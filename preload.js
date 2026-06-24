@@ -19,4 +19,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveUserData: (dataKey, value) => ipcRenderer.invoke('user-data-save', dataKey, value),
   generateSalesAI: (action, payload) => ipcRenderer.invoke('sales-ai-generate', action, payload),
   apolloContacts: (action, payload) => ipcRenderer.invoke('apollo-contacts', action, payload),
+  getSalesJourneyStats: () => ipcRenderer.invoke('sales-journey-stats'),
 });

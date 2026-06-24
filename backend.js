@@ -210,6 +210,14 @@ async function apolloContacts(action, payload) {
   return data;
 }
 
+async function getSalesJourneyStats() {
+  await currentUser();
+  const { data, error } = await getClient().functions.invoke('sales-journey-stats', { body: {} });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 async function listEmployees() {
   const supabase = getClient();
   const context = await currentContext();
@@ -308,6 +316,7 @@ module.exports = {
   saveUserData,
   generateSalesAI,
   apolloContacts,
+  getSalesJourneyStats,
   getBookings,
   addBooking,
   updateBookingStatus,

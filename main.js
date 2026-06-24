@@ -61,6 +61,7 @@ ipcMain.handle('user-data-load', () => backend.loadUserData());
 ipcMain.handle('user-data-save', (_e, dataKey, value) => backend.saveUserData(dataKey, value));
 ipcMain.handle('sales-ai-generate', (_e, action, payload) => backend.generateSalesAI(action, payload));
 ipcMain.handle('apollo-contacts', (_e, action, payload) => backend.apolloContacts(action, payload));
+ipcMain.handle('sales-journey-stats', () => backend.getSalesJourneyStats());
 
 nativeTheme.themeSource = 'dark';
 

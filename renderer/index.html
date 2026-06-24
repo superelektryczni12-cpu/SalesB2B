@@ -53,7 +53,7 @@ nav{
 .nav-pills{-webkit-app-region:no-drag}
 .nav-pill{-webkit-app-region:no-drag}
 .nav-pills{display:flex;gap:1px;background:rgba(255,255,255,.05);border-radius:12px;padding:4px}
-.nav-pill{background:none;border:none;color:var(--text2);padding:6px 20px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:500;letter-spacing:.01em;transition:.15s;white-space:nowrap;font-family:inherit}
+.nav-pill{background:none;border:none;color:var(--text2);padding:6px 14px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:500;letter-spacing:.01em;transition:.15s;white-space:nowrap;font-family:inherit}
 .nav-pill:hover{color:var(--text);background:rgba(255,255,255,.05)}
 .nav-pill.active{background:rgba(255,255,255,.1);color:var(--text)}
 
@@ -297,6 +297,33 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .apollo-contact-data{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border2)}
 .apollo-fit{min-width:70px;text-align:center;border:1px solid rgba(59,130,246,.25);background:rgba(59,130,246,.08);color:var(--blue);border-radius:7px;padding:6px 8px;font-size:10.5px;font-weight:600}
 .apollo-fit strong{display:block;font-size:15px;color:var(--text)}
+.journey-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:22px}
+.journey-section{margin-top:24px}
+.journey-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:10px}
+.journey-section-title{font-size:15px;font-weight:700;color:var(--text)}
+.journey-section-meta{font-size:11.5px;color:var(--text3)}
+.journey-scroll{overflow-x:auto;padding-bottom:10px;scrollbar-color:rgba(255,255,255,.18) transparent}
+.journey-pipeline{display:grid;grid-auto-flow:column;grid-auto-columns:238px;gap:8px;align-items:start;min-width:max-content}
+.journey-stage{border:1px solid var(--border);background:rgba(255,255,255,.018);border-radius:8px;min-height:170px}
+.journey-stage-head{padding:11px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;background:#151515;z-index:1}
+.journey-stage-name{font-size:12px;font-weight:700;color:var(--text)}
+.journey-count{min-width:24px;height:22px;padding:0 7px;border-radius:7px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text2)}
+.journey-stage-body{display:grid;gap:7px;padding:8px}
+.journey-lead{border:1px solid var(--border2);background:var(--card);border-radius:7px;padding:11px}
+.journey-lead-name{font-size:12.5px;font-weight:700;color:var(--text);overflow-wrap:anywhere}
+.journey-lead-contact{font-size:11px;color:var(--text2);line-height:1.45;margin-top:3px;overflow-wrap:anywhere}
+.journey-lead-age{font-size:10.5px;color:var(--text3);margin-top:7px}
+.journey-actions{display:flex;gap:5px;margin-top:9px;flex-wrap:wrap}
+.journey-actions .btn{padding:5px 8px;font-size:10.5px}
+.journey-empty{font-size:11.5px;color:var(--text3);padding:18px 8px;text-align:center}
+.journey-admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:9px}
+.journey-metric{border:1px solid var(--border);border-radius:8px;padding:13px;background:rgba(255,255,255,.02)}
+.journey-metric-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}
+.journey-rate{font-size:23px;font-weight:750;color:var(--green)}
+.journey-rate.bad{color:var(--red)}
+.journey-bar{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin:9px 0}
+.journey-bar>span{display:block;height:100%;background:var(--green)}
+.journey-loss-row{font-size:11px;color:var(--text2);display:flex;justify-content:space-between;gap:8px;padding-top:5px}
 .lead-expand{display:none;padding:0 18px 16px;border-top:1px solid var(--border2)}
 .lead-expand.open{display:block}
 .lead-field{margin-top:10px}
@@ -350,6 +377,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <button class="nav-pill" onclick="showPage('finance')">Finanse</button>
     <button class="nav-pill" onclick="showPage('meetings')">Spotkania</button>
     <button class="nav-pill" onclick="showPage('companies')">Firmy</button>
+    <button class="nav-pill" onclick="showPage('sales-journey')">Droga Sprzedaży</button>
   </div>
   <button class="nav-settings" onclick="showPage('settings')" title="Ustawienia">⚙</button>
 </nav>
@@ -560,6 +588,21 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     Brak firm. Dodaj ręcznie lub użyj generatora AI powyżej.
   </div>
   <div id="companies-list"></div>
+</div>
+
+<!-- DROGA SPRZEDAŻY -->
+<div id="page-sales-journey" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Droga Sprzedaży</div>
+      <div id="journey-view-subtitle" style="font-size:12px;color:var(--text2);margin-top:4px"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" id="journey-refresh-btn" style="display:none" onclick="renderSalesJourney()">Odśwież statystyki</button>
+      <button class="btn btn-primary" id="journey-add-btn" onclick="openNewJourneyLead()">+ Dodaj klienta</button>
+    </div>
+  </div>
+  <div id="sales-journey-content"></div>
 </div>
 
 <!-- SETTINGS -->
@@ -866,6 +909,52 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   </div>
 </div>
 
+<!-- SALES JOURNEY LEAD MODAL -->
+<div class="overlay" id="m-journey-lead">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('m-journey-lead')">✕</button>
+    <h2 id="journey-lead-title">Nowy potencjalny klient</h2>
+    <div class="form-group"><label>Firma / klient *</label><input id="journey-company" placeholder="Nazwa firmy"></div>
+    <div class="form-group"><label>Osoba kontaktowa</label><input id="journey-contact" placeholder="Imię, nazwisko i stanowisko"></div>
+    <div class="row2">
+      <div class="form-group"><label>Telefon</label><input id="journey-phone" placeholder="+48 500 000 000"></div>
+      <div class="form-group"><label>E-mail</label><input id="journey-email" type="email" placeholder="kontakt@firma.pl"></div>
+    </div>
+    <div class="form-group"><label>Źródło</label><input id="journey-source" placeholder="Google, polecenie, wydarzenie..."></div>
+    <div class="form-group"><label>Notatki</label><textarea id="journey-notes" rows="4"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" id="journey-delete-btn" style="display:none;margin-right:auto" onclick="deleteJourneyLead()">Usuń</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-journey-lead')">Anuluj</button>
+      <button class="btn btn-primary btn-sm" onclick="saveJourneyLead()">Zapisz</button>
+    </div>
+  </div>
+</div>
+
+<!-- SALES JOURNEY LOSS MODAL -->
+<div class="overlay" id="m-journey-loss">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('m-journey-loss')">✕</button>
+    <h2>Klient utracony</h2>
+    <div id="journey-loss-client" style="font-size:13px;color:var(--text2);margin-bottom:16px"></div>
+    <div class="form-group"><label>Powód utraty *</label>
+      <select id="journey-loss-reason">
+        <option value="Brak odpowiedzi">Brak odpowiedzi</option>
+        <option value="Brak potrzeby">Brak potrzeby</option>
+        <option value="Brak budżetu">Brak budżetu</option>
+        <option value="Oferta niedopasowana">Oferta niedopasowana</option>
+        <option value="Wybrano konkurencję">Wybrano konkurencję</option>
+        <option value="Nieodpowiedni termin">Nieodpowiedni termin</option>
+        <option value="Inny">Inny</option>
+      </select>
+    </div>
+    <div class="form-group"><label>Wyjaśnienie</label><textarea id="journey-loss-note" rows="4"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-journey-loss')">Anuluj</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmJourneyLoss()">Oznacz jako utracony</button>
+    </div>
+  </div>
+</div>
+
 <!-- EMPLOYEE MODAL -->
 <div class="overlay" id="m-employee">
   <div class="modal">
@@ -888,6 +977,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
       <label class="perm-check"><input type="checkbox" value="finanse" class="perm-cb"> Finanse</label>
       <label class="perm-check"><input type="checkbox" value="spotkania" class="perm-cb"> Spotkania</label>
       <label class="perm-check"><input type="checkbox" value="firmy" class="perm-cb"> Firmy</label>
+      <label class="perm-check"><input type="checkbox" value="droga_sprzedazy" class="perm-cb"> Droga Sprzedaży</label>
     </div>
     <div class="modal-actions">
       <button class="btn btn-danger btn-sm" id="emp-del-btn" style="display:none;margin-right:auto" onclick="deleteEmployee()">Usuń pracownika</button>
@@ -903,7 +993,7 @@ let employeesCache=[];
 let authMode='login';
 let cloudWriteChain=Promise.resolve();
 let suppressCloudWrites=false;
-const USER_DATA_KEYS=['settings','clients','projects','events','quotes','transactions','companies','manual_meetings','seeded'];
+const USER_DATA_KEYS=['settings','clients','projects','events','quotes','transactions','companies','manual_meetings','sales_journey','seeded'];
 
 function userStorageKey(key){return currentUser?`salesb2b:${currentUser.id}:${key}`:null;}
 function showCloudError(message){
@@ -930,6 +1020,7 @@ const ge=()=>DB.get('events')||[];
 const gq=()=>DB.get('quotes')||[];
 const gt=()=>DB.get('transactions')||[];
 const gEmps=()=>employeesCache;
+const gSalesJourney=()=>{const value=DB.get('sales_journey');return value&&Array.isArray(value.leads)?value:{leads:[]};};
 
 // ══════════════════════════════
 // AUTH
@@ -945,6 +1036,7 @@ function hasPerm(perm){
   const u=getCurrentUser();
   if(!u)return false;
   if(isAdmin(u))return true;
+  if(perm==='droga_sprzedazy'&&u.role==='handlowiec')return true;
   return Array.isArray(u.permissions)&&(u.permissions.includes('all')||u.permissions.includes(perm));
 }
 
@@ -1047,8 +1139,8 @@ function showApp(user){
 function updateNav(user){
   if(!user)return;
   const pills=document.querySelectorAll('.nav-pill');
-  const perms=['terminarz','projekty','klienci','finanse','spotkania','firmy'];
-  pills.forEach((p,i)=>{ p.style.display=isAdmin(user)||user.permissions?.includes('all')||user.permissions?.includes(perms[i])?'':'none'; });
+  const perms=['terminarz','projekty','klienci','finanse','spotkania','firmy','droga_sprzedazy'];
+  pills.forEach((p,i)=>{ p.style.display=isAdmin(user)||user.permissions?.includes('all')||user.permissions?.includes(perms[i])||(perms[i]==='droga_sprzedazy'&&user.role==='handlowiec')?'':'none'; });
   document.querySelector('.nav-settings').style.display='';
   // admin section in settings
   const adminSec=document.getElementById('admin-only-settings');
@@ -1081,9 +1173,11 @@ async function saveEmployee(){
   const email=document.getElementById('emp-login').value.trim();
   const password=document.getElementById('emp-pass').value;
   if(!name||!email||(!editEmpId&&password.length<8)){alert('Wypełnij imię, e-mail i hasło mające co najmniej 8 znaków.');return;}
+  const role=document.getElementById('emp-role').value;
   const perms=[...document.querySelectorAll('.perm-cb:checked')].map(c=>c.value);
+  if(role==='handlowiec'&&!perms.includes('droga_sprzedazy'))perms.push('droga_sprzedazy');
   try{
-    await window.electronAPI.saveEmployee({id:editEmpId,email,password,fullName:name,role:document.getElementById('emp-role').value,permissions:perms});
+    await window.electronAPI.saveEmployee({id:editEmpId,email,password,fullName:name,role,permissions:perms});
     closeM('m-employee');
     await loadEmployees();
   }catch(error){alert(error.message||'Nie udało się zapisać pracownika.');}
@@ -1151,10 +1245,10 @@ function showPage(p){
   document.querySelector('.nav-home').classList.toggle('active',p==='home');
   document.querySelector('.nav-settings').classList.toggle('active',p==='settings');
   document.getElementById('page-'+p).classList.add('active');
-  const tabs=['calendar','projects','clients','finance','meetings','companies'];
+  const tabs=['calendar','projects','clients','finance','meetings','companies','sales-journey'];
   const i=tabs.indexOf(p);if(i>=0)document.querySelectorAll('.nav-pill')[i].classList.add('active');
   curPage=p;
-  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,companies:renderCompanies})[p]?.();
+  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,companies:renderCompanies,'sales-journey':renderSalesJourney})[p]?.();
 }
 
 function renderHome(){
@@ -1593,6 +1687,273 @@ function deleteManualMeeting() {
 }
 
 // ══════════════════════════════
+// DROGA SPRZEDAŻY
+// ══════════════════════════════
+const SALES_JOURNEY_NEW_STAGES=[
+  {id:'cold_call',label:'Cold call'},
+  {id:'small_audit',label:'Mały audyt'},
+  {id:'offer_meeting',label:'Spotkanie ofertowe'},
+  {id:'big_audit',label:'Duży audyt'},
+  {id:'sale',label:'Sprzedaż'},
+];
+const SALES_JOURNEY_CLIENT_STAGES=Array.from({length:12},(_,index)=>({id:`month_${index+1}`,label:`Mies. ${index+1}`}));
+const SALES_JOURNEY_STAGES=[...SALES_JOURNEY_NEW_STAGES,...SALES_JOURNEY_CLIENT_STAGES];
+let editJourneyLeadId=null;
+let pendingJourneyLossId=null;
+
+function journeyStageLabel(stageId){return SALES_JOURNEY_STAGES.find(stage=>stage.id===stageId)?.label||stageId;}
+function nextJourneyStage(stageId){
+  const index=SALES_JOURNEY_STAGES.findIndex(stage=>stage.id===stageId);
+  return index>=0&&index<SALES_JOURNEY_STAGES.length-1?SALES_JOURNEY_STAGES[index+1]:null;
+}
+function activeJourneyEvent(lead){
+  return [...(Array.isArray(lead.stageHistory)?lead.stageHistory:[])].reverse().find(event=>event.stage===lead.currentStage&&!event.exitedAt)||null;
+}
+function journeyDaysInStage(lead){
+  const enteredAt=Date.parse(activeJourneyEvent(lead)?.enteredAt||lead.updatedAt||lead.createdAt||'');
+  return Number.isFinite(enteredAt)?Math.max(0,Math.floor((Date.now()-enteredAt)/86400000)):0;
+}
+function journeyDaysLabel(days){
+  if(days===1)return '1 dzień na tym etapie';
+  return `${days} dni na tym etapie`;
+}
+function journeyHasReached(lead,stageId){return (lead.stageHistory||[]).some(event=>event.stage===stageId);}
+function journeySummaryCard(label,value,detail,color='var(--text)'){
+  return `<div class="card"><div style="font-size:10.5px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">${esc(label)}</div><div style="font-size:25px;font-weight:700;color:${color}">${esc(value)}</div><div style="font-size:10.5px;color:var(--text3);margin-top:3px">${esc(detail)}</div></div>`;
+}
+
+function renderSalesJourney(){
+  const admin=isAdmin(getCurrentUser());
+  document.getElementById('journey-add-btn').style.display=admin?'none':'inline-flex';
+  document.getElementById('journey-refresh-btn').style.display=admin?'inline-flex':'none';
+  document.getElementById('journey-view-subtitle').textContent=admin
+    ?'Anonimowe wyniki całego zespołu. Nazwy klientów i dane kontaktowe nie są pobierane.'
+    :'Twój prywatny lejek sprzedaży. Dane są zapisane na Twoim koncie.';
+  if(admin){void renderSalesJourneyAdmin();return;}
+  renderSalesJourneySalesperson();
+}
+
+function renderSalesJourneySalesperson(){
+  const leads=gSalesJourney().leads;
+  const active=leads.filter(lead=>lead.status==='active');
+  const lost=leads.filter(lead=>lead.status==='lost');
+  const lostNew=lost.filter(lead=>!String([...((lead.stageHistory)||[])].reverse().find(event=>event.outcome==='lost')?.stage||'').startsWith('month_'));
+  const lostClients=lost.filter(lead=>String([...((lead.stageHistory)||[])].reverse().find(event=>event.outcome==='lost')?.stage||'').startsWith('month_'));
+  const sold=leads.filter(lead=>journeyHasReached(lead,'sale')).length;
+  const clients=active.filter(lead=>String(lead.currentStage||'').startsWith('month_')).length;
+  document.getElementById('sales-journey-content').innerHTML=`
+    <div class="journey-summary">
+      ${journeySummaryCard('Wszyscy potencjalni',leads.length,'Dodani do Twojego lejka')}
+      ${journeySummaryCard('Aktywni',active.length,'W trakcie procesu','var(--blue)')}
+      ${journeySummaryCard('Sprzedaże',sold,'Dotarli do etapu sprzedaży','var(--green)')}
+      ${journeySummaryCard('Utraceni',lost.length,'Z zapisanym etapem i powodem','var(--red)')}
+    </div>
+    ${renderJourneySection('Nowi klienci','Od pierwszego telefonu do sprzedaży',SALES_JOURNEY_NEW_STAGES,active)}
+    ${renderJourneyLostArchive(lostNew,'Nowi klienci')}
+    ${renderJourneySection('Nasi klienci',`${clients} aktywnych klientów po sprzedaży`,SALES_JOURNEY_CLIENT_STAGES,active)}
+    ${renderJourneyLostArchive(lostClients,'Nasi klienci')}
+  `;
+}
+
+function renderJourneySection(title,meta,stages,leads){
+  return `<section class="journey-section">
+    <div class="journey-section-head"><div class="journey-section-title">${esc(title)}</div><div class="journey-section-meta">${esc(meta)}</div></div>
+    <div class="journey-scroll"><div class="journey-pipeline">${stages.map(stage=>renderJourneyStage(stage,leads)).join('')}</div></div>
+  </section>`;
+}
+
+function renderJourneyStage(stage,leads){
+  const stageLeads=leads.filter(lead=>lead.currentStage===stage.id);
+  return `<div class="journey-stage">
+    <div class="journey-stage-head"><div class="journey-stage-name">${esc(stage.label)}</div><div class="journey-count">${stageLeads.length}</div></div>
+    <div class="journey-stage-body">${stageLeads.length?stageLeads.map(renderJourneyLeadCard).join(''):'<div class="journey-empty">Brak klientów</div>'}</div>
+  </div>`;
+}
+
+function renderJourneyLeadCard(lead){
+  const next=nextJourneyStage(lead.currentStage);
+  const nextLabel=!next?'Zakończ 12. miesiąc':lead.currentStage==='sale'?'Rozpocznij Mies. 1':'Klient przeszedł';
+  const contact=[lead.contact,lead.phone].filter(Boolean).join(' · ')||'Brak danych kontaktowych';
+  const age=journeyDaysInStage(lead);
+  return `<div class="journey-lead">
+    <div class="journey-lead-name">${esc(lead.company)}</div>
+    <div class="journey-lead-contact">${esc(contact)}</div>
+    <div class="journey-lead-age">${age===0?'Dodano dzisiaj':journeyDaysLabel(age)}</div>
+    <div class="journey-actions">
+      <button class="btn btn-primary btn-sm" onclick="advanceJourneyLead('${lead.id}')">${esc(nextLabel)}</button>
+      <button class="btn btn-ghost btn-sm" onclick="openEditJourneyLead('${lead.id}')">Edytuj</button>
+      <button class="btn btn-danger btn-sm" onclick="openJourneyLoss('${lead.id}')">Utracony</button>
+    </div>
+  </div>`;
+}
+
+function renderJourneyLostArchive(leads,sectionLabel){
+  if(!leads.length)return '';
+  const recent=[...leads].sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt))).slice(0,8);
+  return `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:12px">
+    <div class="journey-section-meta" style="margin-bottom:7px">Ostatnio utraceni: ${esc(sectionLabel)}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:7px">${recent.map(lead=>{
+      const event=[...(lead.stageHistory||[])].reverse().find(item=>item.outcome==='lost')||{};
+      return `<div class="journey-lead"><div class="journey-lead-name">${esc(lead.company)}</div><div class="journey-lead-contact">${esc(journeyStageLabel(event.stage))} · ${esc(event.lossReason||'Nie podano powodu')}</div><div class="journey-actions"><button class="btn btn-ghost btn-sm" onclick="openEditJourneyLead('${lead.id}')">Szczegóły</button></div></div>`;
+    }).join('')}</div>
+  </div>`;
+}
+
+function openNewJourneyLead(prefill={}){
+  if(isAdmin(getCurrentUser()))return;
+  editJourneyLeadId=null;
+  document.getElementById('journey-lead-title').textContent='Nowy potencjalny klient';
+  document.getElementById('journey-company').value=prefill.company||'';
+  document.getElementById('journey-contact').value=prefill.contact||'';
+  document.getElementById('journey-phone').value=prefill.phone||'';
+  document.getElementById('journey-email').value=prefill.email||'';
+  document.getElementById('journey-source').value=prefill.source||'';
+  document.getElementById('journey-notes').value=prefill.notes||'';
+  document.getElementById('journey-delete-btn').style.display='none';
+  openM('m-journey-lead');
+}
+
+function openEditJourneyLead(id){
+  if(isAdmin(getCurrentUser()))return;
+  const lead=gSalesJourney().leads.find(item=>item.id===id);if(!lead)return;
+  editJourneyLeadId=id;
+  document.getElementById('journey-lead-title').textContent=lead.status==='lost'?'Utracony klient':'Edytuj klienta';
+  document.getElementById('journey-company').value=lead.company||'';
+  document.getElementById('journey-contact').value=lead.contact||'';
+  document.getElementById('journey-phone').value=lead.phone||'';
+  document.getElementById('journey-email').value=lead.email||'';
+  document.getElementById('journey-source').value=lead.source||'';
+  document.getElementById('journey-notes').value=lead.notes||'';
+  document.getElementById('journey-delete-btn').style.display='inline-flex';
+  openM('m-journey-lead');
+}
+
+function saveJourneyLead(){
+  if(isAdmin(getCurrentUser()))return;
+  const company=document.getElementById('journey-company').value.trim();
+  if(!company){alert('Podaj nazwę firmy lub klienta.');return;}
+  const journey=gSalesJourney();
+  const now=new Date().toISOString();
+  const fields={company,contact:document.getElementById('journey-contact').value.trim(),phone:document.getElementById('journey-phone').value.trim(),email:document.getElementById('journey-email').value.trim(),source:document.getElementById('journey-source').value.trim(),notes:document.getElementById('journey-notes').value.trim(),updatedAt:now};
+  if(editJourneyLeadId){
+    const index=journey.leads.findIndex(lead=>lead.id===editJourneyLeadId);if(index<0)return;
+    journey.leads[index]={...journey.leads[index],...fields};
+  }else{
+    journey.leads.unshift({id:uid(),...fields,status:'active',currentStage:'cold_call',createdAt:now,stageHistory:[{stage:'cold_call',enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''}]});
+  }
+  DB.set('sales_journey',journey);
+  closeM('m-journey-lead');
+  renderSalesJourneySalesperson();
+}
+
+function deleteJourneyLead(){
+  if(!editJourneyLeadId||!confirm('Usunąć tego klienta? Usunięte zostaną również jego dane ze statystyk.'))return;
+  const journey=gSalesJourney();
+  journey.leads=journey.leads.filter(lead=>lead.id!==editJourneyLeadId);
+  DB.set('sales_journey',journey);
+  closeM('m-journey-lead');
+  renderSalesJourneySalesperson();
+}
+
+function advanceJourneyLead(id){
+  const journey=gSalesJourney();
+  const lead=journey.leads.find(item=>item.id===id);if(!lead||lead.status!=='active')return;
+  const now=new Date().toISOString();
+  lead.stageHistory=Array.isArray(lead.stageHistory)?lead.stageHistory:[];
+  let event=activeJourneyEvent(lead);
+  if(!event){event={stage:lead.currentStage,enteredAt:lead.updatedAt||lead.createdAt||now};lead.stageHistory.push(event);}
+  event.exitedAt=now;event.outcome='progressed';
+  const next=nextJourneyStage(lead.currentStage);
+  if(next){lead.currentStage=next.id;lead.stageHistory.push({stage:next.id,enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''});}
+  else{lead.currentStage='';lead.status='completed';}
+  lead.updatedAt=now;
+  DB.set('sales_journey',journey);
+  renderSalesJourneySalesperson();
+}
+
+function openJourneyLoss(id){
+  const lead=gSalesJourney().leads.find(item=>item.id===id);if(!lead||lead.status!=='active')return;
+  pendingJourneyLossId=id;
+  document.getElementById('journey-loss-client').textContent=`${lead.company} · etap: ${journeyStageLabel(lead.currentStage)}`;
+  document.getElementById('journey-loss-reason').value='Brak odpowiedzi';
+  document.getElementById('journey-loss-note').value='';
+  openM('m-journey-loss');
+}
+
+function confirmJourneyLoss(){
+  const journey=gSalesJourney();
+  const lead=journey.leads.find(item=>item.id===pendingJourneyLossId);if(!lead||lead.status!=='active')return;
+  const now=new Date().toISOString();
+  lead.stageHistory=Array.isArray(lead.stageHistory)?lead.stageHistory:[];
+  let event=activeJourneyEvent(lead);
+  if(!event){event={stage:lead.currentStage,enteredAt:lead.updatedAt||lead.createdAt||now};lead.stageHistory.push(event);}
+  event.exitedAt=now;event.outcome='lost';event.lossReason=document.getElementById('journey-loss-reason').value;event.lossNote=document.getElementById('journey-loss-note').value.trim();
+  lead.status='lost';lead.updatedAt=now;
+  DB.set('sales_journey',journey);
+  pendingJourneyLossId=null;
+  closeM('m-journey-loss');
+  renderSalesJourneySalesperson();
+}
+
+function addCompanyToSalesJourney(companyId){
+  if(isAdmin(getCurrentUser()))return;
+  const company=gCompanies().find(item=>item.id===companyId);if(!company)return;
+  const journey=gSalesJourney();
+  if(journey.leads.some(lead=>lead.sourceCompanyId===companyId)){alert('Ta firma jest już w Twojej Drodze Sprzedaży.');return;}
+  const now=new Date().toISOString();
+  journey.leads.unshift({id:uid(),company:company.name||'Bez nazwy',contact:company.contact||'',phone:company.phone||'',email:company.email||'',source:'Baza firm',notes:company.notes||'',sourceCompanyId:companyId,status:'active',currentStage:'cold_call',createdAt:now,updatedAt:now,stageHistory:[{stage:'cold_call',enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''}]});
+  DB.set('sales_journey',journey);
+  showPage('sales-journey');
+}
+
+async function renderSalesJourneyAdmin(){
+  const content=document.getElementById('sales-journey-content');
+  content.innerHTML='<div class="card" style="color:var(--text2)">Pobieranie anonimowych statystyk zespołu…</div>';
+  try{
+    const stats=await window.electronAPI.getSalesJourneyStats();
+    const stages=Array.isArray(stats.stages)?stats.stages:[];
+    const cold=stages.find(stage=>stage.id==='cold_call');
+    const sale=stages.find(stage=>stage.id==='sale');
+    const saleRate=cold?.entered?Math.round(((sale?.entered||0)/cold.entered)*1000)/10:null;
+    const biggestLeak=stages.filter(stage=>stage.dropOffRate!==null).sort((a,b)=>b.dropOffRate-a.dropOffRate)[0];
+    content.innerHTML=`
+      <div class="journey-summary">
+        ${journeySummaryCard('Wszystkie szanse',stats.totalLeads||0,'Bez nazw i danych kontaktowych')}
+        ${journeySummaryCard('Cold call → sprzedaż',saleRate===null?'—':`${saleRate}%`,'Udział szans, które dotarły do sprzedaży','var(--green)')}
+        ${journeySummaryCard('Największa utrata',biggestLeak?`${biggestLeak.dropOffRate}%`:'—',biggestLeak?.label||'Brak zakończonych etapów','var(--red)')}
+        ${journeySummaryCard('Handlowcy z dostępem',stats.activeUsers||0,'Aktywne konta zespołu','var(--blue)')}
+      </div>
+      ${renderJourneyAdminSection('Nowi klienci','Konwersja i utrata na etapach sprzedaży',stages.filter(stage=>stage.group==='new'))}
+      ${renderJourneyAdminSection('Nasi klienci','Utrzymanie klientów w kolejnych miesiącach',stages.filter(stage=>stage.group==='client'))}
+      <div class="journey-section-meta" style="margin-top:14px">Stan na ${esc(new Date(stats.generatedAt||Date.now()).toLocaleString('pl-PL'))}. Statystyki nie zawierają nazw klientów.</div>
+    `;
+  }catch(error){
+    content.innerHTML=`<div class="card" style="border-color:rgba(239,68,68,.35)"><div style="font-weight:700;color:var(--red);margin-bottom:5px">Nie udało się pobrać statystyk</div><div style="font-size:12px;color:var(--text2)">${esc(error.message||'Sprawdź wdrożenie funkcji sales-journey-stats w Supabase.')}</div></div>`;
+  }
+}
+
+function renderJourneyAdminSection(title,meta,stages){
+  return `<section class="journey-section"><div class="journey-section-head"><div class="journey-section-title">${esc(title)}</div><div class="journey-section-meta">${esc(meta)}</div></div><div class="journey-admin-grid">${stages.map(renderJourneyMetric).join('')}</div></section>`;
+}
+
+function renderJourneyMetric(stage){
+  const conversion=stage.conversionRate===null?'—':`${stage.conversionRate}%`;
+  const dropOff=stage.dropOffRate===null?'—':`${stage.dropOffRate}%`;
+  const width=stage.conversionRate===null?0:Math.max(0,Math.min(100,stage.conversionRate));
+  const reasons=(stage.lossReasons||[]).slice(0,3);
+  return `<div class="journey-metric">
+    <div class="journey-metric-head"><div class="journey-stage-name">${esc(stage.label)}</div><div class="journey-count">${stage.entered||0}</div></div>
+    <div class="journey-rate">${esc(conversion)}</div>
+    <div style="font-size:10.5px;color:var(--text3)">przeszło dalej spośród zamkniętych szans</div>
+    <div class="journey-bar"><span style="width:${width}%"></span></div>
+    <div class="journey-loss-row"><span>Utrata</span><strong style="color:var(--red)">${esc(dropOff)}</strong></div>
+    <div class="journey-loss-row"><span>Aktywni teraz</span><strong>${stage.active||0}</strong></div>
+    <div class="journey-loss-row"><span>Średni czas</span><strong>${stage.avgDays===null?'—':`${stage.avgDays} dni`}</strong></div>
+    ${reasons.length?`<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:5px">${reasons.map(item=>`<div class="journey-loss-row"><span>${esc(item.reason)}</span><strong>${item.count}</strong></div>`).join('')}</div>`:''}
+  </div>`;
+}
+
+// ══════════════════════════════
 // FIRMY — COLD OUTREACH CRM
 // ══════════════════════════════
 const gCompanies = () => DB.get('companies') || [];
@@ -1842,7 +2203,8 @@ function renderCompanies() {
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
           ${c.phone?`<a href="tel:${c.phone}" class="btn btn-primary btn-sm" style="text-decoration:none">📞 Zadzwoń</a>`:''}
           ${c.email?`<a href="mailto:${c.email}" class="btn btn-ghost btn-sm" style="text-decoration:none">✉ Wyślij email</a>`:''}
-          ${c.www?`<button class="btn btn-ghost btn-sm" onclick="openApolloContacts('${c.id}')">Decydenci${aiArray(c.apolloContacts).length?` (${aiArray(c.apolloContacts).length})`:''}</button>`:''}
+          ${!isAdmin(getCurrentUser())?`<button class="btn btn-primary btn-sm" onclick="addCompanyToSalesJourney('${c.id}')">Dodaj do Drogi Sprzedaży</button>`:''}
+          ${gs().apolloEnabled&&c.www?`<button class="btn btn-ghost btn-sm" onclick="openApolloContacts('${c.id}')">Decydenci${aiArray(c.apolloContacts).length?` (${aiArray(c.apolloContacts).length})`:''}</button>`:''}
           <button class="btn btn-primary btn-sm" onclick="openCompanyAI('${c.id}','brief')">Brief AI</button>
           <button class="btn btn-ghost btn-sm" onclick="openCompanyAI('${c.id}','post')">Po rozmowie</button>
           <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openEditCompany('${c.id}')">Edytuj</button>
