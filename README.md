@@ -37,6 +37,17 @@ AI dziala przez Edge Function `sales-ai`, aby klucz dostawcy nie trafil do aplik
 
 Ta funkcja nie wymaga dodatkowego SQL. Dostep otrzymuja tylko zalogowane, aktywne konta z `organization_members`.
 
+## Apollo - osoby decyzyjne
+
+Integracja Apollo wyszukuje osoby zarzadzajace na podstawie domeny firmy. Lista osob nie zuzywa kredytow Apollo; wzbogacenie wybranej osoby o e-mail i telefon jest wykonywane dopiero po potwierdzeniu uzytkownika i moze zuzyc kredyty planu Apollo.
+
+1. W Apollo utworz master API key o nazwie `Sales B2B`.
+2. W `Edge Functions -> Secrets` dodaj sekret `APOLLO_API_KEY`.
+3. Wdroz `supabase/functions/apollo-contacts` jako funkcje `apollo-contacts` z wlaczona weryfikacja JWT.
+4. Wdroz `supabase/functions/apollo-phone-webhook` jako funkcje `apollo-phone-webhook` i w jej ustawieniach wylacz weryfikacje JWT, poniewaz wywoluje ja serwer Apollo.
+
+Kontakty Apollo sa zapisywane wewnatrz rekordu firmy w `user_app_data`. Nie jest potrzebna dodatkowa tabela SQL. Telefon jest dostarczany asynchronicznie; aplikacja zapisuje identyfikator zadania i pozwala sprawdzic wynik bez ujawniania klucza Apollo.
+
 ## Uruchomienie
 
 Najprosciej: pobierz gotowy instalator z folderu `installer`:

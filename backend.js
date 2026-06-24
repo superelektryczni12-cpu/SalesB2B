@@ -195,6 +195,21 @@ async function generateSalesAI(action, payload) {
   return data;
 }
 
+async function apolloContacts(action, payload) {
+  await currentUser();
+  const { data, error } = await getClient().functions.invoke('apollo-contacts', {
+    body: {
+      action,
+      domain: payload?.domain || '',
+      personId: payload?.personId || '',
+      requestId: payload?.requestId || '',
+    },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 async function listEmployees() {
   const supabase = getClient();
   const context = await currentContext();
@@ -292,6 +307,7 @@ module.exports = {
   loadUserData,
   saveUserData,
   generateSalesAI,
+  apolloContacts,
   getBookings,
   addBooking,
   updateBookingStatus,

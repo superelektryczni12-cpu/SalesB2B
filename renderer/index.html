@@ -289,6 +289,14 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .sales-ai-status{font-size:12px;color:var(--text2);min-height:18px;margin-top:10px}
 .sales-ai-status.error{color:var(--red)}
 .sales-ai-status.ok{color:var(--green)}
+.apollo-list{display:grid;gap:8px;margin-top:14px}
+.apollo-contact{border:1px solid var(--border);background:rgba(255,255,255,.025);border-radius:8px;padding:14px}
+.apollo-contact-head{display:flex;align-items:flex-start;gap:12px}
+.apollo-contact-name{font-size:14px;font-weight:700;color:var(--text)}
+.apollo-contact-meta{font-size:12px;color:var(--text2);line-height:1.55;margin-top:2px}
+.apollo-contact-data{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border2)}
+.apollo-fit{min-width:70px;text-align:center;border:1px solid rgba(59,130,246,.25);background:rgba(59,130,246,.08);color:var(--blue);border-radius:7px;padding:6px 8px;font-size:10.5px;font-weight:600}
+.apollo-fit strong{display:block;font-size:15px;color:var(--text)}
 .lead-expand{display:none;padding:0 18px 16px;border-top:1px solid var(--border2)}
 .lead-expand.open{display:block}
 .lead-field{margin-top:10px}
@@ -839,6 +847,21 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
         <button class="btn btn-ghost btn-sm" id="sales-ai-save-btn" style="display:none" onclick="savePostCallAnalysis()">Zapisz w firmie</button>
         <button class="btn btn-primary btn-sm" id="sales-ai-post-btn" onclick="analyzeCompanyCall()">Analizuj rozmowę</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- APOLLO CONTACTS MODAL -->
+<div class="overlay" id="m-apollo-contacts">
+  <div class="modal modal-xl">
+    <button class="modal-close" onclick="closeM('m-apollo-contacts')">✕</button>
+    <h2 id="apollo-company-title">Decydenci</h2>
+    <div id="apollo-company-domain" style="font-size:12px;color:var(--text2);margin-top:-12px"></div>
+    <div id="apollo-contacts-list" class="apollo-list"></div>
+    <div id="apollo-status" class="sales-ai-status"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-apollo-contacts')">Zamknij</button>
+      <button class="btn btn-primary btn-sm" id="apollo-search-btn" onclick="searchApolloContacts()">Odśwież listę</button>
     </div>
   </div>
 </div>
@@ -1819,6 +1842,7 @@ function renderCompanies() {
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
           ${c.phone?`<a href="tel:${c.phone}" class="btn btn-primary btn-sm" style="text-decoration:none">📞 Zadzwoń</a>`:''}
           ${c.email?`<a href="mailto:${c.email}" class="btn btn-ghost btn-sm" style="text-decoration:none">✉ Wyślij email</a>`:''}
+          ${c.www?`<button class="btn btn-ghost btn-sm" onclick="openApolloContacts('${c.id}')">Decydenci${aiArray(c.apolloContacts).length?` (${aiArray(c.apolloContacts).length})`:''}</button>`:''}
           <button class="btn btn-primary btn-sm" onclick="openCompanyAI('${c.id}','brief')">Brief AI</button>
           <button class="btn btn-ghost btn-sm" onclick="openCompanyAI('${c.id}','post')">Po rozmowie</button>
           <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openEditCompany('${c.id}')">Edytuj</button>
@@ -2047,6 +2071,128 @@ async function copySalesAIFollowUp(){
     const area=document.createElement('textarea');area.value=text;area.style.position='fixed';area.style.opacity='0';document.body.appendChild(area);area.select();document.execCommand('copy');area.remove();
   }
   setSalesAIStatus('sales-ai-post-status','Follow-up skopiowany.','ok');
+}
+
+let activeApolloCompanyId=null;
+
+function companyDomain(value){
+  const raw=String(value||'').trim();if(!raw)return '';
+  try{return new URL(/^https?:\/\//i.test(raw)?raw:`https://${raw}`).hostname.replace(/^www\./i,'').toLowerCase();}catch{return '';}
+}
+function setApolloStatus(message,type=''){
+  const el=document.getElementById('apollo-status');if(!el)return;
+  el.textContent=message||'';
+  el.className=`sales-ai-status${type?' '+type:''}`;
+}
+function apolloContactLocation(contact){return [contact.city,contact.country].filter(Boolean).join(', ');}
+function renderApolloContacts(){
+  const company=gCompanies().find(item=>item.id===activeApolloCompanyId);
+  const el=document.getElementById('apollo-contacts-list');if(!company||!el)return;
+  const contacts=aiArray(company.apolloContacts);
+  if(!contacts.length){el.innerHTML='<div class="sales-ai-copy" style="color:var(--text3)">Brak pobranych osób.</div>';return;}
+  el.innerHTML=contacts.map(contact=>{
+    const phones=aiArray(contact.phoneNumbers);
+    const selected=company.selectedApolloContactId===contact.apolloPersonId;
+    const phoneLabel=contact.phoneStatus==='pending'?'Telefon jest przygotowywany przez Apollo':contact.phoneStatus==='unavailable'?'Apollo nie zwróciło telefonu':'Telefon niepobrany';
+    return `<div class="apollo-contact">
+      <div class="apollo-contact-head">
+        <div style="flex:1;min-width:0">
+          <div class="apollo-contact-name">${esc(contact.fullName||'Brak nazwiska')} ${selected?'<span class="badge badge-interested" style="margin-left:6px">Wybrany kontakt</span>':''}</div>
+          <div class="apollo-contact-meta">${esc(contact.title||'Stanowisko: brak danych')}${apolloContactLocation(contact)?` · ${esc(apolloContactLocation(contact))}`:''}</div>
+          <div class="apollo-contact-meta" style="color:var(--text3)">${esc(contact.decisionReason||'Dopasowanie wymaga weryfikacji')}</div>
+        </div>
+        <div class="apollo-fit"><strong>${esc(contact.decisionScore||'?')}/5</strong>Dopasowanie</div>
+      </div>
+      <div class="apollo-contact-data">
+        <div><div class="sales-ai-label">E-mail służbowy</div><div class="sales-ai-copy">${contact.email?`<a href="mailto:${esc(contact.email)}" style="color:var(--blue)">${esc(contact.email)}</a>${contact.emailStatus?`<br><span style="color:var(--text3)">${esc(contact.emailStatus)}</span>`:''}`:'Niepobrany'}</div></div>
+        <div><div class="sales-ai-label">Telefon</div><div class="sales-ai-copy">${phones.length?phones.map(phone=>`<a href="tel:${esc(phone.number)}" style="color:var(--green)">${esc(phone.rawNumber||phone.number)}</a>${phone.status?` <span style="color:var(--text3)">(${esc(phone.status)})</span>`:''}`).join('<br>'):esc(phoneLabel)}</div></div>
+        <div><div class="sales-ai-label">Źródło</div><div class="sales-ai-copy">Apollo${contact.apolloFetchedAt?` · ${esc(aiStamp(contact.apolloFetchedAt))}`:''}${contact.linkedinUrl?`<br><a href="${safeExternalUrl(contact.linkedinUrl)}" target="_blank" style="color:var(--blue)">LinkedIn</a>`:''}</div></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        ${!contact.apolloEnrichedAt?`<button class="btn btn-ghost btn-sm" onclick="enrichApolloContact('${contact.apolloPersonId}')">Pobierz e-mail i telefon</button>`:''}
+        ${contact.phoneStatus==='pending'?`<button class="btn btn-ghost btn-sm" onclick="pollApolloPhone('${contact.apolloPersonId}')">Sprawdź telefon</button>`:''}
+        <button class="btn btn-primary btn-sm" onclick="selectApolloContact('${contact.apolloPersonId}')">Użyj w Briefie AI</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function openApolloContacts(companyId){
+  const company=gCompanies().find(item=>item.id===companyId);if(!company)return;
+  const domain=companyDomain(company.www);
+  if(!domain){alert('Firma nie ma poprawnej domeny internetowej.');return;}
+  activeApolloCompanyId=companyId;
+  document.getElementById('apollo-company-title').textContent=`Decydenci · ${company.name}`;
+  document.getElementById('apollo-company-domain').textContent=domain;
+  renderApolloContacts();
+  setApolloStatus('');
+  openM('m-apollo-contacts');
+  if(!aiArray(company.apolloContacts).length)searchApolloContacts();
+}
+async function searchApolloContacts(){
+  const company=gCompanies().find(item=>item.id===activeApolloCompanyId);if(!company)return;
+  const domain=companyDomain(company.www);
+  const button=document.getElementById('apollo-search-btn');button.disabled=true;button.textContent='Szukam...';
+  setApolloStatus('Szukam osób zarządzających w Apollo...');
+  try{
+    const response=await window.electronAPI.apolloContacts('search',{domain});
+    const existing=new Map(aiArray(company.apolloContacts).map(contact=>[contact.apolloPersonId,contact]));
+    const now=new Date().toISOString();
+    const contacts=aiArray(response.contacts).map(contact=>({...(existing.get(contact.apolloPersonId)||{}),...contact,apolloFetchedAt:now,source:'Apollo'}));
+    const companies=gCompanies();const index=companies.findIndex(item=>item.id===company.id);if(index<0)return;
+    companies[index].apolloContacts=contacts;
+    companies[index].apolloDomain=response.domain||domain;
+    DB.set('companies',companies);
+    renderApolloContacts();renderCompanies();
+    setApolloStatus(contacts.length?`Znaleziono ${contacts.length} osób. Dane kontaktowe pobieraj tylko dla wybranych.`:'Apollo nie znalazło osób zarządzających dla tej domeny.',contacts.length?'ok':'');
+  }catch(error){setApolloStatus(error.message||'Nie udało się pobrać osób z Apollo.','error');}
+  finally{button.disabled=false;button.textContent='Odśwież listę';}
+}
+async function enrichApolloContact(personId){
+  const company=gCompanies().find(item=>item.id===activeApolloCompanyId);const contact=aiArray(company?.apolloContacts).find(item=>item.apolloPersonId===personId);if(!company||!contact)return;
+  if(!confirm(`Pobranie danych kontaktowych dla ${contact.fullName} może zużyć kredyty Apollo. Kontynuować?`))return;
+  setApolloStatus(`Pobieram dane kontaktowe: ${contact.fullName}...`);
+  try{
+    await cloudWriteChain;
+    const response=await window.electronAPI.apolloContacts('enrich',{personId});
+    const companies=gCompanies();const companyIndex=companies.findIndex(item=>item.id===company.id);if(companyIndex<0)return;
+    const saved=aiArray(companies[companyIndex].apolloContacts).find(item=>item.apolloPersonId===personId);if(!saved)return;
+    saved.email=response.email||'';
+    saved.emailStatus=response.emailStatus||'';
+    saved.apolloPhoneRequestId=response.requestId||'';
+    saved.phoneStatus=response.phoneStatus||'unavailable';
+    saved.apolloEnrichedAt=new Date().toISOString();
+    DB.set('companies',companies);
+    renderApolloContacts();
+    setApolloStatus(saved.phoneStatus==='pending'?'E-mail zapisany. Apollo przygotowuje numer telefonu.':'Dane zapisane; Apollo nie uruchomiło wyszukiwania telefonu.','ok');
+    if(saved.phoneStatus==='pending')setTimeout(()=>pollApolloPhone(personId,true),30000);
+  }catch(error){setApolloStatus(error.message||'Nie udało się pobrać danych kontaktowych.','error');}
+}
+async function pollApolloPhone(personId,silent=false){
+  const company=gCompanies().find(item=>item.id===activeApolloCompanyId);const contact=aiArray(company?.apolloContacts).find(item=>item.apolloPersonId===personId);if(!company||!contact?.apolloPhoneRequestId)return;
+  if(!silent)setApolloStatus(`Sprawdzam telefon: ${contact.fullName}...`);
+  try{
+    await cloudWriteChain;
+    const response=await window.electronAPI.apolloContacts('poll_phone',{personId,requestId:contact.apolloPhoneRequestId});
+    if(response.pending){if(!silent)setApolloStatus('Apollo nadal przygotowuje telefon. Spróbuj ponownie za chwilę.');return;}
+    const companies=gCompanies();const companyIndex=companies.findIndex(item=>item.id===company.id);if(companyIndex<0)return;
+    const saved=aiArray(companies[companyIndex].apolloContacts).find(item=>item.apolloPersonId===personId);if(!saved)return;
+    saved.phoneNumbers=aiArray(response.phoneNumbers);
+    saved.phoneStatus=saved.phoneNumbers.length?'ready':'unavailable';
+    saved.phoneCheckedAt=new Date().toISOString();
+    DB.set('companies',companies);
+    renderApolloContacts();
+    setApolloStatus(saved.phoneNumbers.length?'Numer telefonu został zapisany.':'Apollo nie posiada numeru dla tej osoby.',saved.phoneNumbers.length?'ok':'');
+  }catch(error){if(!silent)setApolloStatus(error.message||'Nie udało się sprawdzić telefonu.','error');}
+}
+function selectApolloContact(personId){
+  const companies=gCompanies();const companyIndex=companies.findIndex(item=>item.id===activeApolloCompanyId);if(companyIndex<0)return;
+  const contact=aiArray(companies[companyIndex].apolloContacts).find(item=>item.apolloPersonId===personId);if(!contact)return;
+  companies[companyIndex].selectedApolloContactId=personId;
+  companies[companyIndex].contact=[contact.fullName,contact.title].filter(Boolean).join(' — ');
+  companies[companyIndex].contactSource='Apollo';
+  companies[companyIndex].contactVerifiedAt=contact.apolloFetchedAt||new Date().toISOString();
+  DB.set('companies',companies);
+  closeM('m-apollo-contacts');renderCompanies();openCompanyAI(companies[companyIndex].id,'brief');
 }
 
 function openNewCompany() {

@@ -60,6 +60,7 @@ ipcMain.handle('employees-delete', (_e, id) => backend.deleteEmployee(id));
 ipcMain.handle('user-data-load', () => backend.loadUserData());
 ipcMain.handle('user-data-save', (_e, dataKey, value) => backend.saveUserData(dataKey, value));
 ipcMain.handle('sales-ai-generate', (_e, action, payload) => backend.generateSalesAI(action, payload));
+ipcMain.handle('apollo-contacts', (_e, action, payload) => backend.apolloContacts(action, payload));
 
 nativeTheme.themeSource = 'dark';
 
