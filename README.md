@@ -49,6 +49,20 @@ Administrator i manager nie otrzymuja nazw firm ani danych kontaktowych. Widok z
 
 Nie jest potrzebny dodatkowy SQL. Dane lejka korzystaja z istniejacej tabeli `user_app_data` i klucza `sales_journey`.
 
+## Panel administratora i synchronizacja zakladek
+
+Administrator oraz manager moga przelaczac sie na panel dowolnego aktywnego uzytkownika w organizacji. Wszystkie zakladki czytaja wtedy i zapisuja dane wybranego konta. Handlowiec pozostaje przy swoim prywatnym panelu.
+
+Przeplyw jest laczony identyfikatorami:
+
+- firma dodana do Drogi Sprzedazy tworzy lead,
+- przypisanie leada tworzy spotkanie,
+- data spotkania tworzy wydarzenie w Terminarzu,
+- wejscie na etap Sprzedaz tworzy Klienta,
+- edycje danych kontaktowych synchronizuja powiazane rekordy.
+
+Dla istniejacego projektu Supabase uruchom raz `supabase-admin-team-access.sql`. To nie tworzy nowych tabel; dodaje tylko funkcje i polityki RLS pozwalajace adminowi zarzadzac danymi kont z tej samej organizacji.
+
 ## Apollo - osoby decyzyjne
 
 Integracja Apollo wyszukuje osoby zarzadzajace na podstawie domeny firmy. Lista osob nie zuzywa kredytow Apollo; wzbogacenie wybranej osoby o e-mail i telefon jest wykonywane dopiero po potwierdzeniu uzytkownika i moze zuzyc kredyty planu Apollo.
@@ -65,7 +79,7 @@ Kontakty Apollo sa zapisywane wewnatrz rekordu firmy w `user_app_data`. Nie jest
 Najprosciej: pobierz gotowy instalator z folderu `installer`:
 
 ```text
-installer/Sales-B2B-Setup-1.4.0.exe
+installer/Sales-B2B-Setup-1.5.0.exe
 ```
 
 Po pobraniu uruchom plik `.exe` i przejdz instalacje.

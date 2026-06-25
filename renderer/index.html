@@ -15,7 +15,7 @@
   --red:#ef4444;--red-dim:rgba(239,68,68,.12);
   --orange:#f97316;--orange-dim:rgba(249,115,22,.12);
   --amber:#f59e0b;
-  --nav-h:52px;
+  --nav-h:52px;--team-h:0px;
   --traffic-w:0px;
 }
 /* macOS — traffic lights spacer + drag region */
@@ -56,12 +56,17 @@ nav{
 .nav-pill{background:none;border:none;color:var(--text2);padding:6px 14px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:500;letter-spacing:.01em;transition:.15s;white-space:nowrap;font-family:inherit}
 .nav-pill:hover{color:var(--text);background:rgba(255,255,255,.05)}
 .nav-pill.active{background:rgba(255,255,255,.1);color:var(--text)}
+.team-view-bar{display:none;position:fixed;top:var(--nav-h);left:0;right:0;height:44px;z-index:90;background:#151515;border-bottom:1px solid var(--border);align-items:center;justify-content:center;gap:9px;padding:0 18px;font-size:11.5px;color:var(--text2)}
+.team-view-bar select{width:auto;min-width:210px;padding:6px 30px 6px 10px;font-size:12.5px;background:#202020}
+.team-view-bar .btn{padding:5px 9px}
+html.team-mode{--team-h:44px}
+html.team-mode .team-view-bar{display:flex}
 
 /* PAGES */
 .page{
   display:none;
   position:fixed;
-  top:var(--nav-h);left:0;right:0;bottom:0;
+  top:calc(var(--nav-h) + var(--team-h));left:0;right:0;bottom:0;
   overflow-y:auto;
   padding:28px 36px 48px;
 }
@@ -381,6 +386,12 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   </div>
   <button class="nav-settings" onclick="showPage('settings')" title="Ustawienia">⚙</button>
 </nav>
+<div class="team-view-bar" id="team-view-bar">
+  <span>Panel użytkownika</span>
+  <select id="team-user-select" onchange="switchTeamUser(this.value)"></select>
+  <button class="btn btn-ghost btn-sm" onclick="refreshTeamPanels()" title="Pobierz najnowsze dane">Odśwież</button>
+  <span id="team-view-status"></span>
+</div>
 
 <!-- HOME -->
 <div id="page-home" class="page active">
@@ -993,24 +1004,27 @@ let employeesCache=[];
 let authMode='login';
 let cloudWriteChain=Promise.resolve();
 let suppressCloudWrites=false;
-const USER_DATA_KEYS=['settings','clients','projects','events','quotes','transactions','companies','manual_meetings','sales_journey','seeded'];
+let teamDataMembers=[];
+let selectedDataUserId=null;
+const USER_DATA_KEYS=['settings','clients','projects','events','quotes','transactions','companies','manual_meetings','bookings','sales_journey','seeded'];
 
-function userStorageKey(key){return currentUser?`salesb2b:${currentUser.id}:${key}`:null;}
-function showCloudError(message){
+function dataOwnerId(){return currentUser?(isAdmin(currentUser)&&selectedDataUserId?selectedDataUserId:currentUser.id):null;}
+function userStorageKey(key,userId=dataOwnerId()){return userId?`salesb2b:${userId}:${key}`:null;}
+function showCloudError(message,prefix='Nie zapisano danych w chmurze'){
   let badge=document.getElementById('cloud-error');
   if(!badge){badge=document.createElement('div');badge.id='cloud-error';badge.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#301919;border:1px solid var(--red);color:var(--text);padding:11px 18px;border-radius:10px;font-size:12.5px;z-index:10000';document.body.appendChild(badge);}
-  badge.textContent=`Nie zapisano danych w chmurze: ${message}`;
+  badge.textContent=`${prefix}: ${message}`;
 }
-function queueCloudWrite(key,value){
+function queueCloudWrite(key,value,ownerId=dataOwnerId()){
   if(!currentUser||suppressCloudWrites||!window.electronAPI)return;
   cloudWriteChain=cloudWriteChain
-    .then(()=>window.electronAPI.saveUserData(key,value))
+    .then(()=>ownerId===currentUser.id?window.electronAPI.saveUserData(key,value):window.electronAPI.saveTeamUserData(ownerId,key,value))
     .then(()=>document.getElementById('cloud-error')?.remove())
     .catch(error=>{showCloudError(error.message||'błąd połączenia');});
 }
 const DB={
   get(key){const storageKey=userStorageKey(key);if(!storageKey)return null;try{return JSON.parse(localStorage.getItem(storageKey))??null}catch{return null}},
-  set(key,value){const storageKey=userStorageKey(key);if(!storageKey)return;localStorage.setItem(storageKey,JSON.stringify(value));queueCloudWrite(key,value)}
+  set(key,value){const ownerId=dataOwnerId(),storageKey=userStorageKey(key,ownerId);if(!storageKey)return;localStorage.setItem(storageKey,JSON.stringify(value));queueCloudWrite(key,value,ownerId)}
 };
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const gs=()=>DB.get('settings')||{name:'Mateusz',companyName:'Firma XYZ',nip:'123 123 12 12',address:'Testowa 13',email:'test@test.pl',phone:'+48 500 000 000',www:'www.test.pl',vatRate:23,rates:{implementation:180,automation:200,travel:1.15}};
@@ -1063,9 +1077,9 @@ async function hydrateUserData(){
   const remote=await window.electronAPI.loadUserData();
   suppressCloudWrites=true;
   try{
-    USER_DATA_KEYS.forEach(key=>localStorage.removeItem(userStorageKey(key)));
+    USER_DATA_KEYS.forEach(key=>localStorage.removeItem(userStorageKey(key,currentUser.id)));
     Object.entries(remote||{}).forEach(([key,value])=>{
-      if(USER_DATA_KEYS.includes(key))localStorage.setItem(userStorageKey(key),JSON.stringify(value));
+      if(USER_DATA_KEYS.includes(key))localStorage.setItem(userStorageKey(key,currentUser.id),JSON.stringify(value));
     });
   }finally{suppressCloudWrites=false;}
 
@@ -1084,8 +1098,57 @@ async function hydrateUserData(){
 
 async function activateUser(user){
   currentUser=user;
+  selectedDataUserId=user.id;
   await hydrateUserData();
+  if(isAdmin(user)){
+    teamDataMembers=[ownTeamMember()];
+    try{await hydrateTeamData();}
+    catch(error){showCloudError(error.message||'brak dostepu do paneli zespolu','Panel zespolu wymaga aktualizacji SQL');}
+  }
   showApp(currentUser);
+}
+
+async function hydrateTeamData(){
+  const loaded=await window.electronAPI.loadTeamData();
+  const own=ownTeamMember();
+  teamDataMembers=loaded.some(member=>member.userId===own.userId)?loaded:[own,...loaded];
+  suppressCloudWrites=true;
+  try{
+    teamDataMembers.forEach(member=>{
+      Object.entries(member.data||{}).forEach(([key,value])=>{
+        if(USER_DATA_KEYS.includes(key))localStorage.setItem(userStorageKey(key,member.userId),JSON.stringify(value));
+      });
+    });
+  }finally{suppressCloudWrites=false;}
+}
+
+function ownTeamMember(){
+  return {memberId:currentUser?.memberId,userId:currentUser?.id,email:currentUser?.email,name:currentUser?.name||currentUser?.email||'Admin',role:currentUser?.role||'admin',permissions:currentUser?.permissions||[],data:{}};
+}
+function currentPanelMember(){return teamDataMembers.find(member=>member.userId===dataOwnerId())||null;}
+function isViewingTeamMember(){return Boolean(isAdmin(currentUser)&&dataOwnerId()!==currentUser?.id);}
+function renderTeamBar(){
+  const enabled=isAdmin(currentUser);
+  document.documentElement.classList.toggle('team-mode',enabled);
+  if(!enabled)return;
+  if(!teamDataMembers.length)teamDataMembers=[ownTeamMember()];
+  const select=document.getElementById('team-user-select');
+  select.innerHTML=teamDataMembers.map(member=>`<option value="${member.userId}"${member.userId===dataOwnerId()?' selected':''}>${esc(member.name)} · ${esc(member.role)}</option>`).join('');
+  document.getElementById('team-view-status').textContent=isViewingTeamMember()?'Pełny podgląd i edycja':'Twój panel administracyjny';
+}
+
+async function refreshTeamPanels(){
+  const status=document.getElementById('team-view-status');status.textContent='Pobieranie…';
+  try{await hydrateTeamData();renderTeamBar();showPage(curPage);status.textContent=isViewingTeamMember()?'Pełny podgląd i edycja':'Twój panel administracyjny';}
+  catch(error){status.textContent=error.message||'Błąd pobierania danych';}
+}
+
+function switchTeamUser(userId){
+  if(!isAdmin(currentUser)||!teamDataMembers.some(member=>member.userId===userId))return;
+  selectedDataUserId=userId;
+  renderTeamBar();
+  if(curPage==='settings'){showPage('home');return;}
+  showPage(curPage);
 }
 
 async function doLogin(){
@@ -1124,6 +1187,9 @@ async function doLogout(){
   try{await window.electronAPI.logout();}catch{}
   currentUser=null;
   employeesCache=[];
+  teamDataMembers=[];
+  selectedDataUserId=null;
+  document.documentElement.classList.remove('team-mode');
   document.getElementById('login-screen').style.display='flex';
   document.getElementById('l-user').value=''; document.getElementById('l-pass').value='';
   showAuthMessage('');
@@ -1132,6 +1198,7 @@ async function doLogout(){
 function showApp(user){
   document.getElementById('login-screen').style.display='none';
   updateNav(user);
+  renderTeamBar();
   loadEmployees();
   renderHome();
 }
@@ -1309,8 +1376,8 @@ function openAddEvent(){editEvId=null;document.getElementById('m-event-title').t
 function openAddEventDate(date,hr){openAddEvent();document.getElementById('ev-date').value=date;document.getElementById('ev-start').value=String(hr).padStart(2,'0')+':00';document.getElementById('ev-end').value=String(Math.min(hr+2,22)).padStart(2,'0')+':00'}
 function openEditEvent(id){const e=ge().find(x=>x.id===id);if(!e)return;editEvId=id;document.getElementById('m-event-title').textContent='Edytuj wydarzenie';document.getElementById('ev-title').value=e.title;document.getElementById('ev-type').value=e.type;document.getElementById('ev-date').value=e.date;document.getElementById('ev-start').value=e.startTime;document.getElementById('ev-end').value=e.endTime;document.getElementById('ev-loc').value=e.location||'';document.getElementById('ev-notes').value=e.notes||'';document.getElementById('ev-del-btn').style.display='inline-flex';fillEvSelects(e.projectId,e.clientId);openM('m-event')}
 function fillEvSelects(pid,cid){document.getElementById('ev-proj').innerHTML='<option value="">— brak —</option>'+gp().map(p=>`<option value="${p.id}"${p.id===pid?' selected':''}>${p.name}</option>`).join('');document.getElementById('ev-client').innerHTML='<option value="">— brak —</option>'+gc().map(c=>`<option value="${c.id}"${c.id===cid?' selected':''}>${c.name}</option>`).join('')}
-function saveEvent(){const evs=ge();const obj={id:editEvId||uid(),title:document.getElementById('ev-title').value.trim(),type:document.getElementById('ev-type').value,date:document.getElementById('ev-date').value,startTime:document.getElementById('ev-start').value,endTime:document.getElementById('ev-end').value,location:document.getElementById('ev-loc').value,projectId:document.getElementById('ev-proj').value,clientId:document.getElementById('ev-client').value,notes:document.getElementById('ev-notes').value};if(!obj.title||!obj.date){alert('Podaj nazwę i datę.');return}if(editEvId){const i=evs.findIndex(x=>x.id===editEvId);evs[i]=obj}else evs.push(obj);DB.set('events',evs);closeM('m-event');if(curPage==='calendar')renderCal();else if(curPage==='home')renderHome()}
-function deleteEvent(){if(!editEvId||!confirm('Usunąć wydarzenie?'))return;DB.set('events',ge().filter(x=>x.id!==editEvId));closeM('m-event');if(curPage==='calendar')renderCal()}
+function saveEvent(){const evs=ge(),previous=editEvId?evs.find(x=>x.id===editEvId):null;const obj={...(previous||{}),id:editEvId||uid(),title:document.getElementById('ev-title').value.trim(),type:document.getElementById('ev-type').value,date:document.getElementById('ev-date').value,startTime:document.getElementById('ev-start').value,endTime:document.getElementById('ev-end').value,location:document.getElementById('ev-loc').value,projectId:document.getElementById('ev-proj').value,clientId:document.getElementById('ev-client').value,notes:document.getElementById('ev-notes').value};if(!obj.title||!obj.date){alert('Podaj nazwę i datę.');return}if(editEvId){const i=evs.findIndex(x=>x.id===editEvId);evs[i]=obj}else evs.push(obj);DB.set('events',evs);syncMeetingFromCalendarEvent(obj);closeM('m-event');if(curPage==='calendar')renderCal();else if(curPage==='home')renderHome()}
+function deleteEvent(){if(!editEvId||!confirm('Usunąć wydarzenie?'))return;const removed=ge().find(x=>x.id===editEvId);DB.set('events',ge().filter(x=>x.id!==editEvId));if(removed?.bookingId){const meetings=[...(DB.get('bookings')||[]),...(DB.get('manual_meetings')||[])],meeting=meetings.find(item=>item.id===removed.bookingId);if(meeting){meeting.date='';meeting.time='';meeting.timeEnd='';meeting.calendarEventId='';meeting.status='nowe';DB.set('manual_meetings',meetings.filter(item=>item.manual));DB.set('bookings',meetings.filter(item=>!item.manual));syncJourneyFromMeeting(meeting);}}closeM('m-event');if(curPage==='calendar')renderCal()}
 
 let projFilter='all';
 function filterProj(f,btn){projFilter=f;document.querySelectorAll('.filter-tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');renderProj()}
@@ -1328,12 +1395,12 @@ function deleteProjConfirm(id){if(!confirm('Usunąć projekt?'))return;DB.set('p
 
 let clSubTab='clients';
 function clientSubTab(tab,btn){clSubTab=tab;document.querySelectorAll('.sub-tab').forEach(x=>x.classList.remove('active'));btn.classList.add('active');document.getElementById('cl-tab-clients').style.display=tab==='clients'?'block':'none';document.getElementById('cl-tab-quotes').style.display=tab==='quotes'?'block':'none';const addBtn=document.getElementById('clients-add-btn');if(tab==='clients'){addBtn.textContent='+ Nowy klient';addBtn.onclick=openNewClient}else{addBtn.textContent='+ Nowa wycena';addBtn.onclick=openNewQuote;renderQuotesList()}}
-function renderClients(){const cs=gc();const el=document.getElementById('cl-list');if(!cs.length){el.innerHTML='<div style="color:var(--text2);padding:16px 0;font-size:14px">Brak klientów</div>';return}el.innerHTML=cs.map(c=>`<div class="list-row" onclick="openEditClient('${c.id}')"><div><div class="list-row-title">${c.name}</div><div class="list-row-sub">${c.company||'—'}</div></div><div style="text-align:right;font-size:12.5px;color:var(--text2)"><div>${c.email||''}</div><div>${c.phone||''}</div></div></div>`).join('')}
+function renderClients(){const cs=gc();const el=document.getElementById('cl-list');if(!cs.length){el.innerHTML='<div style="color:var(--text2);padding:16px 0;font-size:14px">Brak klientów</div>';return}el.innerHTML=cs.map(c=>`<div class="list-row" onclick="openEditClient('${c.id}')"><div><div class="list-row-title">${esc(c.name)}${c.journeyLeadId?' <span class="badge badge-green" style="margin-left:7px">Ze sprzedaży</span>':''}</div><div class="list-row-sub">${esc(c.company||'—')}</div></div><div style="text-align:right;font-size:12.5px;color:var(--text2)"><div>${esc(c.email||'')}</div><div>${esc(c.phone||'')}</div></div></div>`).join('')}
 let editClId=null;
 function openNewClient(){editClId=null;document.getElementById('m-client-title').textContent='Nowy klient';['name','company','nip','address','email','phone','notes'].forEach(f=>document.getElementById('cl-'+f).value='');document.getElementById('cl-del-btn').style.display='none';openM('m-client')}
 function openEditClient(id){const c=gc().find(x=>x.id===id);if(!c)return;editClId=id;document.getElementById('m-client-title').textContent='Edytuj klienta';document.getElementById('cl-name').value=c.name||'';document.getElementById('cl-company').value=c.company||'';document.getElementById('cl-nip').value=c.nip||'';document.getElementById('cl-address').value=c.address||'';document.getElementById('cl-email').value=c.email||'';document.getElementById('cl-phone').value=c.phone||'';document.getElementById('cl-notes').value=c.notes||'';document.getElementById('cl-del-btn').style.display='inline-flex';openM('m-client')}
-function saveClient(){const cs=gc();const obj={id:editClId||uid(),name:document.getElementById('cl-name').value.trim(),company:document.getElementById('cl-company').value,nip:document.getElementById('cl-nip').value,address:document.getElementById('cl-address').value,email:document.getElementById('cl-email').value,phone:document.getElementById('cl-phone').value,notes:document.getElementById('cl-notes').value};if(!obj.name){alert('Podaj imię i nazwisko.');return}if(editClId){const i=cs.findIndex(x=>x.id===editClId);cs[i]=obj}else cs.push(obj);DB.set('clients',cs);closeM('m-client');renderClients()}
-function deleteClient(){if(!editClId||!confirm('Usunąć klienta?'))return;DB.set('clients',gc().filter(x=>x.id!==editClId));closeM('m-client');renderClients()}
+function saveClient(){const cs=gc(),previous=editClId?cs.find(x=>x.id===editClId):null;const obj={...(previous||{}),id:editClId||uid(),name:document.getElementById('cl-name').value.trim(),company:document.getElementById('cl-company').value,nip:document.getElementById('cl-nip').value,address:document.getElementById('cl-address').value,email:document.getElementById('cl-email').value,phone:document.getElementById('cl-phone').value,notes:document.getElementById('cl-notes').value};if(!obj.name){alert('Podaj imię i nazwisko.');return}if(editClId){const i=cs.findIndex(x=>x.id===editClId);cs[i]=obj}else cs.push(obj);DB.set('clients',cs);syncJourneyFromClient(obj);closeM('m-client');renderClients()}
+function deleteClient(){if(!editClId||!confirm('Usunąć klienta?'))return;const removed=gc().find(x=>x.id===editClId);DB.set('clients',gc().filter(x=>x.id!==editClId));if(removed?.journeyLeadId){const journey=gSalesJourney(),lead=journey.leads.find(item=>item.id===removed.journeyLeadId);if(lead){lead.clientId='';DB.set('sales_journey',journey);}}closeM('m-client');renderClients()}
 
 function renderQuotesList(){const qs=gq().slice().sort((a,b)=>b.issueDate.localeCompare(a.issueDate));const el=document.getElementById('quotes-list');if(!qs.length){el.innerHTML='<div style="color:var(--text2);padding:16px 0;font-size:14px">Brak wycen</div>';return}el.innerHTML=qs.map(q=>`<div class="list-row"><div onclick="openEditQuote('${q.id}')" style="flex:1;cursor:pointer"><div class="list-row-title">${clientName(q.clientId)} — ${q.number||''}</div><div class="list-row-sub">${fmtDate(q.issueDate)}</div></div><div style="display:flex;align-items:center;gap:10px"><span class="badge ${badgeCls(q.status)}">${q.status}</span><span style="font-weight:600;font-size:15px">${fmtMoney(q.grossTotal||0)}</span><button class="btn btn-ghost btn-sm" onclick="previewQuoteById('${q.id}')">Podgląd</button></div></div>`).join('')}
 let editQId=null,svcLines=[];
@@ -1376,6 +1443,87 @@ function openM(id){document.getElementById(id).classList.add('open')}
 function closeM(id){document.getElementById(id).classList.remove('open')}
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open')}));
 
+function panelAssigneeId(){return currentPanelMember()?.memberId||getCurrentUserAny()?.memberId||getCurrentUserAny()?.id||null;}
+function persistMeetings(){
+  DB.set('manual_meetings',meetingsData.filter(item=>item.manual));
+  DB.set('bookings',meetingsData.filter(item=>!item.manual));
+}
+function syncMeetingCalendar(meeting){
+  const events=ge();
+  const index=events.findIndex(event=>event.bookingId===meeting.id);
+  if(!meeting.date){
+    if(index>=0){events.splice(index,1);DB.set('events',events);}
+    meeting.calendarEventId='';
+    return;
+  }
+  const previous=index>=0?events[index]:{};
+  const event={
+    ...previous,
+    id:previous.id||uid(),bookingId:meeting.id,journeyLeadId:meeting.journeyLeadId||'',
+    title:`Spotkanie – ${meeting.name||meeting.company}`,type:'Spotkanie',date:meeting.date,
+    startTime:meeting.time||'10:00',endTime:meeting.timeEnd||meetingEndTime(meeting.time||'10:00'),
+    location:meeting.location||'Online',notes:meeting.problem||'',clientId:meeting.clientId||'',assignedTo:meeting.assignedTo||null,
+  };
+  if(index>=0)events[index]=event;else events.push(event);
+  meeting.calendarEventId=event.id;
+  DB.set('events',events);
+}
+function syncMeetingFromCalendarEvent(event){
+  if(!event.bookingId)return;
+  const meetings=[...(DB.get('bookings')||[]),...(DB.get('manual_meetings')||[])];
+  const meeting=meetings.find(item=>item.id===event.bookingId);if(!meeting)return;
+  meeting.date=event.date;meeting.time=event.startTime;meeting.timeEnd=event.endTime;meeting.location=event.location||meeting.location||'';meeting.problem=event.notes||meeting.problem||'';meeting.calendarEventId=event.id;meeting.updatedAt=new Date().toISOString();
+  DB.set('manual_meetings',meetings.filter(item=>item.manual));DB.set('bookings',meetings.filter(item=>!item.manual));syncJourneyFromMeeting(meeting);
+}
+function meetingEndTime(start){
+  const [hour,minute]=String(start||'10:00').split(':').map(Number);
+  const total=(Number.isFinite(hour)?hour:10)*60+(Number.isFinite(minute)?minute:0)+60;
+  return `${String(Math.floor(total/60)%24).padStart(2,'0')}:${String(total%60).padStart(2,'0')}`;
+}
+function syncJourneyFromMeeting(meeting){
+  if(!meeting.journeyLeadId)return;
+  const journey=gSalesJourney();
+  const lead=journey.leads.find(item=>item.id===meeting.journeyLeadId);if(!lead)return;
+  lead.contact=meeting.name||lead.contact;lead.company=meeting.company||lead.company;lead.email=meeting.email||lead.email;lead.phone=meeting.phone||lead.phone;
+  lead.meetingId=meeting.id;lead.meetingDate=meeting.date||'';lead.meetingTime=meeting.time||'';lead.updatedAt=new Date().toISOString();
+  DB.set('sales_journey',journey);
+}
+function syncMeetingFromJourney(lead){
+  if(!lead.meetingId)return;
+  const meetings=[...(DB.get('bookings')||[]),...(DB.get('manual_meetings')||[])];
+  const meeting=meetings.find(item=>item.id===lead.meetingId);if(!meeting)return;
+  meeting.name=lead.contact||lead.company;meeting.company=lead.company;meeting.email=lead.email||'';meeting.phone=lead.phone||'';meeting.problem=lead.notes||meeting.problem||'';
+  const manuals=meetings.filter(item=>item.manual),bookings=meetings.filter(item=>!item.manual);
+  DB.set('manual_meetings',manuals);DB.set('bookings',bookings);
+}
+function ensureClientFromJourneyLead(lead){
+  const clients=gc();
+  let client=clients.find(item=>item.journeyLeadId===lead.id)||(lead.clientId?clients.find(item=>item.id===lead.clientId):null);
+  const values={name:lead.contact||lead.company,company:lead.company,email:lead.email||'',phone:lead.phone||'',notes:lead.notes||'',journeyLeadId:lead.id,sourceCompanyId:lead.sourceCompanyId||''};
+  if(client)Object.assign(client,values);
+  else{client={id:uid(),nip:'',address:'',...values};clients.push(client);}
+  lead.clientId=client.id;
+  DB.set('clients',clients);
+  if(lead.meetingId){
+    const meetings=[...(DB.get('bookings')||[]),...(DB.get('manual_meetings')||[])];
+    const meeting=meetings.find(item=>item.id===lead.meetingId);
+    if(meeting){meeting.clientId=client.id;DB.set('manual_meetings',meetings.filter(item=>item.manual));DB.set('bookings',meetings.filter(item=>!item.manual));syncMeetingCalendar(meeting);}
+  }
+  return client;
+}
+function syncJourneyFromClient(client){
+  if(!client.journeyLeadId)return;
+  const journey=gSalesJourney();const lead=journey.leads.find(item=>item.id===client.journeyLeadId);if(!lead)return;
+  lead.contact=client.name||lead.contact;lead.company=client.company||lead.company;lead.email=client.email||'';lead.phone=client.phone||'';lead.notes=client.notes||'';lead.clientId=client.id;lead.updatedAt=new Date().toISOString();
+  DB.set('sales_journey',journey);syncMeetingFromJourney(lead);
+}
+function syncJourneyFromCompany(company){
+  const journey=gSalesJourney();const lead=journey.leads.find(item=>item.sourceCompanyId===company.id);if(!lead)return;
+  lead.company=company.name||lead.company;lead.contact=company.contact||lead.contact;lead.email=company.email||'';lead.phone=company.phone||'';lead.notes=company.notes||lead.notes||'';lead.updatedAt=new Date().toISOString();
+  if(lead.clientId)ensureClientFromJourneyLead(lead);
+  DB.set('sales_journey',journey);syncMeetingFromJourney(lead);
+}
+
 // ══════════════════════════════
 // SPOTKANIA
 // ══════════════════════════════
@@ -1383,17 +1531,8 @@ let meetingsFilter = 'all';
 let meetingsData = [];
 
 async function loadMeetings() {
-  try {
-    if (window.electronAPI) {
-      meetingsData = await window.electronAPI.getBookings();
-    } else {
-      const r = await fetch('http://localhost:3721/bookings');
-      meetingsData = await r.json();
-    }
-  } catch { meetingsData = []; }
-  // Merge manually added meetings (stored locally)
-  const manuals = DB.get('manual_meetings') || [];
-  manuals.forEach(m => { if (!meetingsData.find(x => x.id === m.id)) meetingsData.push(m); });
+  meetingsData=[...(DB.get('bookings')||[])];
+  (DB.get('manual_meetings')||[]).forEach(meeting=>{if(!meetingsData.some(item=>item.id===meeting.id))meetingsData.push(meeting);});
   renderMeetings();
 }
 
@@ -1469,12 +1608,9 @@ async function assignMeeting(id, empId) {
   const b = meetingsData.find(x => x.id === id);
   if (!b) return;
   b.assignedTo = empId || null;
-  // Update the signed-in user's booking in Supabase.
-  try { await fetch('http://localhost:3721/booking/assign', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, assignedTo: empId||null}) }); } catch {}
-  // Update or create calendar event with assignedTo
-  const evs = ge();
-  const existing = evs.find(e => e.bookingId === id);
-  if (existing) { existing.assignedTo = empId||null; DB.set('events', evs); }
+  persistMeetings();
+  syncMeetingCalendar(b);
+  syncJourneyFromMeeting(b);
   renderMeetings();
   renderCal();
 }
@@ -1482,14 +1618,11 @@ async function assignMeeting(id, empId) {
 async function confirmMeeting(id) {
   const b = meetingsData.find(x => x.id === id);
   if (!b) return;
+  if(!b.date){alert('Najpierw wybierz datę spotkania.');if(b.manual)openEditMeetingManual(id);return;}
   b.status = 'potwierdzone';
-  if (window.electronAPI) await window.electronAPI.updateBookingStatus(id, 'potwierdzone');
-  // Dodaj do terminarza jeśli nie ma
-  const evs = ge();
-  if (!evs.find(e => e.bookingId === id)) {
-    evs.push({ id: uid(), bookingId: id, title: `Spotkanie – ${b.name}`, type: 'Spotkanie', date: b.date, startTime: b.time||'09:00', endTime: b.timeEnd||'09:30', location: 'Online', notes: b.problem||'', clientId: '' });
-    DB.set('events', evs);
-  }
+  persistMeetings();
+  syncMeetingCalendar(b);
+  syncJourneyFromMeeting(b);
   renderMeetings();
   renderCal();
 }
@@ -1498,7 +1631,13 @@ async function markDone(id) {
   const b = meetingsData.find(x => x.id === id);
   if (!b) return;
   b.status = 'odbyte';
-  if (window.electronAPI) await window.electronAPI.updateBookingStatus(id, 'odbyte');
+  persistMeetings();
+  syncMeetingCalendar(b);
+  syncJourneyFromMeeting(b);
+  if(b.journeyLeadId){
+    const lead=gSalesJourney().leads.find(item=>item.id===b.journeyLeadId);
+    if(lead?.status==='active'&&lead.currentStage==='cold_call')advanceJourneyLead(lead.id);
+  }
   renderMeetings();
 }
 
@@ -1615,6 +1754,7 @@ function openNewMeetingManual() {
   document.getElementById('mm-del-btn').style.display = 'none';
   const sel = document.getElementById('mm-assign');
   sel.innerHTML = '<option value="">— nieprzypisane —</option>' + gEmps().map(e => `<option value="${e.id}">${e.full_name}</option>`).join('');
+  sel.value=panelAssigneeId()||'';
   openM('m-meeting-manual');
 }
 
@@ -1642,7 +1782,9 @@ function saveManualMeeting() {
   const name = document.getElementById('mm-name').value.trim();
   const company = document.getElementById('mm-company').value.trim();
   if (!name || !company) { alert('Podaj imię i nazwisko oraz firmę.'); return; }
+  const previous=editManualMeetingId?meetingsData.find(item=>item.id===editManualMeetingId):null;
   const obj = {
+    ...(previous||{}),
     id: editManualMeetingId || uid(),
     name, company,
     email: document.getElementById('mm-email').value.trim(),
@@ -1653,8 +1795,9 @@ function saveManualMeeting() {
     time: document.getElementById('mm-time').value,
     timeEnd: '',
     status: document.getElementById('mm-status').value,
-    assignedTo: document.getElementById('mm-assign').value || null,
-    createdAt: new Date().toISOString(),
+    assignedTo: document.getElementById('mm-assign').value || previous?.assignedTo || panelAssigneeId(),
+    createdAt: previous?.createdAt||new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
     manual: true,
   };
   if (editManualMeetingId) {
@@ -1663,25 +1806,20 @@ function saveManualMeeting() {
   } else {
     meetingsData.unshift(obj);
   }
-  // Persist manual meetings in the signed-in user's cloud data.
-  const manuals = meetingsData.filter(x => x.manual);
-  DB.set('manual_meetings', manuals);
-  // If potwierdzone — add to calendar
-  if (obj.status === 'potwierdzone') {
-    const evs = ge();
-    if (!evs.find(e => e.bookingId === obj.id)) {
-      evs.push({ id: uid(), bookingId: obj.id, title: `Spotkanie – ${obj.name}`, type: 'Spotkanie', date: obj.date, startTime: obj.time||'10:00', endTime: obj.timeEnd||'10:30', location: '', notes: obj.problem||'', clientId: '' });
-      DB.set('events', evs);
-    }
-  }
+  persistMeetings();
+  syncMeetingCalendar(obj);
+  syncJourneyFromMeeting(obj);
   closeM('m-meeting-manual');
   renderMeetings();
 }
 
 function deleteManualMeeting() {
   if (!editManualMeetingId || !confirm('Usunąć to spotkanie?')) return;
+  const removed=meetingsData.find(item=>item.id===editManualMeetingId);
   meetingsData = meetingsData.filter(x => x.id !== editManualMeetingId);
-  DB.set('manual_meetings', meetingsData.filter(x => x.manual));
+  persistMeetings();
+  DB.set('events',ge().filter(event=>event.bookingId!==editManualMeetingId));
+  if(removed?.journeyLeadId){const journey=gSalesJourney();const lead=journey.leads.find(item=>item.id===removed.journeyLeadId);if(lead){lead.meetingId='';lead.meetingDate='';lead.meetingTime='';DB.set('sales_journey',journey);}}
   closeM('m-meeting-manual');
   renderMeetings();
 }
@@ -1723,13 +1861,13 @@ function journeySummaryCard(label,value,detail,color='var(--text)'){
 }
 
 function renderSalesJourney(){
-  const admin=isAdmin(getCurrentUser());
-  document.getElementById('journey-add-btn').style.display=admin?'none':'inline-flex';
-  document.getElementById('journey-refresh-btn').style.display=admin?'inline-flex':'none';
-  document.getElementById('journey-view-subtitle').textContent=admin
-    ?'Anonimowe wyniki całego zespołu. Nazwy klientów i dane kontaktowe nie są pobierane.'
-    :'Twój prywatny lejek sprzedaży. Dane są zapisane na Twoim koncie.';
-  if(admin){void renderSalesJourneyAdmin();return;}
+  const adminOverview=isAdmin(getCurrentUser())&&!isViewingTeamMember();
+  document.getElementById('journey-add-btn').style.display=adminOverview?'none':'inline-flex';
+  document.getElementById('journey-refresh-btn').style.display=adminOverview?'inline-flex':'none';
+  document.getElementById('journey-view-subtitle').textContent=adminOverview
+    ?'Wyniki całego zespołu. Wybierz pracownika powyżej, aby zobaczyć jego klientów i pracować na jego panelu.'
+    :isViewingTeamMember()?`Panel użytkownika: ${currentPanelMember()?.name||''}`:'Twój prywatny lejek sprzedaży. Dane są zapisane na Twoim koncie.';
+  if(adminOverview){void renderSalesJourneyAdmin();return;}
   renderSalesJourneySalesperson();
 }
 
@@ -1780,11 +1918,30 @@ function renderJourneyLeadCard(lead){
     <div class="journey-lead-contact">${esc(contact)}</div>
     <div class="journey-lead-age">${age===0?'Dodano dzisiaj':journeyDaysLabel(age)}</div>
     <div class="journey-actions">
+      ${lead.meetingId?`<button class="btn btn-ghost btn-sm" onclick="openJourneyMeeting('${lead.id}')">Spotkanie</button>`:`<button class="btn btn-ghost btn-sm" onclick="assignJourneyLeadToPanel('${lead.id}')">Przypisz do mnie</button>`}
       <button class="btn btn-primary btn-sm" onclick="advanceJourneyLead('${lead.id}')">${esc(nextLabel)}</button>
       <button class="btn btn-ghost btn-sm" onclick="openEditJourneyLead('${lead.id}')">Edytuj</button>
       <button class="btn btn-danger btn-sm" onclick="openJourneyLoss('${lead.id}')">Utracony</button>
     </div>
   </div>`;
+}
+
+function assignJourneyLeadToPanel(id){
+  const journey=gSalesJourney();const lead=journey.leads.find(item=>item.id===id);if(!lead||lead.status!=='active')return;
+  const meetings=[...(DB.get('bookings')||[]),...(DB.get('manual_meetings')||[])];
+  let meeting=lead.meetingId?meetings.find(item=>item.id===lead.meetingId):null;
+  if(!meeting){
+    meeting={id:uid(),journeyLeadId:lead.id,name:lead.contact||lead.company,company:lead.company,email:lead.email||'',phone:lead.phone||'',position:'',problem:lead.notes||'',date:'',time:'10:00',timeEnd:'11:00',location:'Online',status:'nowe',assignedTo:panelAssigneeId(),createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),manual:true,source:'sales_journey'};
+    meetings.unshift(meeting);
+  }
+  lead.assignedTo=dataOwnerId();lead.assignedAt=lead.assignedAt||new Date().toISOString();lead.meetingId=meeting.id;lead.updatedAt=new Date().toISOString();
+  DB.set('manual_meetings',meetings.filter(item=>item.manual));DB.set('bookings',meetings.filter(item=>!item.manual));DB.set('sales_journey',journey);
+  showPage('meetings');
+}
+
+function openJourneyMeeting(id){
+  const lead=gSalesJourney().leads.find(item=>item.id===id);if(!lead?.meetingId)return;
+  showPage('meetings');setTimeout(()=>openEditMeetingManual(lead.meetingId),0);
 }
 
 function renderJourneyLostArchive(leads,sectionLabel){
@@ -1800,7 +1957,7 @@ function renderJourneyLostArchive(leads,sectionLabel){
 }
 
 function openNewJourneyLead(prefill={}){
-  if(isAdmin(getCurrentUser()))return;
+  if(isAdmin(getCurrentUser())&&!isViewingTeamMember())return;
   editJourneyLeadId=null;
   document.getElementById('journey-lead-title').textContent='Nowy potencjalny klient';
   document.getElementById('journey-company').value=prefill.company||'';
@@ -1814,7 +1971,7 @@ function openNewJourneyLead(prefill={}){
 }
 
 function openEditJourneyLead(id){
-  if(isAdmin(getCurrentUser()))return;
+  if(isAdmin(getCurrentUser())&&!isViewingTeamMember())return;
   const lead=gSalesJourney().leads.find(item=>item.id===id);if(!lead)return;
   editJourneyLeadId=id;
   document.getElementById('journey-lead-title').textContent=lead.status==='lost'?'Utracony klient':'Edytuj klienta';
@@ -1829,7 +1986,7 @@ function openEditJourneyLead(id){
 }
 
 function saveJourneyLead(){
-  if(isAdmin(getCurrentUser()))return;
+  if(isAdmin(getCurrentUser())&&!isViewingTeamMember())return;
   const company=document.getElementById('journey-company').value.trim();
   if(!company){alert('Podaj nazwę firmy lub klienta.');return;}
   const journey=gSalesJourney();
@@ -1842,6 +1999,8 @@ function saveJourneyLead(){
     journey.leads.unshift({id:uid(),...fields,status:'active',currentStage:'cold_call',createdAt:now,stageHistory:[{stage:'cold_call',enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''}]});
   }
   DB.set('sales_journey',journey);
+  const saved=journey.leads.find(lead=>lead.id===(editJourneyLeadId||journey.leads[0]?.id));
+  if(saved){syncMeetingFromJourney(saved);if(saved.clientId)ensureClientFromJourneyLead(saved);}
   closeM('m-journey-lead');
   renderSalesJourneySalesperson();
 }
@@ -1864,7 +2023,7 @@ function advanceJourneyLead(id){
   if(!event){event={stage:lead.currentStage,enteredAt:lead.updatedAt||lead.createdAt||now};lead.stageHistory.push(event);}
   event.exitedAt=now;event.outcome='progressed';
   const next=nextJourneyStage(lead.currentStage);
-  if(next){lead.currentStage=next.id;lead.stageHistory.push({stage:next.id,enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''});}
+  if(next){const wasSale=lead.currentStage==='sale';lead.currentStage=next.id;lead.stageHistory.push({stage:next.id,enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''});if(next.id==='sale'||wasSale)ensureClientFromJourneyLead(lead);}
   else{lead.currentStage='';lead.status='completed';}
   lead.updatedAt=now;
   DB.set('sales_journey',journey);
@@ -1896,7 +2055,7 @@ function confirmJourneyLoss(){
 }
 
 function addCompanyToSalesJourney(companyId){
-  if(isAdmin(getCurrentUser()))return;
+  if(isAdmin(getCurrentUser())&&!isViewingTeamMember())return;
   const company=gCompanies().find(item=>item.id===companyId);if(!company)return;
   const journey=gSalesJourney();
   if(journey.leads.some(lead=>lead.sourceCompanyId===companyId)){alert('Ta firma jest już w Twojej Drodze Sprzedaży.');return;}
@@ -2203,7 +2362,7 @@ function renderCompanies() {
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
           ${c.phone?`<a href="tel:${c.phone}" class="btn btn-primary btn-sm" style="text-decoration:none">📞 Zadzwoń</a>`:''}
           ${c.email?`<a href="mailto:${c.email}" class="btn btn-ghost btn-sm" style="text-decoration:none">✉ Wyślij email</a>`:''}
-          ${!isAdmin(getCurrentUser())?`<button class="btn btn-primary btn-sm" onclick="addCompanyToSalesJourney('${c.id}')">Dodaj do Drogi Sprzedaży</button>`:''}
+          ${!isAdmin(getCurrentUser())||isViewingTeamMember()?`<button class="btn btn-primary btn-sm" onclick="addCompanyToSalesJourney('${c.id}')">Dodaj do Drogi Sprzedaży</button>`:''}
           ${gs().apolloEnabled&&c.www?`<button class="btn btn-ghost btn-sm" onclick="openApolloContacts('${c.id}')">Decydenci${aiArray(c.apolloContacts).length?` (${aiArray(c.apolloContacts).length})`:''}</button>`:''}
           <button class="btn btn-primary btn-sm" onclick="openCompanyAI('${c.id}','brief')">Brief AI</button>
           <button class="btn btn-ghost btn-sm" onclick="openCompanyAI('${c.id}','post')">Po rozmowie</button>
@@ -2240,9 +2399,11 @@ function assignCompany(id, empId) {
 }
 
 function assignCompanySelf(id) {
-  const u = getCurrentUserAny();
-  if (!u) return;
-  assignCompany(id, u.id);
+  if(!getCurrentUserAny())return;
+  assignCompany(id,panelAssigneeId());
+  let lead=gSalesJourney().leads.find(item=>item.sourceCompanyId===id);
+  if(!lead){addCompanyToSalesJourney(id);lead=gSalesJourney().leads.find(item=>item.sourceCompanyId===id);}
+  if(lead)assignJourneyLeadToPanel(lead.id);
 }
 
 let activeSalesAICompanyId = null;
@@ -2617,6 +2778,7 @@ function saveCompany() {
   Object.assign(obj, calculateLeadEstimate(obj));
   if (editCompanyId) { const i = cs.findIndex(x=>x.id===editCompanyId); cs[i] = obj; } else cs.unshift(obj);
   DB.set('companies', cs);
+  syncJourneyFromCompany(obj);
   closeM('m-company');
   renderCompanies();
 }

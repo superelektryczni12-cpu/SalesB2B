@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteEmployee: (id) => ipcRenderer.invoke('employees-delete', id),
   loadUserData: () => ipcRenderer.invoke('user-data-load'),
   saveUserData: (dataKey, value) => ipcRenderer.invoke('user-data-save', dataKey, value),
+  loadTeamData: () => ipcRenderer.invoke('team-data-load'),
+  saveTeamUserData: (userId, dataKey, value) => ipcRenderer.invoke('team-data-save', userId, dataKey, value),
   generateSalesAI: (action, payload) => ipcRenderer.invoke('sales-ai-generate', action, payload),
   apolloContacts: (action, payload) => ipcRenderer.invoke('apollo-contacts', action, payload),
   getSalesJourneyStats: () => ipcRenderer.invoke('sales-journey-stats'),

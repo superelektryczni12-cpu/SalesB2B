@@ -53,6 +53,10 @@ class FileAuthStorage {
 }
 
 let client;
+const APP_DATA_KEYS = new Set([
+  'settings', 'clients', 'projects', 'events', 'quotes', 'transactions',
+  'companies', 'manual_meetings', 'bookings', 'sales_journey', 'seeded',
+]);
 
 function getClient() {
   const config = readConfig();
@@ -271,6 +275,65 @@ async function saveUserData(dataKey, value) {
   return true;
 }
 
+async function loadTeamData() {
+  const supabase = getClient();
+  const context = await currentContext();
+  if (!['admin', 'manager'].includes(context.role)) throw new Error('Brak dostępu do paneli zespołu.');
+
+  const { data: members, error: membersError } = await supabase
+    .from('organization_members')
+    .select('id, user_id, email, full_name, role, permissions, status')
+    .eq('organization_id', context.organizationId)
+    .eq('status', 'active')
+    .not('user_id', 'is', null)
+    .order('created_at', { ascending: true });
+  if (membersError) throw membersError;
+
+  const userIds = (members || []).map(member => member.user_id).filter(Boolean);
+  let rows = [];
+  if (userIds.length) {
+    const { data, error } = await supabase
+      .from('user_app_data')
+      .select('user_id, data_key, value')
+      .in('user_id', userIds);
+    if (error) throw error;
+    rows = data || [];
+  }
+
+  return (members || []).map(member => ({
+    memberId: member.id,
+    userId: member.user_id,
+    email: member.email,
+    name: member.full_name || member.email,
+    role: member.role,
+    permissions: member.permissions || [],
+    data: Object.fromEntries(rows.filter(row => row.user_id === member.user_id).map(row => [row.data_key, row.value])),
+  }));
+}
+
+async function saveTeamUserData(userId, dataKey, value) {
+  if (!APP_DATA_KEYS.has(dataKey)) throw new Error('Nieobsługiwany typ danych aplikacji.');
+  const supabase = getClient();
+  const context = await currentContext();
+  if (!['admin', 'manager'].includes(context.role)) throw new Error('Brak dostępu do paneli zespołu.');
+
+  const { data: target, error: targetError } = await supabase
+    .from('organization_members')
+    .select('user_id')
+    .eq('organization_id', context.organizationId)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (targetError) throw targetError;
+  if (!target) throw new Error('Wybrane konto nie należy do tej organizacji.');
+
+  const { error } = await supabase
+    .from('user_app_data')
+    .upsert({ user_id: userId, data_key: dataKey, value, updated_at: new Date().toISOString() }, { onConflict: 'user_id,data_key' });
+  if (error) throw error;
+  return true;
+}
+
 async function getBookings() {
   const data = await loadUserData();
   return Array.isArray(data.bookings) ? data.bookings : [];
@@ -314,6 +377,8 @@ module.exports = {
   deleteEmployee,
   loadUserData,
   saveUserData,
+  loadTeamData,
+  saveTeamUserData,
   generateSalesAI,
   apolloContacts,
   getSalesJourneyStats,
