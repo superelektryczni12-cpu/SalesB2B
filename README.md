@@ -56,6 +56,7 @@ Administrator oraz manager moga przelaczac sie na panel dowolnego aktywnego uzyt
 Przeplyw jest laczony identyfikatorami:
 
 - firma dodana do Drogi Sprzedazy tworzy lead,
+- zmiana statusu firmy na `Zadzwoniono`, `Zainteresowane`, `Follow-up` albo `Odrzucone` tworzy lub aktualizuje lead w Drodze Sprzedazy,
 - przypisanie leada tworzy spotkanie,
 - data spotkania tworzy wydarzenie w Terminarzu,
 - wejscie na etap Sprzedaz tworzy Klienta,
@@ -74,12 +75,14 @@ Integracja Apollo wyszukuje osoby zarzadzajace na podstawie domeny firmy. Lista 
 
 Kontakty Apollo sa zapisywane wewnatrz rekordu firmy w `user_app_data`. Nie jest potrzebna dodatkowa tabela SQL. Telefon jest dostarczany asynchronicznie; aplikacja zapisuje identyfikator zadania i pozwala sprawdzic wynik bez ujawniania klucza Apollo.
 
+Wybrana osoba z Apollo moze zostac dodana bezposrednio jako lead w Drodze Sprzedazy. Jesli pozniej Apollo dopelni e-mail lub telefon, powiazany lead zostanie uzupelniony automatycznie.
+
 ## Uruchomienie
 
 Najprosciej: pobierz gotowy instalator z folderu `installer`:
 
 ```text
-installer/Sales-B2B-Setup-1.5.0.exe
+installer/Sales-B2B-Setup-1.5.1.exe
 ```
 
 Po pobraniu uruchom plik `.exe` i przejdz instalacje.

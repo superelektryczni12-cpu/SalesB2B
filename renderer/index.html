@@ -1519,9 +1519,104 @@ function syncJourneyFromClient(client){
 }
 function syncJourneyFromCompany(company){
   const journey=gSalesJourney();const lead=journey.leads.find(item=>item.sourceCompanyId===company.id);if(!lead)return;
-  lead.company=company.name||lead.company;lead.contact=company.contact||lead.contact;lead.email=company.email||'';lead.phone=company.phone||'';lead.notes=company.notes||lead.notes||'';lead.updatedAt=new Date().toISOString();
+  applyCompanyToJourneyLead(lead,company,selectedApolloContact(company));
   if(lead.clientId)ensureClientFromJourneyLead(lead);
   DB.set('sales_journey',journey);syncMeetingFromJourney(lead);
+}
+
+function selectedApolloContact(company,personId=company?.selectedApolloContactId){
+  return aiArray(company?.apolloContacts).find(contact=>contact.apolloPersonId===personId)||null;
+}
+function firstApolloPhone(contact){
+  return aiArray(contact?.phoneNumbers).map(phone=>phone.rawNumber||phone.number).find(Boolean)||'';
+}
+function journeyStageIndex(stageId){return SALES_JOURNEY_STAGES.findIndex(stage=>stage.id===stageId);}
+function moveJourneyLeadToStage(lead,targetStage,now=new Date().toISOString()){
+  if(!targetStage||lead.currentStage===targetStage)return;
+  const currentIndex=journeyStageIndex(lead.currentStage),targetIndex=journeyStageIndex(targetStage);
+  if(targetIndex<0)return;
+  if(currentIndex>=0&&targetIndex<currentIndex)return;
+  lead.stageHistory=Array.isArray(lead.stageHistory)?lead.stageHistory:[];
+  let event=activeJourneyEvent(lead);
+  if(event){event.exitedAt=now;event.outcome='progressed';}
+  else if(lead.currentStage){lead.stageHistory.push({stage:lead.currentStage,enteredAt:lead.updatedAt||lead.createdAt||now,exitedAt:now,outcome:'progressed',lossReason:'',lossNote:''});}
+  lead.currentStage=targetStage;
+  lead.stageHistory.push({stage:targetStage,enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''});
+}
+function markJourneyLeadLost(lead,reason='Odrzucony',note='',now=new Date().toISOString()){
+  lead.stageHistory=Array.isArray(lead.stageHistory)?lead.stageHistory:[];
+  let event=activeJourneyEvent(lead);
+  if(!event){event={stage:lead.currentStage||'cold_call',enteredAt:lead.updatedAt||lead.createdAt||now,exitedAt:'',outcome:'',lossReason:'',lossNote:''};lead.stageHistory.push(event);}
+  event.exitedAt=now;event.outcome='lost';event.lossReason=reason;event.lossNote=note;
+  lead.status='lost';lead.updatedAt=now;
+}
+function companyJourneyStageForStatus(status){
+  return status==='zainteresowany'?'small_audit':'cold_call';
+}
+function applyCompanyToJourneyLead(lead,company,apolloContact=null){
+  const phone=firstApolloPhone(apolloContact)||company.phone||lead.phone||'';
+  const email=apolloContact?.email||company.email||lead.email||'';
+  const contactName=apolloContact?[apolloContact.fullName,apolloContact.title].filter(Boolean).join(' - '):(company.contact||lead.contact||'');
+  Object.assign(lead,{
+    company:company.name||lead.company||'Bez nazwy',
+    contact:contactName,
+    email,
+    phone,
+    city:company.city||'',
+    street:company.street||'',
+    rating:company.rating??null,
+    ratingsTotal:company.ratingsTotal??null,
+    industry:company.industry||'',
+    companyStatus:company.status||lead.companyStatus||'nowy',
+    leadScore:company.leadScore||lead.leadScore||null,
+    leadScoreLabel:company.leadScoreLabel||lead.leadScoreLabel||'',
+    sourceCompanyId:company.id,
+    updatedAt:new Date().toISOString(),
+  });
+  if(company.notes)lead.notes=company.notes;
+  if(apolloContact){
+    lead.source='Apollo';
+    lead.apolloPersonId=apolloContact.apolloPersonId||'';
+    lead.apolloTitle=apolloContact.title||'';
+    lead.apolloEmailStatus=apolloContact.emailStatus||'';
+    lead.linkedinUrl=apolloContact.linkedinUrl||lead.linkedinUrl||'';
+    lead.decisionScore=apolloContact.decisionScore||lead.decisionScore||'';
+    lead.decisionReason=apolloContact.decisionReason||lead.decisionReason||'';
+  }else if(!lead.source)lead.source='Baza firm';
+}
+function ensureCompanyJourneyLead(companyId,options={}){
+  const company=gCompanies().find(item=>item.id===companyId);if(!company)return null;
+  const contact=options.contact||selectedApolloContact(company);
+  const journey=gSalesJourney();
+  let lead=journey.leads.find(item=>item.sourceCompanyId===companyId);
+  const now=new Date().toISOString();
+  if(!lead){
+    if(options.create===false)return null;
+    lead={id:uid(),company:company.name||'Bez nazwy',contact:'',phone:'',email:'',source:options.source||'Baza firm',sourceCompanyId:companyId,status:'active',currentStage:'cold_call',createdAt:now,updatedAt:now,stageHistory:[{stage:'cold_call',enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''}]};
+    journey.leads.unshift(lead);
+  }
+  applyCompanyToJourneyLead(lead,company,contact);
+  if(options.source)lead.source=options.source;
+  if(options.status)lead.companyStatus=options.status;
+  if(options.status==='odrzucony')markJourneyLeadLost(lead,'Odrzucony w Firmach','Status zmieniony w zakładce Firmy.',now);
+  else{
+    if(lead.status==='lost'){lead.status='active';lead.stageHistory.push({stage:lead.currentStage||'cold_call',enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''});}
+    moveJourneyLeadToStage(lead,options.stage||companyJourneyStageForStatus(options.status||company.status),now);
+  }
+  if(lead.clientId)ensureClientFromJourneyLead(lead);
+  DB.set('sales_journey',journey);
+  syncMeetingFromJourney(lead);
+  if(options.open)showPage('sales-journey');
+  return lead;
+}
+function syncCompanyStatusToJourney(companyId,status,options={}){
+  const shouldCreate=['zadzwoniono','zainteresowany','follow_up','odrzucony'].includes(status);
+  if(!shouldCreate){
+    const company=gCompanies().find(item=>item.id===companyId);
+    if(company)syncJourneyFromCompany(company);
+    return null;
+  }
+  return ensureCompanyJourneyLead(companyId,{...options,status,stage:companyJourneyStageForStatus(status),create:true});
 }
 
 // ══════════════════════════════
@@ -1859,6 +1954,12 @@ function journeyHasReached(lead,stageId){return (lead.stageHistory||[]).some(eve
 function journeySummaryCard(label,value,detail,color='var(--text)'){
   return `<div class="card"><div style="font-size:10.5px;color:var(--text3);text-transform:uppercase;margin-bottom:6px">${esc(label)}</div><div style="font-size:25px;font-weight:700;color:${color}">${esc(value)}</div><div style="font-size:10.5px;color:var(--text3);margin-top:3px">${esc(detail)}</div></div>`;
 }
+function journeyLeadDetailLine(lead){
+  const status=lead.companyStatus&&LEAD_STATUS_LABELS[lead.companyStatus]?LEAD_STATUS_LABELS[lead.companyStatus]:'';
+  const rating=lead.rating?`Google ${lead.rating}${lead.ratingsTotal?` / ${lead.ratingsTotal} opinii`:''}`:'';
+  const source=lead.apolloPersonId?`Apollo: ${lead.apolloTitle||'osoba decyzyjna'}`:(lead.source||'');
+  return [status,lead.city,lead.street,rating,source].filter(Boolean).join(' · ');
+}
 
 function renderSalesJourney(){
   const adminOverview=isAdmin(getCurrentUser())&&!isViewingTeamMember();
@@ -1912,10 +2013,12 @@ function renderJourneyLeadCard(lead){
   const next=nextJourneyStage(lead.currentStage);
   const nextLabel=!next?'Zakończ 12. miesiąc':lead.currentStage==='sale'?'Rozpocznij Mies. 1':'Klient przeszedł';
   const contact=[lead.contact,lead.phone].filter(Boolean).join(' · ')||'Brak danych kontaktowych';
+  const details=journeyLeadDetailLine(lead);
   const age=journeyDaysInStage(lead);
   return `<div class="journey-lead">
     <div class="journey-lead-name">${esc(lead.company)}</div>
     <div class="journey-lead-contact">${esc(contact)}</div>
+    ${details?`<div class="journey-lead-contact">${esc(details)}</div>`:''}
     <div class="journey-lead-age">${age===0?'Dodano dzisiaj':journeyDaysLabel(age)}</div>
     <div class="journey-actions">
       ${lead.meetingId?`<button class="btn btn-ghost btn-sm" onclick="openJourneyMeeting('${lead.id}')">Spotkanie</button>`:`<button class="btn btn-ghost btn-sm" onclick="assignJourneyLeadToPanel('${lead.id}')">Przypisz do mnie</button>`}
@@ -2055,20 +2158,14 @@ function confirmJourneyLoss(){
 }
 
 function addCompanyToSalesJourney(companyId){
-  if(isAdmin(getCurrentUser())&&!isViewingTeamMember())return;
-  const company=gCompanies().find(item=>item.id===companyId);if(!company)return;
-  const journey=gSalesJourney();
-  if(journey.leads.some(lead=>lead.sourceCompanyId===companyId)){alert('Ta firma jest już w Twojej Drodze Sprzedaży.');return;}
-  const now=new Date().toISOString();
-  journey.leads.unshift({id:uid(),company:company.name||'Bez nazwy',contact:company.contact||'',phone:company.phone||'',email:company.email||'',source:'Baza firm',notes:company.notes||'',sourceCompanyId:companyId,status:'active',currentStage:'cold_call',createdAt:now,updatedAt:now,stageHistory:[{stage:'cold_call',enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''}]});
-  DB.set('sales_journey',journey);
-  showPage('sales-journey');
+  ensureCompanyJourneyLead(companyId,{create:true,source:'Baza firm',stage:'cold_call',open:true});
 }
 
 async function renderSalesJourneyAdmin(){
   const content=document.getElementById('sales-journey-content');
   content.innerHTML='<div class="card" style="color:var(--text2)">Pobieranie anonimowych statystyk zespołu…</div>';
   try{
+    await cloudWriteChain;
     const stats=await window.electronAPI.getSalesJourneyStats();
     const stages=Array.isArray(stats.stages)?stats.stages:[];
     const cold=stages.find(stage=>stage.id==='cold_call');
@@ -2386,6 +2483,7 @@ function updateCompanyStatus(id, status) {
   if (i < 0) return;
   cs[i].status = status;
   DB.set('companies', cs);
+  syncCompanyStatusToJourney(id,status);
   renderCompanies();
 }
 
@@ -2401,8 +2499,7 @@ function assignCompany(id, empId) {
 function assignCompanySelf(id) {
   if(!getCurrentUserAny())return;
   assignCompany(id,panelAssigneeId());
-  let lead=gSalesJourney().leads.find(item=>item.sourceCompanyId===id);
-  if(!lead){addCompanyToSalesJourney(id);lead=gSalesJourney().leads.find(item=>item.sourceCompanyId===id);}
+  let lead=ensureCompanyJourneyLead(id,{create:true,source:'Baza firm',stage:'cold_call'});
   if(lead)assignJourneyLeadToPanel(lead.id);
 }
 
@@ -2573,6 +2670,7 @@ function savePostCallAnalysis(){
   if(LEAD_STATUS_LABELS[record.analysis.recommendedStatus])company.status=record.analysis.recommendedStatus;
   companies[index]=company;
   DB.set('companies',companies);
+  syncCompanyStatusToJourney(company.id,company.status);
   pendingPostCallAnalysis=null;
   document.getElementById('sales-ai-save-btn').style.display='none';
   setSalesAIStatus('sales-ai-post-status','Analiza, status i zadania zostały zapisane.','ok');
@@ -2608,6 +2706,18 @@ function setApolloStatus(message,type=''){
   el.className=`sales-ai-status${type?' '+type:''}`;
 }
 function apolloContactLocation(contact){return [contact.city,contact.country].filter(Boolean).join(', ');}
+function apolloLeadForContact(company,contact){
+  return gSalesJourney().leads.find(lead=>lead.sourceCompanyId===company.id&&(lead.apolloPersonId===contact.apolloPersonId||(!lead.apolloPersonId&&company.selectedApolloContactId===contact.apolloPersonId)))||null;
+}
+function applyApolloContactToCompany(company,contact){
+  company.selectedApolloContactId=contact.apolloPersonId;
+  company.contact=[contact.fullName,contact.title].filter(Boolean).join(' - ');
+  company.contactSource='Apollo';
+  company.contactVerifiedAt=contact.apolloFetchedAt||new Date().toISOString();
+  if(contact.email)company.email=contact.email;
+  const phone=firstApolloPhone(contact);if(phone)company.phone=phone;
+  return company;
+}
 function renderApolloContacts(){
   const company=gCompanies().find(item=>item.id===activeApolloCompanyId);
   const el=document.getElementById('apollo-contacts-list');if(!company||!el)return;
@@ -2616,6 +2726,7 @@ function renderApolloContacts(){
   el.innerHTML=contacts.map(contact=>{
     const phones=aiArray(contact.phoneNumbers);
     const selected=company.selectedApolloContactId===contact.apolloPersonId;
+    const lead=apolloLeadForContact(company,contact);
     const phoneLabel=contact.phoneStatus==='pending'?'Telefon jest przygotowywany przez Apollo':contact.phoneStatus==='unavailable'?'Apollo nie zwróciło telefonu':'Telefon niepobrany';
     return `<div class="apollo-contact">
       <div class="apollo-contact-head">
@@ -2634,6 +2745,7 @@ function renderApolloContacts(){
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         ${!contact.apolloEnrichedAt?`<button class="btn btn-ghost btn-sm" onclick="enrichApolloContact('${contact.apolloPersonId}')">Pobierz e-mail i telefon</button>`:''}
         ${contact.phoneStatus==='pending'?`<button class="btn btn-ghost btn-sm" onclick="pollApolloPhone('${contact.apolloPersonId}')">Sprawdź telefon</button>`:''}
+        <button class="btn btn-primary btn-sm" onclick="createApolloLead('${contact.apolloPersonId}')">${lead?'Otwórz lead':'Dodaj jako lead'}</button>
         <button class="btn btn-primary btn-sm" onclick="selectApolloContact('${contact.apolloPersonId}')">Użyj w Briefie AI</button>
       </div>
     </div>`;
@@ -2684,7 +2796,9 @@ async function enrichApolloContact(personId){
     saved.apolloPhoneRequestId=response.requestId||'';
     saved.phoneStatus=response.phoneStatus||'unavailable';
     saved.apolloEnrichedAt=new Date().toISOString();
+    if(companies[companyIndex].selectedApolloContactId===personId||saved.apolloLeadId)applyApolloContactToCompany(companies[companyIndex],saved);
     DB.set('companies',companies);
+    if(companies[companyIndex].selectedApolloContactId===personId||saved.apolloLeadId)syncJourneyFromCompany(companies[companyIndex]);
     renderApolloContacts();
     setApolloStatus(saved.phoneStatus==='pending'?'E-mail zapisany. Apollo przygotowuje numer telefonu.':'Dane zapisane; Apollo nie uruchomiło wyszukiwania telefonu.','ok');
     if(saved.phoneStatus==='pending')setTimeout(()=>pollApolloPhone(personId,true),30000);
@@ -2702,19 +2816,32 @@ async function pollApolloPhone(personId,silent=false){
     saved.phoneNumbers=aiArray(response.phoneNumbers);
     saved.phoneStatus=saved.phoneNumbers.length?'ready':'unavailable';
     saved.phoneCheckedAt=new Date().toISOString();
+    if(companies[companyIndex].selectedApolloContactId===personId||saved.apolloLeadId)applyApolloContactToCompany(companies[companyIndex],saved);
     DB.set('companies',companies);
+    if(companies[companyIndex].selectedApolloContactId===personId||saved.apolloLeadId)syncJourneyFromCompany(companies[companyIndex]);
     renderApolloContacts();
     setApolloStatus(saved.phoneNumbers.length?'Numer telefonu został zapisany.':'Apollo nie posiada numeru dla tej osoby.',saved.phoneNumbers.length?'ok':'');
   }catch(error){if(!silent)setApolloStatus(error.message||'Nie udało się sprawdzić telefonu.','error');}
 }
+function createApolloLead(personId){
+  const companies=gCompanies();const companyIndex=companies.findIndex(item=>item.id===activeApolloCompanyId);if(companyIndex<0)return;
+  const contact=aiArray(companies[companyIndex].apolloContacts).find(item=>item.apolloPersonId===personId);if(!contact)return;
+  applyApolloContactToCompany(companies[companyIndex],contact);
+  DB.set('companies',companies);
+  const lead=ensureCompanyJourneyLead(companies[companyIndex].id,{contact,create:true,source:'Apollo',stage:'cold_call',open:true});
+  if(lead){
+    const refreshed=gCompanies();const refreshedCompany=refreshed.find(item=>item.id===companies[companyIndex].id);
+    const saved=aiArray(refreshedCompany?.apolloContacts).find(item=>item.apolloPersonId===personId);
+    if(saved){saved.apolloLeadId=lead.id;DB.set('companies',refreshed);}
+  }
+  closeM('m-apollo-contacts');
+}
 function selectApolloContact(personId){
   const companies=gCompanies();const companyIndex=companies.findIndex(item=>item.id===activeApolloCompanyId);if(companyIndex<0)return;
   const contact=aiArray(companies[companyIndex].apolloContacts).find(item=>item.apolloPersonId===personId);if(!contact)return;
-  companies[companyIndex].selectedApolloContactId=personId;
-  companies[companyIndex].contact=[contact.fullName,contact.title].filter(Boolean).join(' — ');
-  companies[companyIndex].contactSource='Apollo';
-  companies[companyIndex].contactVerifiedAt=contact.apolloFetchedAt||new Date().toISOString();
+  applyApolloContactToCompany(companies[companyIndex],contact);
   DB.set('companies',companies);
+  syncJourneyFromCompany(companies[companyIndex]);
   closeM('m-apollo-contacts');renderCompanies();openCompanyAI(companies[companyIndex].id,'brief');
 }
 
@@ -2779,6 +2906,7 @@ function saveCompany() {
   if (editCompanyId) { const i = cs.findIndex(x=>x.id===editCompanyId); cs[i] = obj; } else cs.unshift(obj);
   DB.set('companies', cs);
   syncJourneyFromCompany(obj);
+  syncCompanyStatusToJourney(obj.id,obj.status);
   closeM('m-company');
   renderCompanies();
 }
