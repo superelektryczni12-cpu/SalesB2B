@@ -10,7 +10,20 @@ type PublicPerson = {
   linkedinUrl: string;
   city: string;
   country: string;
+  organizationId: string;
   organizationName: string;
+  organizationDomain: string;
+  organizationWebsite: string;
+  organizationLinkedinUrl: string;
+  organizationPhone: string;
+  organizationCity: string;
+  organizationState: string;
+  organizationCountry: string;
+  organizationEstimatedEmployees: number | null;
+  organizationIndustries: string[];
+  organizationKeywords: string[];
+  organizationDescription: string;
+  organizationAnnualRevenue: number | null;
   decisionScore: number;
   decisionReason: string;
 };
@@ -42,6 +55,23 @@ function cleanDomain(value: unknown) {
   }
 }
 
+function textArray(value: unknown, maxItems = 20) {
+  if (typeof value === 'string') return [text(value, 120)].filter(Boolean);
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => text(item, 120)).filter(Boolean).slice(0, maxItems);
+}
+
+function numberOrNull(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function organizationOf(person: Record<string, unknown>) {
+  return person.organization && typeof person.organization === 'object'
+    ? person.organization as Record<string, unknown>
+    : {};
+}
+
 function decisionFit(person: Record<string, unknown>) {
   const title = text(person.title).toLowerCase();
   const seniority = text(person.seniority).toLowerCase();
@@ -62,6 +92,7 @@ function decisionFit(person: Record<string, unknown>) {
 
 function publicPerson(value: unknown): PublicPerson {
   const person = value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  const organization = organizationOf(person);
   const fit = decisionFit(person);
   return {
     apolloPersonId: text(person.id, 100),
@@ -73,7 +104,20 @@ function publicPerson(value: unknown): PublicPerson {
     linkedinUrl: text(person.linkedin_url, 1000),
     city: text(person.city),
     country: text(person.country),
-    organizationName: text((person.organization as Record<string, unknown> | undefined)?.name),
+    organizationId: text(organization.id, 100),
+    organizationName: text(organization.name),
+    organizationDomain: cleanDomain(organization.primary_domain || organization.website_url),
+    organizationWebsite: text(organization.website_url || organization.primary_domain, 1000),
+    organizationLinkedinUrl: text(organization.linkedin_url, 1000),
+    organizationPhone: text(organization.phone || organization.primary_phone, 100),
+    organizationCity: text(organization.city),
+    organizationState: text(organization.state),
+    organizationCountry: text(organization.country),
+    organizationEstimatedEmployees: numberOrNull(organization.estimated_num_employees),
+    organizationIndustries: textArray(organization.industries),
+    organizationKeywords: textArray(organization.keywords),
+    organizationDescription: text(organization.short_description || organization.seo_description || organization.description, 1000),
+    organizationAnnualRevenue: numberOrNull(organization.annual_revenue),
     decisionScore: fit.score,
     decisionReason: fit.reason,
   };
@@ -110,6 +154,28 @@ async function apolloRequest(path: string, options: RequestInit = {}) {
   return { response, payload };
 }
 
+function addQueryValues(params: URLSearchParams, name: string, values: unknown, maxItems = 40) {
+  const list = Array.isArray(values) ? values : [values];
+  list.map((item) => text(item, 200)).filter(Boolean).slice(0, maxItems)
+    .forEach((item) => params.append(`${name}[]`, item));
+}
+
+function clampInt(value: unknown, min: number, max: number, fallback: number) {
+  const number = Math.trunc(Number(value));
+  if (!Number.isFinite(number)) return fallback;
+  return Math.max(min, Math.min(max, number));
+}
+
+async function searchApolloPeople(params: URLSearchParams) {
+  const query = params.toString();
+  const { response, payload } = await apolloRequest(`/api/v1/mixed_people/api_search${query ? `?${query}` : ''}`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw new Error(text(payload?.message || payload?.error || `Apollo Search: ${response.status}`, 800));
+  const people: unknown[] = Array.isArray(payload?.people) ? payload.people : [];
+  return people.map(publicPerson).filter((person) => person.apolloPersonId && person.fullName);
+}
+
 async function authenticatedContext(request: Request) {
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -133,20 +199,73 @@ async function authenticatedContext(request: Request) {
 }
 
 async function searchPeople(domain: string) {
-  const { response, payload } = await apolloRequest('/api/v1/mixed_people/api_search', {
-    method: 'POST',
-    body: JSON.stringify({
-      q_organization_domains_list: [domain],
-      person_seniorities: ['owner', 'founder', 'c_suite', 'partner', 'vp', 'head', 'director', 'manager'],
-      include_similar_titles: true,
-      page: 1,
-      per_page: 20,
-    }),
-  });
-  if (!response.ok) throw new Error(text(payload?.message || payload?.error || `Apollo Search: ${response.status}`, 800));
-  const people: unknown[] = Array.isArray(payload?.people) ? payload.people : [];
-  return people.map(publicPerson).filter((person) => person.apolloPersonId && person.fullName)
+  const params = new URLSearchParams();
+  params.set('page', '1');
+  params.set('per_page', '20');
+  addQueryValues(params, 'q_organization_domains_list', [domain]);
+  addQueryValues(params, 'person_seniorities', ['owner', 'founder', 'c_suite', 'partner', 'vp', 'head', 'director', 'manager']);
+  params.set('include_similar_titles', 'true');
+  return (await searchApolloPeople(params))
     .sort((a, b) => b.decisionScore - a.decisionScore);
+}
+
+function companyKey(person: PublicPerson) {
+  return person.organizationDomain || person.organizationId || person.organizationName.toLowerCase();
+}
+
+function companyFromPeople(people: PublicPerson[]) {
+  const sorted = [...people].sort((a, b) => b.decisionScore - a.decisionScore);
+  const best = sorted[0];
+  return {
+    apolloOrganizationId: best.organizationId,
+    name: best.organizationName || best.organizationDomain || best.organizationWebsite,
+    domain: best.organizationDomain,
+    website: best.organizationWebsite || best.organizationDomain,
+    linkedinUrl: best.organizationLinkedinUrl,
+    phone: best.organizationPhone,
+    city: best.organizationCity || best.city,
+    state: best.organizationState,
+    country: best.organizationCountry || best.country,
+    estimatedEmployees: best.organizationEstimatedEmployees,
+    annualRevenue: best.organizationAnnualRevenue,
+    industries: best.organizationIndustries,
+    keywords: best.organizationKeywords,
+    description: best.organizationDescription,
+    contacts: sorted.slice(0, 8),
+    bestContactId: best.apolloPersonId,
+    bestDecisionScore: best.decisionScore,
+    bestDecisionReason: best.decisionReason,
+  };
+}
+
+async function searchCompanies(body: Record<string, unknown>) {
+  const params = new URLSearchParams();
+  const limit = clampInt(body.limit, 5, 50, 20);
+  params.set('page', String(clampInt(body.page, 1, 20, 1)));
+  params.set('per_page', String(Math.min(100, Math.max(20, limit * 4))));
+  const keywords = text(body.keywords || body.industryQuery, 300);
+  if (keywords) params.set('q_keywords', keywords);
+  addQueryValues(params, 'person_seniorities', Array.isArray(body.seniorities) ? body.seniorities : ['owner', 'founder', 'c_suite', 'partner', 'vp', 'head', 'director']);
+  addQueryValues(params, 'person_titles', body.titles);
+  addQueryValues(params, 'organization_locations', body.locations);
+  addQueryValues(params, 'organization_num_employees_ranges', body.employeeRanges);
+  params.set('include_similar_titles', 'true');
+
+  const people = await searchApolloPeople(params);
+  const groups = new Map<string, PublicPerson[]>();
+  for (const person of people) {
+    const key = companyKey(person);
+    if (!key || !person.organizationName) continue;
+    const current = groups.get(key) || [];
+    current.push(person);
+    groups.set(key, current);
+  }
+  const companies = [...groups.values()]
+    .map(companyFromPeople)
+    .filter((company) => company.name)
+    .sort((a, b) => b.bestDecisionScore - a.bestDecisionScore)
+    .slice(0, limit);
+  return companies;
 }
 
 async function enrichPerson(personId: string) {
@@ -212,6 +331,10 @@ Deno.serve(async (request) => {
       const domain = cleanDomain(body?.domain);
       if (!domain) return json({ error: 'Firma nie ma poprawnej domeny internetowej.' }, 400);
       return json({ contacts: await searchPeople(domain), source: 'Apollo', domain });
+    }
+
+    if (action === 'search_companies') {
+      return json({ companies: await searchCompanies(body), source: 'Apollo' });
     }
 
     if (action === 'enrich') {

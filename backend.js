@@ -201,13 +201,9 @@ async function generateSalesAI(action, payload) {
 
 async function apolloContacts(action, payload) {
   await currentUser();
+  const body = payload && typeof payload === 'object' ? { ...payload, action } : { action };
   const { data, error } = await getClient().functions.invoke('apollo-contacts', {
-    body: {
-      action,
-      domain: payload?.domain || '',
-      personId: payload?.personId || '',
-      requestId: payload?.requestId || '',
-    },
+    body,
   });
   if (error) throw new Error(await functionErrorMessage(error));
   if (data?.error) throw new Error(data.error);

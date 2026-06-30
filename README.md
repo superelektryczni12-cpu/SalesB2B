@@ -66,23 +66,24 @@ Dla istniejacego projektu Supabase uruchom raz `supabase-admin-team-access.sql`.
 
 ## Apollo - osoby decyzyjne
 
-Integracja Apollo wyszukuje osoby zarzadzajace na podstawie domeny firmy. Lista osob nie zuzywa kredytow Apollo; wzbogacenie wybranej osoby o e-mail i telefon jest wykonywane dopiero po potwierdzeniu uzytkownika i moze zuzyc kredyty planu Apollo.
+Integracja Apollo jest glownym generatorem firm i osob decyzyjnych. Generator pobiera firmy z People Search wedlug branzy, lokalizacji, wielkosci firmy i typu decydenta, a dane Google sa tylko dodatkowym uzupelnieniem wizytowki, opinii i strony. Lista osob nie zuzywa kredytow Apollo; wzbogacenie wybranej osoby o e-mail i telefon jest wykonywane dopiero po potwierdzeniu uzytkownika i moze zuzyc kredyty planu Apollo.
 
 1. W Apollo utworz master API key o nazwie `Sales B2B`.
 2. W `Edge Functions -> Secrets` dodaj sekret `APOLLO_API_KEY`.
 3. Wdroz `supabase/functions/apollo-contacts` jako funkcje `apollo-contacts` z wlaczona weryfikacja JWT.
 4. Wdroz `supabase/functions/apollo-phone-webhook` jako funkcje `apollo-phone-webhook` i w jej ustawieniach wylacz weryfikacje JWT, poniewaz wywoluje ja serwer Apollo.
+5. Po zmianach generatora wdroz tez aktualna wersje `supabase/functions/sales-ai`, zeby briefy AI widzialy pola Apollo.
 
-Kontakty Apollo sa zapisywane wewnatrz rekordu firmy w `user_app_data`. Nie jest potrzebna dodatkowa tabela SQL. Telefon jest dostarczany asynchronicznie; aplikacja zapisuje identyfikator zadania i pozwala sprawdzic wynik bez ujawniania klucza Apollo.
+Kontakty Apollo, wielkosc firmy, branze, opis organizacji i wybrany decydent sa zapisywane wewnatrz rekordu firmy w `user_app_data`. Nie jest potrzebna dodatkowa tabela SQL. Telefon jest dostarczany asynchronicznie; aplikacja zapisuje identyfikator zadania i pozwala sprawdzic wynik bez ujawniania klucza Apollo.
 
-Wybrana osoba z Apollo moze zostac dodana bezposrednio jako lead w Drodze Sprzedazy. Jesli pozniej Apollo dopelni e-mail lub telefon, powiazany lead zostanie uzupelniony automatycznie.
+Wybrana osoba z Apollo moze zostac dodana bezposrednio jako lead w Drodze Sprzedazy. Jesli pozniej Apollo dopelni e-mail lub telefon, powiazany lead zostanie uzupelniony automatycznie. Brief AI dostaje pelny kontekst firmy z Apollo oraz fakty uzupelnione z Google/KRS, wiec hipotezy sprzedazowe opieraja sie na zapisanych danych firmy.
 
 ## Uruchomienie
 
 Najprosciej: pobierz gotowy instalator z folderu `installer`:
 
 ```text
-installer/Sales-B2B-Setup-1.5.1.exe
+installer/Sales-B2B-Setup-1.5.2.exe
 ```
 
 Po pobraniu uruchom plik `.exe` i przejdz instalacje.

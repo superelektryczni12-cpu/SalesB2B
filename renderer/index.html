@@ -340,6 +340,8 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .badge-rejected{background:var(--red-dim);color:var(--red)}
 .badge-follow{background:rgba(168,85,247,.15);color:#a855f7}
 .ai-gen-panel{background:rgba(59,130,246,.04);border:1px solid rgba(59,130,246,.12);border-radius:12px;padding:20px;margin-bottom:18px}
+.ai-gen-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;align-items:flex-end}
+.ai-gen-controls .btn,.ai-gen-controls .perm-check{min-height:38px;justify-content:center}
 .companies-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
 
 /* MODAL */
@@ -539,8 +541,8 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
   <!-- AI GENERATOR PANEL -->
   <div class="ai-gen-panel">
-    <div style="font-size:13px;font-weight:600;color:var(--blue);margin-bottom:14px;display:flex;align-items:center;gap:6px">Generator firm z publicznych źródeł</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:flex-end">
+    <div style="font-size:13px;font-weight:600;color:var(--blue);margin-bottom:14px;display:flex;align-items:center;gap:6px">Generator firm z Apollo</div>
+    <div class="ai-gen-controls">
       <div class="form-group" style="margin-bottom:0">
         <label>Branża</label>
         <select id="gen-industry">
@@ -576,7 +578,36 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
           <option value="opolskie">Opolskie</option>
         </select>
       </div>
-      <button class="btn btn-primary" onclick="generateAICompanies()" id="gen-btn">Generuj firmy</button>
+      <div class="form-group" style="margin-bottom:0">
+        <label>Wielkość</label>
+        <select id="gen-size">
+          <option value="smb">MŚP 11-200</option>
+          <option value="micro">Mikro 1-10</option>
+          <option value="small">Małe 11-50</option>
+          <option value="medium">Średnie 51-200</option>
+          <option value="growth">Rozwojowe 201-500</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>Decydenci</label>
+        <select id="gen-roles">
+          <option value="owners">Właściciele / CEO</option>
+          <option value="operations">Operacje / COO</option>
+          <option value="sales">Sprzedaż</option>
+          <option value="marketing">Marketing</option>
+          <option value="it">IT / CTO</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label>Limit</label>
+        <select id="gen-limit">
+          <option value="20">20</option>
+          <option value="35">35</option>
+          <option value="50">50</option>
+        </select>
+      </div>
+      <label class="perm-check" style="margin:0;height:38px;align-items:center;white-space:nowrap"><input id="gen-google-enrich" type="checkbox" checked> Google</label>
+      <button class="btn btn-primary" onclick="generateAICompanies()" id="gen-btn">Generuj z Apollo</button>
       <button class="btn btn-danger btn-sm" onclick="if(confirm('Usunąć wszystkie firmy z bazy?')){DB.set('companies',[]);renderCompanies()}" title="Wyczyść bazę firm" style="white-space:nowrap">Wyczyść bazę</button>
     </div>
     <div id="gen-status" style="font-size:12px;color:var(--text2);margin-top:10px;display:none"></div>
@@ -2519,7 +2550,13 @@ function aiList(items,empty='Brak danych'){
 function companySalesAIContext(company){
   const estimate=calculateLeadEstimate(company);
   const needs=typicalSystemNeeds(company);
-  const context={...company,...estimate,typicalSystemNeeds:needs.items,typicalNeedsBasis:needs.basis};
+  const apolloDecisionMakers=aiArray(company.apolloContacts).slice(0,5).map(contact=>[
+    contact.fullName,
+    contact.title,
+    contact.decisionScore?`dopasowanie ${contact.decisionScore}/5`:'',
+    contact.decisionReason,
+  ].filter(Boolean).join(' | '));
+  const context={...company,...estimate,typicalSystemNeeds:needs.items,typicalNeedsBasis:needs.basis,apolloDecisionMakers};
   delete context.aiBrief;
   delete context.aiPostCalls;
   delete context.salesTasks;
@@ -2944,6 +2981,37 @@ const INDUSTRY_LABELS = {
   finance: 'Finanse / księgowość',
 };
 
+const APOLLO_ROLE_PRESETS = {
+  owners: {
+    seniorities: ['owner','founder','c_suite','partner'],
+    titles: ['owner','founder','co-founder','chief executive officer','ceo','managing director','president','prezes','właściciel'],
+  },
+  operations: {
+    seniorities: ['c_suite','vp','head','director'],
+    titles: ['chief operating officer','coo','operations director','head of operations','dyrektor operacyjny','operations manager'],
+  },
+  sales: {
+    seniorities: ['c_suite','vp','head','director','manager'],
+    titles: ['chief revenue officer','cro','sales director','head of sales','sales manager','dyrektor sprzedaży','kierownik sprzedaży'],
+  },
+  marketing: {
+    seniorities: ['c_suite','vp','head','director','manager'],
+    titles: ['chief marketing officer','cmo','marketing director','head of marketing','marketing manager','dyrektor marketingu'],
+  },
+  it: {
+    seniorities: ['c_suite','vp','head','director','manager'],
+    titles: ['chief technology officer','cto','chief information officer','cio','it director','head of it','technology manager'],
+  },
+};
+
+const APOLLO_EMPLOYEE_RANGES = {
+  micro: ['1,10'],
+  small: ['11,50'],
+  medium: ['51,200'],
+  smb: ['11,50','51,200'],
+  growth: ['201,500'],
+};
+
 const REGION_CITIES = {
   all: ['Warszawa','Kraków','Wrocław','Poznań','Gdańsk','Łódź','Katowice','Lublin','Rzeszów','Bydgoszcz','Szczecin','Białystok','Toruń','Kielce','Opole','Zielona Góra','Gorzów Wielkopolski','Olsztyn','Koszalin','Siedlce','Radom','Płock','Legnica','Wałbrzych','Jelenia Góra','Lubin','Świdnica','Bolesławiec','Głogów','Polkowice','Dzierżoniów','Kłodzko','Nowa Ruda','Bielawa','Oława','Oleśnica','Brzeg Dolny','Strzelin','Ząbkowice Śląskie','Lwówek Śląski','Tarnów','Nowy Sącz','Oświęcim','Zakopane','Wieliczka','Olkusz','Chrzanów','Gorlice','Nowy Targ','Wadowice','Bochnia','Limanowa','Miechów','Proszowice','Sucha Beskidzka','Gliwice','Zabrze','Bytom','Sosnowiec','Częstochowa','Rybnik','Tychy','Dąbrowa Górnicza','Bielsko-Biała','Jaworzno','Jastrzębie-Zdrój','Mysłowice','Siemianowice Śląskie','Żory','Piekary Śląskie','Świętochłowice','Chorzów','Racibórz','Wodzisław Śląski','Mikołów','Będzin','Czechowice-Dziedzice','Cieszyn','Żywiec','Knurów','Tarnowskie Góry','Myszków','Zawiercie','Kłobuck','Lubliniec','Pszczyna','Kalisz','Konin','Leszno','Gniezno','Ostrów Wielkopolski','Piła','Luboń','Szamotuły','Jarocin','Turek','Koło','Słupca','Nowy Tomyśl','Gostyń','Krotoszyn','Ostrzeszów','Chodzież','Czarnków','Złotów','Środa Wielkopolska','Śrem','Wolsztyn','Rawicz','Pleszew','Pobiedziska','Piotrków Trybunalski','Pabianice','Tomaszów Mazowiecki','Zgierz','Bełchatów','Skierniewice','Sieradz','Zduńska Wola','Łask','Wieluń','Radomsko','Opoczno','Kutno','Łęczyca','Brzeziny','Głowno','Konstantynów Łódzki','Aleksandrów Łódzki','Gdynia','Sopot','Słupsk','Starogard Gdański','Tczew','Rumia','Wejherowo','Chojnice','Kościerzyna','Malbork','Nowy Dwór Gdański','Pruszcz Gdański','Lębork','Bytów','Człuchów','Kwidzyn','Kartuzy','Puck','Reda','Somonino','Włocławek','Grudziądz','Inowrocław','Świecie','Chełmno','Brodnica','Lipno','Rypin','Mogilno','Żnin','Nakło nad Notecią','Rypint','Zamość','Chełm','Biała Podlaska','Puławy','Świdnik','Kraśnik','Hrubieszów','Tomaszów Lubelski','Łuków','Radzyń Podlaski','Włodawa','Opole Lubelskie','Poniatowa','Suwałki','Łomża','Augustów','Bielsk Podlaski','Hajnówka','Grajewo','Kolno','Sejny','Mońki','Sokółka','Siemiatycze','Wysokie Mazowieckie','Gorzów Wielkopolski','Zielona Góra','Nowa Sól','Żary','Żagań','Gubin','Słubice','Świebodzin','Sulęcin','Wschowa','Krosno Odrzańskie','Olsztyn','Elbląg','Ostróda','Iława','Kętrzyn','Giżycko','Działdowo','Szczytno','Mrągowo','Bartoszyce','Pisz','Elk','Braniewo','Lidzbark Warmiński','Szczecin','Koszalin','Stargard','Kołobrzeg','Świnoujście','Police','Goleniów','Świdwin','Wałcz','Szczecinek','Białogard','Drawsko Pomorskie','Choszczno','Pyrzyce','Myślibórz','Rzeszów','Krosno','Przemyśl','Stalowa Wola','Sanok','Mielec','Tarnobrzeg','Dębica','Jasło','Łańcut','Nisko','Leżajsk','Jarosław','Lubaczów','Przeworsk','Kolbuszowa','Strzyżów','Opole','Kędzierzyn-Koźle','Nysa','Brzeg','Prudnik','Kluczbork','Namysłów','Strzelce Opolskie','Głubczyce','Paczków','Radomsko','Kraśnik','Kielce','Ostrowiec Świętokrzyski','Starachowice','Skarżysko-Kamienna','Końskie','Sandomierz','Jędrzejów','Włoszczowa','Staszów','Busko-Zdrój','Pruszków','Legionowo','Ostrołęka','Żyrardów','Piaseczno','Wołomin','Nowy Dwór Mazowiecki','Ciechanów','Płońsk','Otwock','Marki','Mińsk Mazowiecki','Grodzisk Mazowiecki','Żoliborz','Zielonka','Ząbki','Łomianki','Józefów','Kobyłka','Sulejówek'],
   mazowieckie: ['Warszawa','Radom','Płock','Siedlce','Pruszków','Legionowo','Ostrołęka','Żyrardów','Piaseczno','Wołomin','Nowy Dwór Mazowiecki','Ciechanów','Płońsk','Otwock','Marki','Mińsk Mazowiecki','Grodzisk Mazowiecki','Zielonka','Ząbki','Łomianki','Józefów','Kobyłka','Sulejówek','Piastów','Konstancin-Jeziorna'],
@@ -2981,7 +3049,173 @@ function addressPart(components,type){
   return (components||[]).find(component=>(component.types||[]).includes(type))?.long_name||'';
 }
 
+function apolloRegionLocations(region){
+  if(region==='all')return ['Poland'];
+  return (REGION_CITIES[region]||[]).slice(0,12).map(city=>`${city}, Poland`);
+}
+function apolloGeneratorPayload(){
+  const industry=document.getElementById('gen-industry').value;
+  const region=document.getElementById('gen-region').value;
+  const size=document.getElementById('gen-size')?.value||'smb';
+  const roles=document.getElementById('gen-roles')?.value||'owners';
+  const rolePreset=APOLLO_ROLE_PRESETS[roles]||APOLLO_ROLE_PRESETS.owners;
+  return {
+    industry,
+    industryQuery: INDUSTRY_QUERIES[industry]||industry,
+    keywords: INDUSTRY_QUERIES[industry]||industry,
+    locations: apolloRegionLocations(region),
+    employeeRanges: APOLLO_EMPLOYEE_RANGES[size]||APOLLO_EMPLOYEE_RANGES.smb,
+    seniorities: rolePreset.seniorities,
+    titles: rolePreset.titles,
+    limit: parseInt(document.getElementById('gen-limit')?.value||'20',10)||20,
+  };
+}
+function companyDedupeKey(company){
+  return String(company.apolloDomain||company.domain||company.www||company.name||'').toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').trim();
+}
+function normalizeCompanyName(value){return String(value||'').toLowerCase().replace(/[^a-z0-9ąćęłńóśźż ]/gi,' ').replace(/\s+/g,' ').trim();}
+function apolloCompanyToLocal(raw,industry,industryLabel){
+  const now=new Date().toISOString();
+  const contacts=aiArray(raw.contacts).map(contact=>({...contact,apolloFetchedAt:now,source:'Apollo'}));
+  const best=contacts.find(contact=>contact.apolloPersonId===raw.bestContactId)||contacts[0]||null;
+  const company={
+    id: uid(),
+    name: raw.name||raw.domain||'Firma z Apollo',
+    industry: aiArray(raw.industries)[0]||raw.description||industryLabel,
+    industryKey: industry,
+    searchCategory: industryLabel,
+    city: raw.city||'',
+    street: '',
+    state: raw.state||'',
+    country: raw.country||'',
+    size: raw.estimatedEmployees?`${raw.estimatedEmployees} pracowników`:'',
+    sizeSource: raw.estimatedEmployees?'Apollo':'',
+    estimatedEmployees: raw.estimatedEmployees||null,
+    annualRevenue: raw.annualRevenue||null,
+    phone: raw.phone||'',
+    email: '',
+    www: raw.website||raw.domain||'',
+    linkedin: raw.linkedinUrl||'',
+    contact: best?[best.fullName,best.title].filter(Boolean).join(' - '):'',
+    contactSource: best?'Apollo':'',
+    contactVerifiedAt: best?now:'',
+    selectedApolloContactId: best?.apolloPersonId||'',
+    apolloOrganizationId: raw.apolloOrganizationId||'',
+    apolloDomain: raw.domain||'',
+    apolloContacts: contacts,
+    apolloSearchSource: 'people_search',
+    apolloDecisionScore: raw.bestDecisionScore||null,
+    apolloDecisionReason: raw.bestDecisionReason||'',
+    apolloIndustries: aiArray(raw.industries),
+    apolloKeywords: aiArray(raw.keywords),
+    apolloDescription: raw.description||'',
+    notes: `Źródła danych: Apollo People Search. ${raw.description?`Opis Apollo: ${raw.description}. `:''}Decydenci: ${contacts.length}. Dane e-mail/telefon osoby pobieraj świadomie przez wzbogacenie Apollo.`,
+    status: 'nowy',
+    createdAt: now,
+  };
+  Object.assign(company,calculateLeadEstimate(company));
+  return company;
+}
+function googlePlaceLooksLikeCompany(place,company){
+  const placeName=normalizeCompanyName(place?.name);
+  const companyName=normalizeCompanyName(company?.name);
+  if(!placeName||!companyName)return false;
+  const first=companyName.split(' ').find(part=>part.length>3)||companyName.split(' ')[0]||'';
+  return placeName.includes(first)||companyName.includes(placeName.split(' ')[0]||'');
+}
+async function enrichCompanyWithGoogle(company){
+  const city=company.city||company.state||'Polska';
+  const places=await fetchPlacesForCity(company.name,city);
+  const place=(places||[]).find(item=>item.business_status!=='CLOSED_PERMANENTLY'&&item.business_status!=='CLOSED_TEMPORARILY'&&googlePlaceLooksLikeCompany(item,company));
+  if(!place)return company;
+  let details={};
+  try{details=await fetchPlaceDetails(place.place_id);}catch{}
+  if(details.business_status==='CLOSED_PERMANENTLY'||details.business_status==='CLOSED_TEMPORARILY')return company;
+  const components=details.address_components||[];
+  const route=addressPart(components,'route');
+  const streetNumber=addressPart(components,'street_number');
+  const street=[route,streetNumber].filter(Boolean).join(' ');
+  const www=details.website||company.www||'';
+  let research={website:{},krs:{}};
+  if(www){try{research=await fetchCompanyWebsiteFacts(www);}catch{}}
+  const krsFacts=research.krs||{};
+  Object.assign(company,{
+    city: company.city||addressPart(components,'locality')||addressPart(components,'postal_town')||'',
+    street: company.street||street,
+    postalCode: company.postalCode||addressPart(components,'postal_code')||'',
+    address: details.formatted_address||place.formatted_address||company.address||'',
+    phone: company.phone||details.formatted_phone_number||'',
+    www,
+    rating: details.rating??place.rating??company.rating??null,
+    ratingsTotal: details.user_ratings_total??place.user_ratings_total??company.ratingsTotal??null,
+    businessStatus: details.business_status||place.business_status||company.businessStatus||'',
+    googleTypes: details.types||place.types||company.googleTypes||[],
+    googleMapsUrl: details.url||company.googleMapsUrl||'',
+    googlePlaceId: place.place_id||company.googlePlaceId||'',
+    editorialSummary: details.editorial_summary?.overview||company.editorialSummary||'',
+    websiteTitle: research.website?.title||company.websiteTitle||'',
+    websiteDescription: research.website?.description||company.websiteDescription||'',
+    websiteFinalUrl: research.website?.finalUrl||company.websiteFinalUrl||www,
+    krs: krsFacts.krs||research.website?.krs||company.krs||'',
+    nip: krsFacts.nip||research.website?.nip||company.nip||'',
+    regon: krsFacts.regon||company.regon||'',
+    legalName: krsFacts.legalName||company.legalName||'',
+    legalForm: krsFacts.legalForm||company.legalForm||'',
+    primaryActivity: krsFacts.primaryActivity||company.primaryActivity||'',
+    primaryPkd: krsFacts.primaryPkd||company.primaryPkd||'',
+    shareCapital: krsFacts.shareCapital||company.shareCapital||'',
+    shareCapitalCurrency: krsFacts.shareCapitalCurrency||company.shareCapitalCurrency||'',
+    krsSourceUrl: krsFacts.sourceUrl||company.krsSourceUrl||'',
+    notes: `${company.notes||''} Google dodatek: wizytówka${research.website?.description?' | strona firmy':''}${krsFacts.krs?' | KRS':''}.`,
+  });
+  Object.assign(company,calculateLeadEstimate(company));
+  return company;
+}
 async function generateAICompanies() {
+  const industry=document.getElementById('gen-industry').value;
+  const btn=document.getElementById('gen-btn');
+  const status=document.getElementById('gen-status');
+  const enrichGoogle=document.getElementById('gen-google-enrich')?.checked!==false;
+  const industryLabel=INDUSTRY_LABELS[industry]||industry;
+  btn.disabled=true;
+  btn.textContent='Szukam...';
+  status.style.display='block';
+  status.textContent='Szukam firm i decydentów w Apollo...';
+  const existing=gCompanies();
+  const existingKeys=new Set(existing.map(companyDedupeKey).filter(Boolean));
+  try{
+    const response=await window.electronAPI.apolloContacts('search_companies',apolloGeneratorPayload());
+    const apolloCompanies=aiArray(response.companies);
+    const generated=[];
+    for(const raw of apolloCompanies){
+      const company=apolloCompanyToLocal(raw,industry,industryLabel);
+      const key=companyDedupeKey(company);
+      if(!key||existingKeys.has(key))continue;
+      existingKeys.add(key);
+      if(enrichGoogle){
+        status.textContent=`Uzupełniam Google: ${company.name}...`;
+        try{await enrichCompanyWithGoogle(company);}catch{}
+      }
+      generated.push(company);
+    }
+    if(!generated.length){
+      status.textContent='Nie znaleziono nowych firm w Apollo dla tych filtrów albo wszystkie są już w bazie.';
+      btn.disabled=false;btn.textContent='Generuj z Apollo';
+      return;
+    }
+    DB.set('companies',[...generated,...existing]);
+    status.textContent=`Dodano ${generated.length} firm z Apollo${enrichGoogle?' i uzupełnieniem Google':''}.`;
+    renderCompanies();
+    setTimeout(()=>{status.style.display='none';},5000);
+  }catch(error){
+    status.textContent=`Błąd Apollo: ${error.message||'nie udało się pobrać firm'}`;
+  }finally{
+    btn.disabled=false;
+    btn.textContent='Generuj z Apollo';
+  }
+}
+
+async function generateGoogleCompaniesLegacy() {
   const industry = document.getElementById('gen-industry').value;
   const region = document.getElementById('gen-region').value;
   const btn = document.getElementById('gen-btn');
