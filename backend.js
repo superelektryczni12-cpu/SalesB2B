@@ -2,8 +2,10 @@ const { app } = require('electron');
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const CONFIG_FILE = path.join(__dirname, 'supabase-config.json');
+const CHAT_BUCKET = 'sales-b2b-chat-files';
 
 function readConfig() {
   try {
@@ -330,6 +332,242 @@ async function saveTeamUserData(userId, dataKey, value) {
   return true;
 }
 
+function cleanString(value, maxLength = 500) {
+  return String(value ?? '').trim().slice(0, maxLength);
+}
+
+function safeChatFileName(name) {
+  const base = cleanString(name || 'plik', 180)
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return base || 'plik';
+}
+
+function chatThreadRecipient(threadId) {
+  const id = cleanString(threadId, 100);
+  if (!id || id === 'team') return null;
+  if (!id.startsWith('dm:')) throw new Error('Nieprawidlowy watek czatu.');
+  return id.slice(3);
+}
+
+function memberName(member) {
+  return member?.full_name || member?.email || 'Pracownik';
+}
+
+async function listChatMembers(supabase, organizationId) {
+  const { data, error } = await supabase
+    .from('organization_members')
+    .select('id, user_id, email, full_name, role, status')
+    .eq('organization_id', organizationId)
+    .eq('status', 'active')
+    .order('full_name', { ascending: true });
+  if (error) throw error;
+  return data || [];
+}
+
+async function validateChatRecipient(supabase, context, memberId) {
+  if (!memberId) return null;
+  const { data, error } = await supabase
+    .from('organization_members')
+    .select('id, organization_id, full_name, email, status')
+    .eq('id', memberId)
+    .eq('organization_id', context.organizationId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new Error('Ten pracownik nie nalezy do Twojej organizacji.');
+  return data.id;
+}
+
+function messageBelongsToThread(message, context, threadId) {
+  const recipient = chatThreadRecipient(threadId);
+  if (!recipient) return !message.recipient_member_id;
+  const a = message.sender_member_id;
+  const b = message.recipient_member_id;
+  return (a === context.memberId && b === recipient) || (a === recipient && b === context.memberId);
+}
+
+function publicChatMessage(message, membersById, context) {
+  const sender = membersById.get(message.sender_member_id);
+  return {
+    id: message.id,
+    threadId: message.recipient_member_id
+      ? `dm:${message.sender_member_id === context.memberId ? message.recipient_member_id : message.sender_member_id}`
+      : 'team',
+    body: message.body || '',
+    attachments: Array.isArray(message.attachments) ? message.attachments : [],
+    createdAt: message.created_at,
+    senderMemberId: message.sender_member_id,
+    senderName: memberName(sender),
+    own: message.sender_member_id === context.memberId,
+    readBy: Array.isArray(message.read_by) ? message.read_by : [],
+  };
+}
+
+async function listChatThreads() {
+  const supabase = getClient();
+  const context = await currentContext();
+  const members = await listChatMembers(supabase, context.organizationId);
+  const membersById = new Map(members.map(member => [member.id, member]));
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('id, sender_member_id, recipient_member_id, body, attachments, read_by, created_at')
+    .eq('organization_id', context.organizationId)
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  const messages = data || [];
+  const threadFor = (threadId) => messages.filter(message => messageBelongsToThread(message, context, threadId));
+  const publicLast = (items) => items[0] ? publicChatMessage(items[0], membersById, context) : null;
+  const unread = (items) => items.filter(message =>
+    message.sender_member_id !== context.memberId &&
+    !(Array.isArray(message.read_by) ? message.read_by : []).includes(context.memberId)
+  ).length;
+
+  const threads = [{
+    id: 'team',
+    type: 'team',
+    name: 'Zespół',
+    subtitle: `${members.length} osób`,
+    memberId: null,
+    lastMessage: publicLast(threadFor('team')),
+    unreadCount: unread(threadFor('team')),
+  }];
+
+  for (const member of members) {
+    if (member.id === context.memberId) continue;
+    const threadId = `dm:${member.id}`;
+    const items = threadFor(threadId);
+    threads.push({
+      id: threadId,
+      type: 'direct',
+      name: memberName(member),
+      subtitle: member.role || member.email || '',
+      memberId: member.id,
+      lastMessage: publicLast(items),
+      unreadCount: unread(items),
+    });
+  }
+
+  return {
+    currentMemberId: context.memberId,
+    organizationId: context.organizationId,
+    members: members.map(member => ({
+      id: member.id,
+      userId: member.user_id,
+      name: memberName(member),
+      email: member.email,
+      role: member.role,
+    })),
+    threads,
+  };
+}
+
+async function markChatThreadRead(supabase, context, messages) {
+  const unread = messages.filter(message =>
+    message.sender_member_id !== context.memberId &&
+    !(Array.isArray(message.read_by) ? message.read_by : []).includes(context.memberId)
+  );
+  for (const message of unread.slice(-40)) {
+    const readBy = [...new Set([...(Array.isArray(message.read_by) ? message.read_by : []), context.memberId])];
+    await supabase.from('chat_messages').update({ read_by: readBy }).eq('id', message.id);
+  }
+}
+
+async function listChatMessages(threadId = 'team') {
+  const supabase = getClient();
+  const context = await currentContext();
+  const recipient = chatThreadRecipient(threadId);
+  if (recipient) await validateChatRecipient(supabase, context, recipient);
+  const members = await listChatMembers(supabase, context.organizationId);
+  const membersById = new Map(members.map(member => [member.id, member]));
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .select('id, sender_member_id, recipient_member_id, body, attachments, read_by, created_at')
+    .eq('organization_id', context.organizationId)
+    .order('created_at', { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  const messages = (data || [])
+    .filter(message => messageBelongsToThread(message, context, threadId))
+    .reverse()
+    .slice(-120);
+  await markChatThreadRead(supabase, context, messages);
+  return {
+    threadId: recipient ? `dm:${recipient}` : 'team',
+    currentMemberId: context.memberId,
+    messages: messages.map(message => publicChatMessage(message, membersById, context)),
+  };
+}
+
+async function sendChatMessage(payload = {}) {
+  const supabase = getClient();
+  const context = await currentContext();
+  const recipient = await validateChatRecipient(supabase, context, chatThreadRecipient(payload.threadId || 'team'));
+  const body = cleanString(payload.body, 5000);
+  const attachments = Array.isArray(payload.attachments) ? payload.attachments.slice(0, 8).map(file => ({
+    path: cleanString(file?.path, 500),
+    name: cleanString(file?.name || 'plik', 240),
+    type: cleanString(file?.type, 120),
+    size: Number(file?.size) || 0,
+  })).filter(file => file.path && file.path.startsWith(`${context.organizationId}/`)) : [];
+  if (!body && !attachments.length) throw new Error('Wpisz wiadomość albo dodaj plik.');
+
+  const { data, error } = await supabase
+    .from('chat_messages')
+    .insert({
+      organization_id: context.organizationId,
+      sender_member_id: context.memberId,
+      recipient_member_id: recipient,
+      body,
+      attachments,
+      read_by: [context.memberId],
+    })
+    .select('id, sender_member_id, recipient_member_id, body, attachments, read_by, created_at')
+    .single();
+  if (error) throw error;
+  const members = await listChatMembers(supabase, context.organizationId);
+  return publicChatMessage(data, new Map(members.map(member => [member.id, member])), context);
+}
+
+async function uploadChatFile(file = {}) {
+  const supabase = getClient();
+  const context = await currentContext();
+  const name = safeChatFileName(file.name);
+  const size = Number(file.size) || 0;
+  if (!file.dataBase64) throw new Error('Nie udało się odczytać pliku.');
+  if (size > 10 * 1024 * 1024) throw new Error('Plik może mieć maksymalnie 10 MB.');
+  const buffer = Buffer.from(String(file.dataBase64), 'base64');
+  const filePath = `${context.organizationId}/${context.memberId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${name}`;
+  const { error } = await supabase.storage
+    .from(CHAT_BUCKET)
+    .upload(filePath, buffer, {
+      contentType: cleanString(file.type, 120) || 'application/octet-stream',
+      upsert: false,
+    });
+  if (error) throw error;
+  return {
+    path: filePath,
+    name,
+    type: cleanString(file.type, 120),
+    size: buffer.length,
+  };
+}
+
+async function createChatFileUrl(filePath) {
+  const supabase = getClient();
+  const context = await currentContext();
+  const pathValue = cleanString(filePath, 500);
+  if (!pathValue.startsWith(`${context.organizationId}/`)) throw new Error('Brak dostępu do tego pliku.');
+  const { data, error } = await supabase.storage
+    .from(CHAT_BUCKET)
+    .createSignedUrl(pathValue, 60 * 10);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
 async function getBookings() {
   const data = await loadUserData();
   return Array.isArray(data.bookings) ? data.bookings : [];
@@ -375,6 +613,11 @@ module.exports = {
   saveUserData,
   loadTeamData,
   saveTeamUserData,
+  listChatThreads,
+  listChatMessages,
+  sendChatMessage,
+  uploadChatFile,
+  createChatFileUrl,
   generateSalesAI,
   apolloContacts,
   getSalesJourneyStats,

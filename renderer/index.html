@@ -344,6 +344,49 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .ai-gen-controls .btn,.ai-gen-controls .perm-check{min-height:38px;justify-content:center}
 .companies-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
 
+/* TEAM CHAT */
+.chat-fab{position:fixed;right:24px;bottom:24px;width:54px;height:54px;border-radius:50%;border:1px solid rgba(59,130,246,.35);background:var(--blue);color:#fff;z-index:220;display:none;align-items:center;justify-content:center;font-size:22px;cursor:pointer;box-shadow:0 12px 34px rgba(0,0,0,.5);transition:.15s}
+.chat-fab:hover{background:#2563eb;transform:translateY(-1px)}
+.chat-unread{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;border-radius:99px;background:var(--red);border:2px solid var(--bg);font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;padding:0 5px}
+.team-chat{position:fixed;right:24px;bottom:88px;width:min(860px,calc(100vw - 48px));height:min(620px,calc(100vh - 132px));background:#151515;border:1px solid rgba(255,255,255,.1);border-radius:12px;z-index:219;display:none;overflow:hidden;box-shadow:0 25px 70px rgba(0,0,0,.72)}
+.team-chat.open{display:grid;grid-template-columns:260px minmax(0,1fr)}
+.chat-sidebar{border-right:1px solid var(--border);background:rgba(255,255,255,.018);display:flex;flex-direction:column;min-width:0}
+.chat-head{height:56px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 14px}
+.chat-title{font-size:14px;font-weight:700;color:var(--text)}
+.chat-sub{font-size:11px;color:var(--text2);margin-top:2px}
+.chat-threads{overflow-y:auto;padding:8px;display:grid;gap:5px}
+.chat-thread{border:1px solid transparent;background:transparent;color:var(--text2);border-radius:8px;padding:10px;cursor:pointer;text-align:left;font-family:inherit;display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:9px;align-items:center}
+.chat-thread:hover{background:rgba(255,255,255,.045)}
+.chat-thread.active{background:rgba(59,130,246,.12);border-color:rgba(59,130,246,.22);color:var(--text)}
+.chat-avatar{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0}
+.chat-thread-name{font-size:12.5px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-thread-last{font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+.chat-thread-badge{min-width:19px;height:19px;border-radius:99px;background:var(--red);color:white;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 6px}
+.chat-main{display:grid;grid-template-rows:56px minmax(0,1fr) auto;background:#101010;min-width:0}
+.chat-messages{overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+.chat-empty{margin:auto;color:var(--text3);font-size:13px;text-align:center}
+.chat-msg{max-width:min(520px,82%);display:grid;gap:5px}
+.chat-msg.own{align-self:flex-end}
+.chat-msg:not(.own){align-self:flex-start}
+.chat-msg-meta{font-size:10.5px;color:var(--text3);display:flex;gap:7px}
+.chat-msg.own .chat-msg-meta{justify-content:flex-end}
+.chat-bubble{border:1px solid var(--border);background:#1f1f1f;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.5;color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-msg.own .chat-bubble{background:rgba(59,130,246,.18);border-color:rgba(59,130,246,.3)}
+.chat-attach-list{display:grid;gap:6px;margin-top:2px}
+.chat-attach{border:1px solid var(--border);background:rgba(255,255,255,.035);border-radius:8px;padding:8px 10px;font-size:11.5px;color:var(--text2);display:flex;align-items:center;gap:8px;cursor:pointer;max-width:100%}
+.chat-attach:hover{border-color:rgba(59,130,246,.32);color:var(--text)}
+.chat-composer{border-top:1px solid var(--border);padding:10px;background:#151515}
+.chat-file-row{display:none;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.chat-file-row.open{display:flex}
+.chat-file-pill{border:1px solid var(--border);background:rgba(255,255,255,.045);border-radius:999px;padding:5px 8px;font-size:11px;color:var(--text2);display:flex;gap:6px;align-items:center;max-width:220px}
+.chat-file-pill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-form{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:end}
+.chat-form textarea{min-height:42px;max-height:110px;resize:none}
+.chat-status{min-height:17px;font-size:11.5px;color:var(--text2);margin-top:7px}
+.chat-status.error{color:var(--red)}
+.chat-status.ok{color:var(--green)}
+@media(max-width:760px){.team-chat.open{grid-template-columns:1fr}.chat-sidebar{display:none}.team-chat{right:12px;bottom:78px;width:calc(100vw - 24px);height:calc(100vh - 112px)}.chat-fab{right:16px;bottom:16px}}
+
 /* MODAL */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
 .overlay.open{display:flex}
@@ -393,6 +436,44 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   <select id="team-user-select" onchange="switchTeamUser(this.value)"></select>
   <button class="btn btn-ghost btn-sm" onclick="refreshTeamPanels()" title="Pobierz najnowsze dane">Odśwież</button>
   <span id="team-view-status"></span>
+</div>
+
+<!-- TEAM CHAT -->
+<button class="chat-fab" id="team-chat-fab" onclick="toggleTeamChat()" title="Chat pracowników">
+  💬
+  <span class="chat-unread" id="chat-unread-badge"></span>
+</button>
+<div class="team-chat" id="team-chat-panel">
+  <div class="chat-sidebar">
+    <div class="chat-head">
+      <div>
+        <div class="chat-title">Chaty</div>
+        <div class="chat-sub" id="chat-member-count">Zespół</div>
+      </div>
+      <button class="btn-icon" onclick="refreshChat()">↻</button>
+    </div>
+    <div class="chat-threads" id="chat-threads"></div>
+  </div>
+  <div class="chat-main">
+    <div class="chat-head">
+      <div>
+        <div class="chat-title" id="chat-active-title">Zespół</div>
+        <div class="chat-sub" id="chat-active-subtitle">Wspólny kanał pracowników</div>
+      </div>
+      <button class="modal-close" style="position:static" onclick="closeTeamChat()">✕</button>
+    </div>
+    <div class="chat-messages" id="chat-messages"><div class="chat-empty">Otwórz czat, aby pobrać wiadomości.</div></div>
+    <div class="chat-composer">
+      <div class="chat-file-row" id="chat-files"></div>
+      <div class="chat-form">
+        <input id="chat-file-input" type="file" multiple style="display:none" onchange="handleChatFiles(this.files);this.value=''">
+        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('chat-file-input').click()">Plik</button>
+        <textarea id="chat-message-input" placeholder="Napisz wiadomość..." onkeydown="chatInputKeydown(event)"></textarea>
+        <button class="btn btn-primary btn-sm" id="chat-send-btn" onclick="sendChatMessage()">Wyślij</button>
+      </div>
+      <div class="chat-status" id="chat-status"></div>
+    </div>
+  </div>
 </div>
 
 <!-- HOME -->
@@ -1216,6 +1297,12 @@ async function doRegister(){
 async function doLogout(){
   await cloudWriteChain;
   try{await window.electronAPI.logout();}catch{}
+  closeTeamChat();
+  chatThreads=[];
+  chatMessages=[];
+  chatPendingFiles=[];
+  renderChatBadge();
+  document.getElementById('team-chat-fab').style.display='none';
   currentUser=null;
   employeesCache=[];
   teamDataMembers=[];
@@ -1228,9 +1315,11 @@ async function doLogout(){
 
 function showApp(user){
   document.getElementById('login-screen').style.display='none';
+  document.getElementById('team-chat-fab').style.display='flex';
   updateNav(user);
   renderTeamBar();
   loadEmployees();
+  refreshChat(true);
   renderHome();
 }
 
@@ -1297,6 +1386,186 @@ function renderEmployees(){
   const emps=gEmps().filter(e=>e.role!=='admin');
   if(!emps.length){el.innerHTML='<div style="color:var(--text2);font-size:13px;margin-bottom:8px">Brak pracowników.</div>';return;}
   el.innerHTML=emps.map(e=>`<div class="emp-row"><div class="emp-avatar" style="background:${empColor(e.full_name)}22;color:${empColor(e.full_name)}">${empInitials(e.full_name)}</div><div class="emp-info"><div class="emp-name">${e.full_name}</div><div class="emp-role">${e.role||''} · ${e.email} · ${e.status==='active'?'konto gotowe':'konto oczekujące'}</div></div><button class="btn btn-ghost btn-sm" onclick="openEditEmployee('${e.id}')">Edytuj</button></div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// TEAM CHAT
+// ═══════════════════════════════════════════════════════════════════════
+let chatOpen=false;
+let chatActiveThreadId='team';
+let chatThreads=[];
+let chatMessages=[];
+let chatPendingFiles=[];
+let chatPollTimer=null;
+let chatRefreshing=false;
+
+function setChatStatus(message,type=''){
+  const el=document.getElementById('chat-status');if(!el)return;
+  el.textContent=message||'';
+  el.className=`chat-status${type?' '+type:''}`;
+}
+function chatTime(value){
+  const date=new Date(value);
+  return Number.isNaN(date.getTime())?'':date.toLocaleString('pl-PL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function chatFileSize(size){
+  const value=Number(size)||0;
+  if(value>=1024*1024)return `${(value/1024/1024).toFixed(1)} MB`;
+  if(value>=1024)return `${Math.round(value/1024)} KB`;
+  return `${value} B`;
+}
+function chatPreview(message){
+  if(!message)return 'Brak wiadomości';
+  if(message.body)return message.body;
+  const count=Array.isArray(message.attachments)?message.attachments.length:0;
+  return count?`${count} plik${count===1?'':'i'}`:'Wiadomość';
+}
+function renderChatBadge(){
+  const total=chatThreads.reduce((sum,thread)=>sum+(Number(thread.unreadCount)||0),0);
+  const badge=document.getElementById('chat-unread-badge');if(!badge)return;
+  badge.style.display=total?'flex':'none';
+  badge.textContent=total>99?'99+':String(total);
+}
+function renderChatThreads(){
+  const list=document.getElementById('chat-threads');if(!list)return;
+  document.getElementById('chat-member-count').textContent=chatThreads.length?`${chatThreads.length} rozmów`:'Zespół';
+  if(!chatThreads.length){list.innerHTML='<div class="chat-empty">Brak aktywnych pracowników.</div>';renderChatBadge();return;}
+  list.innerHTML=chatThreads.map(thread=>{
+    const color=thread.type==='team'?'var(--blue)':empColor(thread.name);
+    const initials=thread.type==='team'?'Z':empInitials(thread.name);
+    return `<button class="chat-thread${thread.id===chatActiveThreadId?' active':''}" onclick="selectChatThread('${thread.id}')">
+      <div class="chat-avatar" style="background:${color}22;color:${color}">${esc(initials)}</div>
+      <div style="min-width:0">
+        <div class="chat-thread-name">${esc(thread.name)}</div>
+        <div class="chat-thread-last">${esc(chatPreview(thread.lastMessage))}</div>
+      </div>
+      ${thread.unreadCount?`<div class="chat-thread-badge">${thread.unreadCount>9?'9+':thread.unreadCount}</div>`:''}
+    </button>`;
+  }).join('');
+  renderChatBadge();
+}
+function renderChatMessages(){
+  const el=document.getElementById('chat-messages');if(!el)return;
+  const thread=chatThreads.find(item=>item.id===chatActiveThreadId);
+  document.getElementById('chat-active-title').textContent=thread?.name||'Zespół';
+  document.getElementById('chat-active-subtitle').textContent=thread?.type==='direct'?(thread.subtitle||'Rozmowa prywatna'):'Wspólny kanał pracowników';
+  if(!chatMessages.length){el.innerHTML='<div class="chat-empty">Brak wiadomości. Zacznij rozmowę.</div>';return;}
+  el.innerHTML=chatMessages.map(message=>{
+    const attachments=Array.isArray(message.attachments)?message.attachments:[];
+    return `<div class="chat-msg${message.own?' own':''}">
+      <div class="chat-msg-meta"><span>${esc(message.own?'Ty':message.senderName||'Pracownik')}</span><span>${esc(chatTime(message.createdAt))}</span></div>
+      ${message.body?`<div class="chat-bubble">${esc(message.body)}</div>`:''}
+      ${attachments.length?`<div class="chat-attach-list">${attachments.map(file=>`<button class="chat-attach" onclick="openChatFile('${esc(file.path)}')"><span>📎</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name||'plik')}</span><span style="margin-left:auto;color:var(--text3)">${esc(chatFileSize(file.size))}</span></button>`).join('')}</div>`:''}
+    </div>`;
+  }).join('');
+  el.scrollTop=el.scrollHeight;
+}
+async function refreshChat(silent=false){
+  if(chatRefreshing||!currentUser||!window.electronAPI?.listChatThreads)return;
+  chatRefreshing=true;
+  try{
+    const data=await window.electronAPI.listChatThreads();
+    chatThreads=Array.isArray(data.threads)?data.threads:[];
+    if(!chatThreads.some(thread=>thread.id===chatActiveThreadId))chatActiveThreadId='team';
+    renderChatThreads();
+    if(chatOpen)await loadChatMessages(true);
+    if(!silent)setChatStatus('Odświeżono.','ok');
+  }catch(error){
+    if(!silent)setChatStatus(error.message||'Nie udało się pobrać czatu.','error');
+  }finally{chatRefreshing=false;}
+}
+async function loadChatMessages(silent=false){
+  if(!currentUser||!window.electronAPI?.listChatMessages)return;
+  try{
+    const data=await window.electronAPI.listChatMessages(chatActiveThreadId);
+    chatMessages=Array.isArray(data.messages)?data.messages:[];
+    renderChatMessages();
+    if(!silent)setChatStatus('');
+  }catch(error){
+    setChatStatus(error.message||'Nie udało się pobrać wiadomości.','error');
+  }
+}
+async function selectChatThread(threadId){
+  chatActiveThreadId=threadId||'team';
+  renderChatThreads();
+  await loadChatMessages();
+}
+function startChatPolling(){
+  clearInterval(chatPollTimer);
+  chatPollTimer=setInterval(()=>{if(chatOpen)refreshChat(true);},3500);
+}
+async function openTeamChat(){
+  if(!currentUser)return;
+  chatOpen=true;
+  document.getElementById('team-chat-panel').classList.add('open');
+  setChatStatus('Pobieram wiadomości...');
+  startChatPolling();
+  await refreshChat(true);
+  await loadChatMessages(true);
+  setChatStatus('');
+  setTimeout(()=>document.getElementById('chat-message-input')?.focus(),80);
+}
+function closeTeamChat(){
+  chatOpen=false;
+  document.getElementById('team-chat-panel').classList.remove('open');
+  clearInterval(chatPollTimer);
+}
+function toggleTeamChat(){chatOpen?closeTeamChat():openTeamChat();}
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(String(reader.result||'').split(',')[1]||'');
+    reader.onerror=()=>reject(reader.error||new Error('Nie udało się odczytać pliku.'));
+    reader.readAsDataURL(file);
+  });
+}
+function renderChatFiles(){
+  const el=document.getElementById('chat-files');if(!el)return;
+  el.classList.toggle('open',chatPendingFiles.length>0);
+  el.innerHTML=chatPendingFiles.map((file,index)=>`<div class="chat-file-pill"><span>${esc(file.name)}</span><small>${esc(chatFileSize(file.size))}</small><button class="btn-icon" style="width:18px;height:18px;font-size:11px" onclick="removeChatFile(${index})">✕</button></div>`).join('');
+}
+function removeChatFile(index){chatPendingFiles.splice(index,1);renderChatFiles();}
+async function handleChatFiles(files){
+  const list=[...(files||[])].slice(0,8-chatPendingFiles.length);
+  if(!list.length)return;
+  setChatStatus('Wgrywam pliki...');
+  try{
+    for(const file of list){
+      if(file.size>10*1024*1024)throw new Error(`Plik ${file.name} przekracza 10 MB.`);
+      const dataBase64=await fileToBase64(file);
+      const uploaded=await window.electronAPI.uploadChatFile({name:file.name,type:file.type,size:file.size,dataBase64});
+      chatPendingFiles.push(uploaded);
+      renderChatFiles();
+    }
+    setChatStatus('Plik gotowy do wysłania.','ok');
+  }catch(error){setChatStatus(error.message||'Nie udało się wgrać pliku.','error');}
+}
+function chatInputKeydown(event){
+  if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage();}
+}
+async function sendChatMessage(){
+  const input=document.getElementById('chat-message-input');
+  const button=document.getElementById('chat-send-btn');
+  const body=input.value.trim();
+  if(!body&&!chatPendingFiles.length){setChatStatus('Wpisz wiadomość albo dodaj plik.','error');return;}
+  button.disabled=true;
+  setChatStatus('Wysyłam...');
+  try{
+    await window.electronAPI.sendChatMessage({threadId:chatActiveThreadId,body,attachments:chatPendingFiles});
+    input.value='';
+    chatPendingFiles=[];
+    renderChatFiles();
+    await refreshChat(true);
+    await loadChatMessages(true);
+    setChatStatus('Wysłano.','ok');
+  }catch(error){setChatStatus(error.message||'Nie udało się wysłać wiadomości.','error');}
+  finally{button.disabled=false;input.focus();}
+}
+async function openChatFile(path){
+  try{
+    const url=await window.electronAPI.createChatFileUrl(path);
+    window.open(url,'_blank');
+  }catch(error){setChatStatus(error.message||'Nie udało się otworzyć pliku.','error');}
 }
 
 function seedUserData(){

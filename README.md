@@ -7,7 +7,7 @@ Desktopowa aplikacja Electron do zarzadzania sprzedaza B2B, spotkaniami i genero
 Aplikacja korzysta z Supabase Auth oraz PostgreSQL. Hasla nie sa zapisywane w aplikacji ani w `localStorage`.
 
 1. Utworz projekt w Supabase.
-2. Otworz `SQL Editor`, wklej caly plik `supabase-setup.sql` i kliknij `Run`. Dla istniejacego projektu wystarczy nowa migracja `supabase-user-data.sql`.
+2. Otworz `SQL Editor`, wklej caly plik `supabase-setup.sql` i kliknij `Run`. Dla istniejacego projektu wystarczy nowa migracja `supabase-user-data.sql`, a dla czatu pracownikow dodatkowo `supabase-chat.sql`.
 3. W `Project Settings -> API` skopiuj `Project URL` oraz klucz `anon`/`publishable`.
 4. Wstaw te dwie wartosci do `supabase-config.json`.
 5. Wdroż funkcje `supabase/functions/bright-processor` jako Edge Function o nazwie `bright-processor`.
@@ -18,6 +18,12 @@ Pierwsza osoba rejestrujaca sie tworzy organizacje i otrzymuje role administrato
 Wszystkie dane robocze aplikacji sa zapisywane w `user_app_data` z identyfikatorem zalogowanego uzytkownika. Dane sa odtwarzane po zalogowaniu na dowolnym komputerze, a lokalna pamiec pelni tylko role cache.
 
 Generator firm zapisuje fakty zwracane przez Google Places, publiczne informacje ze strony firmy oraz - gdy strona ujawnia numer KRS - oficjalne dane z API Krajowego Rejestru Sadowego. Priorytet leada, skala i potencjal budzetowy sa wyraznie oznaczone jako szacunki; aplikacja pokazuje ich podstawy i ograniczenia.
+
+## Chat pracownikow
+
+Po zalogowaniu aplikacja pokazuje w prawym dolnym rogu przycisk chatu. Pracownicy tej samej organizacji moga pisac na kanale zespolowym oraz w rozmowach prywatnych. Wiadomosci sa zapisywane w tabeli `chat_messages`, a zalaczniki trafiaja do prywatnego bucketu Supabase Storage `sales-b2b-chat-files`.
+
+Dla istniejacego projektu Supabase uruchom raz `supabase-chat.sql`. Ten skrypt tworzy tabele, polityki RLS i prywatny bucket plikow. Niczego nie trzeba usuwac.
 
 ## AI Asystent handlowca
 
@@ -83,7 +89,7 @@ Wybrana osoba z Apollo moze zostac dodana bezposrednio jako lead w Drodze Sprzed
 Najprosciej: pobierz gotowy instalator z folderu `installer`:
 
 ```text
-installer/Sales-B2B-Setup-1.5.2.exe
+installer/Sales-B2B-Setup-1.5.3.exe
 ```
 
 Po pobraniu uruchom plik `.exe` i przejdz instalacje.
