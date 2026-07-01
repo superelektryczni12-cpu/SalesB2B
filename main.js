@@ -4,8 +4,11 @@ const http = require('http');
 const https = require('https');
 const backend = require('./backend');
 const { analyzeCompanyWebsite } = require('./company-research');
+const { createUpdateManager } = require('./auto-update');
 
 const GOOGLE_API_KEY = 'AIzaSyAkAJfARQ2P1WUO7__-1IvPuAeeFDBK0lA';
+let mainWindow = null;
+const updateManager = createUpdateManager({ app, getWindow: () => mainWindow });
 
 function httpsGet(url) {
   return new Promise((resolve, reject) => {
@@ -69,12 +72,13 @@ ipcMain.handle('chat-file-url', (_e, filePath) => backend.createChatFileUrl(file
 ipcMain.handle('sales-ai-generate', (_e, action, payload) => backend.generateSalesAI(action, payload));
 ipcMain.handle('apollo-contacts', (_e, action, payload) => backend.apolloContacts(action, payload));
 ipcMain.handle('sales-journey-stats', () => backend.getSalesJourneyStats());
+ipcMain.handle('app-version', () => app.getVersion());
+ipcMain.handle('updates-check', (_e, manual = false) => updateManager.checkForUpdates({ manual: Boolean(manual) }));
+ipcMain.handle('updates-install', () => updateManager.downloadAndInstall());
 
 nativeTheme.themeSource = 'dark';
 
 const isMac = process.platform === 'darwin';
-
-let mainWindow = null;
 
 // IPC handlers
 ipcMain.handle('get-bookings', () => backend.getBookings());
@@ -215,6 +219,9 @@ function createWindow() {
     mainWindow.webContents.executeJavaScript(
       `document.documentElement.setAttribute('data-platform', '${process.platform}')`
     );
+    setTimeout(() => {
+      updateManager.checkForUpdates({ manual: false }).catch(() => {});
+    }, 3500);
   });
 }
 

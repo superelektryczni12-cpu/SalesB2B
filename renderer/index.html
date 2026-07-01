@@ -416,6 +416,13 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .chat-status.error{color:var(--red)}
 .chat-status.ok{color:var(--green)}
 @media(max-width:760px){.team-chat.open{grid-template-columns:1fr}.chat-sidebar{display:none}.team-chat{right:12px;bottom:78px;width:calc(100vw - 24px);height:calc(100vh - 112px)}.chat-fab{right:16px;bottom:16px}}
+.update-toast{display:none;position:fixed;left:24px;bottom:24px;width:min(390px,calc(100vw - 48px));z-index:260;background:#171717;border:1px solid rgba(59,130,246,.28);box-shadow:0 18px 45px rgba(0,0,0,.55);border-radius:12px;padding:14px}
+.update-toast.open{display:block}
+.update-title{font-size:13.5px;font-weight:800;color:var(--text);margin-bottom:4px}
+.update-text{font-size:12px;color:var(--text2);line-height:1.45}
+.update-actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+.update-progress{height:5px;background:rgba(255,255,255,.08);border-radius:99px;overflow:hidden;margin-top:10px}
+.update-progress span{display:block;height:100%;width:0;background:var(--blue);transition:width .15s}
 
 /* MODAL */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:300;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
@@ -474,6 +481,15 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   💬
   <span class="chat-unread" id="chat-unread-badge"></span>
 </button>
+<div class="update-toast" id="update-toast">
+  <div class="update-title" id="update-title">Dostępna aktualizacja</div>
+  <div class="update-text" id="update-text"></div>
+  <div class="update-progress" id="update-progress" style="display:none"><span id="update-progress-bar"></span></div>
+  <div class="update-actions">
+    <button class="btn btn-ghost btn-sm" id="update-later-btn" onclick="hideUpdateToast()">Później</button>
+    <button class="btn btn-primary btn-sm" id="update-install-btn" onclick="installAppUpdate()">Zainstaluj</button>
+  </div>
+</div>
 <div class="team-chat" id="team-chat-panel">
   <div class="chat-sidebar">
     <div class="chat-head">
@@ -811,6 +827,12 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
       <div class="section-title" style="margin-top:32px">Pracownicy</div>
       <div id="employees-list" style="margin-bottom:12px"></div>
       <button class="btn btn-ghost" onclick="openNewEmployee()">+ Dodaj pracownika</button>
+    </div>
+
+    <div class="section-title" style="margin-top:32px">Aktualizacje</div>
+    <div class="card" style="margin-bottom:18px">
+      <div id="app-version-label" style="font-size:13px;color:var(--text2);margin-bottom:12px">Wersja aplikacji: —</div>
+      <button class="btn btn-ghost btn-sm" onclick="checkForAppUpdates(true)">Sprawdź aktualizacje</button>
     </div>
 
     <div style="margin-top:36px;padding-top:20px;border-top:1px solid var(--border)">
@@ -3953,10 +3975,73 @@ if (window.electronAPI) {
   });
 }
 
+let latestUpdateInfo=null;
+function formatUpdateSize(bytes){
+  const size=Number(bytes)||0;
+  if(size>=1024*1024)return `${(size/1024/1024).toFixed(1)} MB`;
+  if(size>=1024)return `${Math.round(size/1024)} KB`;
+  return size?`${size} B`:'';
+}
+function showUpdateToast({title,text,progress=null,installEnabled=true,laterVisible=true}){
+  const toast=document.getElementById('update-toast');if(!toast)return;
+  document.getElementById('update-title').textContent=title;
+  document.getElementById('update-text').textContent=text||'';
+  document.getElementById('update-progress').style.display=progress===null?'none':'block';
+  if(progress!==null)document.getElementById('update-progress-bar').style.width=`${Math.max(0,Math.min(100,progress))}%`;
+  document.getElementById('update-install-btn').disabled=!installEnabled;
+  document.getElementById('update-install-btn').style.display=installEnabled?'inline-flex':'none';
+  document.getElementById('update-later-btn').style.display=laterVisible?'inline-flex':'none';
+  toast.classList.add('open');
+}
+function hideUpdateToast(){document.getElementById('update-toast')?.classList.remove('open');}
+function handleUpdateEvent(event){
+  if(!event)return;
+  if(event.status==='available'){
+    latestUpdateInfo=event;
+    const size=formatUpdateSize(event.size);
+    showUpdateToast({
+      title:`Dostępna aktualizacja ${event.version}`,
+      text:`Masz wersję ${event.currentVersion}. ${event.notes||'Możesz pobrać i uruchomić instalator z aplikacji.'}${size?` Plik: ${size}.`:''}`,
+      installEnabled:true,
+      laterVisible:true,
+    });
+  }else if(event.status==='downloading'){
+    showUpdateToast({title:`Pobieranie wersji ${event.version}`,text:`Pobrano ${event.progress||0}% instalatora.`,progress:event.progress||0,installEnabled:false,laterVisible:false});
+  }else if(event.status==='ready'){
+    showUpdateToast({title:`Aktualizacja ${event.version} pobrana`,text:'Uruchamiam instalator. Aplikacja za chwilę się zamknie.',progress:100,installEnabled:false,laterVisible:false});
+  }else if(event.status==='installing'){
+    showUpdateToast({title:'Instalator uruchomiony',text:'Dokończ instalację w otwartym oknie instalatora.',progress:100,installEnabled:false,laterVisible:false});
+  }else if(event.status==='no-update'){
+    showUpdateToast({title:'Masz najnowszą wersję',text:`Aktualna wersja: ${event.currentVersion}.`,installEnabled:false,laterVisible:true});
+    setTimeout(hideUpdateToast,3500);
+  }else if(event.status==='error'){
+    showUpdateToast({title:'Nie udało się pobrać aktualizacji',text:event.message||'Spróbuj ponownie za chwilę.',installEnabled:false,laterVisible:true});
+  }
+}
+async function checkForAppUpdates(manual=false){
+  if(!window.electronAPI?.checkForUpdates)return;
+  if(manual)showUpdateToast({title:'Sprawdzam aktualizacje',text:'Łączę się z GitHub...',installEnabled:false,laterVisible:false});
+  const result=await window.electronAPI.checkForUpdates(manual);
+  if(manual&&result?.error)handleUpdateEvent({status:'error',message:result.error});
+  return result;
+}
+async function installAppUpdate(){
+  if(!window.electronAPI?.installUpdate)return;
+  document.getElementById('update-install-btn').disabled=true;
+  showUpdateToast({title:'Przygotowuję aktualizację',text:latestUpdateInfo?.version?`Wersja ${latestUpdateInfo.version}`:'Pobieranie instalatora...',progress:0,installEnabled:false,laterVisible:false});
+  await window.electronAPI.installUpdate();
+}
+if(window.electronAPI?.onUpdateEvent)window.electronAPI.onUpdateEvent(handleUpdateEvent);
+
 // ── BOOT ──
 (async function boot() {
   document.getElementById('login-screen').style.display='flex';
   try{
+    if(window.electronAPI?.getAppVersion){
+      const version=await window.electronAPI.getAppVersion();
+      const label=document.getElementById('app-version-label');
+      if(label)label.textContent=`Wersja aplikacji: ${version}`;
+    }
     const status=await window.electronAPI.backendStatus();
     document.getElementById('backend-status').textContent=status.message||'';
     if(!status.configured)return;

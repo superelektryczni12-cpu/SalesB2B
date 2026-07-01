@@ -11,7 +11,7 @@ Aplikacja korzysta z Supabase Auth oraz PostgreSQL. Hasla nie sa zapisywane w ap
 3. W `Project Settings -> API` skopiuj `Project URL` oraz klucz `anon`/`publishable`.
 4. Wstaw te dwie wartosci do `supabase-config.json`.
 5. Wdroż funkcje `supabase/functions/bright-processor` jako Edge Function o nazwie `bright-processor`.
-6. Zbuduj nowy instalator poleceniem `npm.cmd run build`.
+6. Zbuduj nowy instalator poleceniem `npm.cmd run build`. Build kopiuje instalator do `installer` i aktualizuje `updates/latest.json` dla automatycznych aktualizacji.
 
 Pierwsza osoba rejestrujaca sie tworzy organizacje i otrzymuje role administratora. Administrator tworzy pracownikowi kompletne konto, podajac jego e-mail, haslo, role i uprawnienia. Pracownik od razu loguje sie otrzymanymi danymi i nie przechodzi rejestracji ani potwierdzania e-maila.
 
@@ -89,10 +89,22 @@ Wybrana osoba z Apollo moze zostac dodana bezposrednio jako lead w Drodze Sprzed
 Najprosciej: pobierz gotowy instalator z folderu `installer`:
 
 ```text
-installer/Sales-B2B-Setup-1.5.4.exe
+installer/Sales-B2B-Setup-1.5.5.exe
 ```
 
 Po pobraniu uruchom plik `.exe` i przejdz instalacje.
+
+## Automatyczne aktualizacje
+
+Od wersji `1.5.5` aplikacja po starcie sprawdza publiczny plik `updates/latest.json` na GitHubie. Jesli pojawi sie nowsza wersja, uzytkownik zobaczy powiadomienie w aplikacji i moze pobrac oraz uruchomic instalator bez szukania pliku recznie.
+
+Przy kazdej kolejnej wersji:
+
+1. Podbij wersje w `package.json`, np. `npm.cmd version 1.5.6 --no-git-tag-version`.
+2. Uruchom `npm.cmd run build`.
+3. Commituj i pushuj zmienione `package.json`, `package-lock.json`, `installer/Sales-B2B-Setup-x.x.x.exe` oraz `updates/latest.json`.
+
+Uzytkownicy starsi niz `1.5.5` musza raz zainstalowac `1.5.5` recznie. Potem kolejne wersje beda juz wykrywane z poziomu aplikacji.
 
 ## Uruchomienie z kodu
 

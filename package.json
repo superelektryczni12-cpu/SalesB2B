@@ -1,11 +1,11 @@
 {
   "name": "sales-b2b",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "System zarządzania B2B dla freelancerów",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder --win --x64",
+    "build": "electron-builder --win --x64 && node scripts/prepare-update.js",
     "build:mac": "electron-builder --mac --universal"
   },
   "build": {
@@ -16,6 +16,7 @@
     },
     "files": [
       "main.js",
+      "auto-update.js",
       "backend.js",
       "company-research.js",
       "preload.js",

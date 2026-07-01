@@ -27,4 +27,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateSalesAI: (action, payload) => ipcRenderer.invoke('sales-ai-generate', action, payload),
   apolloContacts: (action, payload) => ipcRenderer.invoke('apollo-contacts', action, payload),
   getSalesJourneyStats: () => ipcRenderer.invoke('sales-journey-stats'),
+  getAppVersion: () => ipcRenderer.invoke('app-version'),
+  checkForUpdates: (manual = false) => ipcRenderer.invoke('updates-check', manual),
+  installUpdate: () => ipcRenderer.invoke('updates-install'),
+  onUpdateEvent: (cb) => {
+    const listener = (_event, payload) => cb(payload);
+    ipcRenderer.on('update-event', listener);
+    return () => ipcRenderer.removeListener('update-event', listener);
+  },
 });
