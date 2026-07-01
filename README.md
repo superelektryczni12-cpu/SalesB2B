@@ -89,7 +89,7 @@ Wybrana osoba z Apollo moze zostac dodana bezposrednio jako lead w Drodze Sprzed
 Najprosciej: pobierz gotowy instalator z folderu `installer`:
 
 ```text
-installer/Sales-B2B-Setup-1.5.3.exe
+installer/Sales-B2B-Setup-1.5.4.exe
 ```
 
 Po pobraniu uruchom plik `.exe` i przejdz instalacje.

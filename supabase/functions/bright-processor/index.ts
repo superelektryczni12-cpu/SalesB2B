@@ -14,6 +14,12 @@ function response(body: Record<string, unknown>, status = 200) {
   });
 }
 
+async function findAuthUserByEmail(admin: ReturnType<typeof createClient>, email: string) {
+  const { data, error } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  if (error) return null;
+  return (data.users || []).find((user) => user.email?.toLowerCase() === email) || null;
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -69,7 +75,7 @@ Deno.serve(async (request) => {
         .ilike('email', email)
         .maybeSingle();
 
-      if (existing?.user_id || existing?.status === 'active') {
+      if (existing?.status === 'active') {
         return response({ error: 'Konto z tym adresem e-mail już istnieje.' }, 400);
       }
 
@@ -105,15 +111,53 @@ Deno.serve(async (request) => {
         user_metadata: { full_name: fullName },
       });
 
-      if (createError || !created.user) {
-        if (!existing) await admin.from('organization_members').delete().eq('id', pending.id);
-        return response({ error: createError?.message || 'Nie udało się utworzyć konta.' }, 400);
+      let authUser = created?.user || null;
+      if (createError || !authUser) {
+        authUser = await findAuthUserByEmail(admin, email);
+        if (!authUser) {
+          if (!existing) await admin.from('organization_members').delete().eq('id', pending.id);
+          return response({ error: createError?.message || 'Nie udało się utworzyć konta.' }, 400);
+        }
+      }
+
+      const { data: linkedMember, error: linkedError } = await admin
+        .from('organization_members')
+        .select('id, organization_id, status')
+        .eq('user_id', authUser.id)
+        .neq('id', pending.id)
+        .maybeSingle();
+
+      if (linkedError) {
+        return response({ error: linkedError.message }, 400);
+      }
+      if (linkedMember && linkedMember.organization_id !== caller.organization_id) {
+        return response({ error: 'Ten adres e-mail jest już przypisany do innej organizacji.' }, 400);
+      }
+
+      const { error: authUpdateError } = await admin.auth.admin.updateUserById(authUser.id, {
+        email,
+        email_confirm: true,
+        password,
+        user_metadata: { full_name: fullName },
+      });
+
+      if (authUpdateError) {
+        return response({ error: authUpdateError.message }, 400);
       }
 
       const { data: member, error: memberError } = await admin
         .from('organization_members')
+        .update({
+          user_id: authUser.id,
+          email,
+          full_name: fullName,
+          role,
+          permissions,
+          status: 'active',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', pending.id)
         .select('id, user_id, email, full_name, role, permissions, status, created_at')
-        .eq('user_id', created.user.id)
         .single();
 
       if (memberError) {

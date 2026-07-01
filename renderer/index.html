@@ -329,6 +329,36 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .journey-bar{height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin:9px 0}
 .journey-bar>span{display:block;height:100%;background:var(--green)}
 .journey-loss-row{font-size:11px;color:var(--text2);display:flex;justify-content:space-between;gap:8px;padding-top:5px}
+.admin-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:22px}
+.admin-kpi{border:1px solid var(--border);border-radius:8px;background:var(--card);padding:16px}
+.admin-kpi-label{font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px}
+.admin-kpi-value{font-size:27px;font-weight:750;color:var(--text);line-height:1.05}
+.admin-kpi-note{font-size:11px;color:var(--text2);margin-top:6px;line-height:1.35}
+.admin-layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.8fr);gap:14px;align-items:start}
+.admin-panel{border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.018);padding:16px}
+.admin-panel-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:13px}
+.admin-panel-title{font-size:15px;font-weight:700;color:var(--text)}
+.admin-panel-meta{font-size:11.5px;color:var(--text3)}
+.admin-funnel{display:grid;gap:10px}
+.admin-funnel-row{display:grid;grid-template-columns:155px minmax(190px,1fr) 118px;gap:12px;align-items:center}
+.admin-funnel-name{font-size:12px;font-weight:700;color:var(--text)}
+.admin-funnel-sub{font-size:10.5px;color:var(--text3);margin-top:3px}
+.admin-funnel-track{height:18px;background:rgba(255,255,255,.06);border-radius:6px;overflow:hidden;display:flex}
+.admin-funnel-ok{background:var(--blue)}
+.admin-funnel-lost{background:var(--red)}
+.admin-funnel-active{background:rgba(255,255,255,.14)}
+.admin-funnel-stat{font-size:11px;color:var(--text2);text-align:right;line-height:1.35}
+.admin-rank-list{display:grid;gap:8px}
+.admin-rank-row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--border2);border-radius:8px;background:rgba(255,255,255,.02);padding:10px}
+.admin-rank-pos{width:28px;height:28px;border-radius:8px;background:rgba(59,130,246,.14);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+.admin-rank-name{font-size:12.5px;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.admin-rank-meta{font-size:10.5px;color:var(--text2);margin-top:2px}
+.admin-rank-score{text-align:right;font-size:12px;color:var(--text2)}
+.admin-table{width:100%;border-collapse:collapse;font-size:11.5px}
+.admin-table th{color:var(--text3);font-weight:600;text-align:left;padding:0 8px 8px;border-bottom:1px solid var(--border)}
+.admin-table td{padding:9px 8px;border-bottom:1px solid var(--border2);color:var(--text2)}
+.admin-table td strong{color:var(--text)}
+@media(max-width:980px){.admin-layout{grid-template-columns:1fr}.admin-funnel-row{grid-template-columns:1fr}.admin-funnel-stat{text-align:left}}
 .lead-expand{display:none;padding:0 18px 16px;border-top:1px solid var(--border2)}
 .lead-expand.open{display:block}
 .lead-field{margin-top:10px}
@@ -428,6 +458,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <button class="nav-pill" onclick="showPage('meetings')">Spotkania</button>
     <button class="nav-pill" onclick="showPage('companies')">Firmy</button>
     <button class="nav-pill" onclick="showPage('sales-journey')">Droga Sprzedaży</button>
+    <button class="nav-pill" onclick="showPage('admin-dashboard')">Panel Admina</button>
   </div>
   <button class="nav-settings" onclick="showPage('settings')" title="Ustawienia">⚙</button>
 </nav>
@@ -726,6 +757,18 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     </div>
   </div>
   <div id="sales-journey-content"></div>
+</div>
+
+<!-- PANEL ADMINA -->
+<div id="page-admin-dashboard" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Panel Admina</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px">Prywatne statystyki właściciela: proces sprzedaży, wynik zespołu i sektory usługowe.</div>
+    </div>
+    <button class="btn btn-ghost" onclick="renderAdminDashboard()">Odśwież dane</button>
+  </div>
+  <div id="admin-dashboard-content"></div>
 </div>
 
 <!-- SETTINGS -->
@@ -1326,8 +1369,23 @@ function showApp(user){
 function updateNav(user){
   if(!user)return;
   const pills=document.querySelectorAll('.nav-pill');
-  const perms=['terminarz','projekty','klienci','finanse','spotkania','firmy','droga_sprzedazy'];
-  pills.forEach((p,i)=>{ p.style.display=isAdmin(user)||user.permissions?.includes('all')||user.permissions?.includes(perms[i])||(perms[i]==='droga_sprzedazy'&&user.role==='handlowiec')?'':'none'; });
+  const navItems=[
+    {perm:'terminarz'},
+    {perm:'projekty'},
+    {perm:'klienci'},
+    {perm:'finanse'},
+    {perm:'spotkania'},
+    {perm:'firmy'},
+    {perm:'droga_sprzedazy',sales:true},
+    {adminOnly:true},
+  ];
+  pills.forEach((p,i)=>{
+    const item=navItems[i]||{};
+    const visible=item.adminOnly
+      ? isAdmin(user)
+      : isAdmin(user)||user.permissions?.includes('all')||user.permissions?.includes(item.perm)||(item.sales&&user.role==='handlowiec');
+    p.style.display=visible?'':'none';
+  });
   document.querySelector('.nav-settings').style.display='';
   // admin section in settings
   const adminSec=document.getElementById('admin-only-settings');
@@ -1612,10 +1670,11 @@ function showPage(p){
   document.querySelector('.nav-home').classList.toggle('active',p==='home');
   document.querySelector('.nav-settings').classList.toggle('active',p==='settings');
   document.getElementById('page-'+p).classList.add('active');
-  const tabs=['calendar','projects','clients','finance','meetings','companies','sales-journey'];
+  const tabs=['calendar','projects','clients','finance','meetings','companies','sales-journey','admin-dashboard'];
   const i=tabs.indexOf(p);if(i>=0)document.querySelectorAll('.nav-pill')[i].classList.add('active');
   curPage=p;
-  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,companies:renderCompanies,'sales-journey':renderSalesJourney})[p]?.();
+  if(p==='admin-dashboard'&&isAdmin(currentUser)){selectedDataUserId=currentUser.id;renderTeamBar();}
+  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,companies:renderCompanies,'sales-journey':renderSalesJourney,'admin-dashboard':renderAdminDashboard})[p]?.();
 }
 
 function renderHome(){
@@ -1867,6 +1926,8 @@ function applyCompanyToJourneyLead(lead,company,apolloContact=null){
     rating:company.rating??null,
     ratingsTotal:company.ratingsTotal??null,
     industry:company.industry||'',
+    industryKey:company.industryKey||lead.industryKey||'',
+    searchCategory:company.searchCategory||lead.searchCategory||'',
     companyStatus:company.status||lead.companyStatus||'nowy',
     leadScore:company.leadScore||lead.leadScore||null,
     leadScoreLabel:company.leadScoreLabel||lead.leadScoreLabel||'',
@@ -2512,6 +2573,252 @@ function renderJourneyMetric(stage){
 // ══════════════════════════════
 // FIRMY — COLD OUTREACH CRM
 // ══════════════════════════════
+function adminDataValue(member,key,fallback){
+  try{
+    const stored=localStorage.getItem(userStorageKey(key,member.userId));
+    if(stored!==null)return JSON.parse(stored);
+  }catch{}
+  return member?.data&&Object.prototype.hasOwnProperty.call(member.data,key)?member.data[key]:fallback;
+}
+function adminSalesMembers(){
+  return (teamDataMembers||[]).filter(member=>member.userId&&!['admin','manager'].includes(member.role));
+}
+function adminNumber(value){const num=Number(value);return Number.isFinite(num)?num:0;}
+function adminDateMs(value){const ms=Date.parse(String(value||''));return Number.isFinite(ms)?ms:null;}
+function adminAvg(values){const nums=values.filter(value=>Number.isFinite(value));return nums.length?nums.reduce((sum,value)=>sum+value,0)/nums.length:null;}
+function adminPct(part,total){return total?Math.round((part/total)*1000)/10:null;}
+function adminLeadReached(lead,stageId){return (lead.stageHistory||[]).some(event=>event.stage===stageId)||lead.currentStage===stageId;}
+function adminLeadEventDate(lead,stageId){
+  const event=(lead.stageHistory||[]).find(item=>item.stage===stageId);
+  return adminDateMs(event?.enteredAt||event?.exitedAt);
+}
+function adminLeadSaleMs(lead){
+  return adminLeadEventDate(lead,'sale')||adminDateMs(lead.completedAt)||adminDateMs(lead.updatedAt);
+}
+function adminLeadStartMs(lead){
+  return adminDateMs(lead.createdAt)||(lead.stageHistory||[]).map(event=>adminDateMs(event.enteredAt)).find(Boolean)||null;
+}
+function adminLeadCycleDays(lead){
+  if(!adminLeadReached(lead,'sale')&&lead.status!=='completed')return null;
+  const start=adminLeadStartMs(lead),end=adminLeadSaleMs(lead);
+  return start!==null&&end!==null&&end>=start?Math.round(((end-start)/86400000)*10)/10:null;
+}
+function adminStageMetrics(leads){
+  const metrics=Object.fromEntries(SALES_JOURNEY_STAGES.map(stage=>[stage.id,{...stage,entered:0,progressed:0,lost:0,active:0,durationMs:0,durationCount:0,lossReasons:{}}]));
+  leads.forEach(lead=>{
+    const history=Array.isArray(lead.stageHistory)?lead.stageHistory:[];
+    if(!history.length&&lead.currentStage&&metrics[lead.currentStage])metrics[lead.currentStage].entered+=1;
+    history.forEach(event=>{
+      const metric=metrics[event.stage];if(!metric)return;
+      metric.entered+=1;
+      if(event.outcome==='progressed')metric.progressed+=1;
+      if(event.outcome==='lost'){
+        metric.lost+=1;
+        const reason=event.lossReason||'Nie podano';
+        metric.lossReasons[reason]=(metric.lossReasons[reason]||0)+1;
+      }
+      const entered=adminDateMs(event.enteredAt),exited=adminDateMs(event.exitedAt);
+      if(entered!==null&&exited!==null&&exited>=entered){metric.durationMs+=exited-entered;metric.durationCount+=1;}
+    });
+    if(lead.status==='active'&&lead.currentStage&&metrics[lead.currentStage])metrics[lead.currentStage].active+=1;
+  });
+  return SALES_JOURNEY_STAGES.map(stage=>{
+    const metric=metrics[stage.id],closed=metric.progressed+metric.lost;
+    return {
+      ...metric,
+      conversionRate:adminPct(metric.progressed,closed),
+      dropOffRate:adminPct(metric.lost,closed),
+      enteredDropOffRate:adminPct(metric.lost,metric.entered),
+      avgDays:metric.durationCount?Math.round((metric.durationMs/metric.durationCount/86400000)*10)/10:null,
+      lossReasons:Object.entries(metric.lossReasons).map(([reason,count])=>({reason,count})).sort((a,b)=>b.count-a.count),
+    };
+  });
+}
+function adminQuoteStats(member){
+  const quotesValue=adminDataValue(member,'quotes',[]);
+  const quotes=Array.isArray(quotesValue)?quotesValue:[];
+  const accepted=quotes.filter(quote=>quote.status==='Zaakceptowana');
+  if(accepted.length)return {total:accepted.reduce((sum,quote)=>sum+adminNumber(quote.grossTotal),0),count:accepted.length,source:'zaakceptowane wyceny',quotes:accepted};
+  const txValue=adminDataValue(member,'transactions',[]);
+  const transactions=(Array.isArray(txValue)?txValue:[]).filter(tx=>tx.type==='income');
+  return {total:transactions.reduce((sum,tx)=>sum+adminNumber(tx.amount),0),count:transactions.length,source:'przychody',quotes:[]};
+}
+function adminLeadSector(lead,companies){
+  const company=companies.find(item=>item.id&&item.id===lead.sourceCompanyId)||{};
+  const raw=String(lead.industryKey||company.industryKey||lead.searchCategory||company.searchCategory||lead.industry||company.industry||'Inne').trim();
+  const normalized=raw.toLowerCase();
+  const sectors=[
+    {key:'marketing',label:'Marketing',match:['marketing','reklam','advertising','social media','performance']},
+    {key:'software',label:'Software / IT',match:['software','it','programist','informat','saas','system']},
+    {key:'ecommerce',label:'E-commerce',match:['ecommerce','e-commerce','sklep internet','handel online']},
+    {key:'logistics',label:'Logistyka / spedycja',match:['logistics','logisty','spedy','transport','tms','wms']},
+    {key:'real_estate',label:'Nieruchomości',match:['real_estate','nieruchomo']},
+    {key:'consulting',label:'Doradztwo',match:['consulting','doradzt','konsult']},
+    {key:'hr',label:'HR / rekrutacja',match:['hr','rekrut','kadry']},
+    {key:'finance',label:'Finanse / księgowość',match:['finance','finans','księg','ksieg','rachunk']},
+  ];
+  const found=sectors.find(sector=>sector.match.some(match=>normalized.includes(match)));
+  return {key:found?.key||normalized||'inne',label:found?.label||(lead.searchCategory||company.searchCategory||raw||'Inne')};
+}
+function adminMemberLeadRevenue(leads,clients,quoteStats){
+  const byLead={};
+  const clientLead=Object.fromEntries((clients||[]).filter(client=>client.id).map(client=>[client.id,client.journeyLeadId||'']));
+  (quoteStats.quotes||[]).forEach(quote=>{
+    const leadId=clientLead[quote.clientId]||leads.find(lead=>lead.clientId===quote.clientId)?.id||'';
+    if(!leadId)return;
+    byLead[leadId]=(byLead[leadId]||0)+adminNumber(quote.grossTotal);
+  });
+  return byLead;
+}
+function adminMemberStats(member){
+  const journey=adminDataValue(member,'sales_journey',{leads:[]})||{leads:[]};
+  const leads=Array.isArray(journey.leads)?journey.leads:[];
+  const clientsValue=adminDataValue(member,'clients',[]);
+  const companiesValue=adminDataValue(member,'companies',[]);
+  const clients=Array.isArray(clientsValue)?clientsValue:[];
+  const companies=Array.isArray(companiesValue)?companiesValue:[];
+  const quoteStats=adminQuoteStats(member);
+  const leadRevenue=adminMemberLeadRevenue(leads,clients,quoteStats);
+  const sold=leads.filter(lead=>adminLeadReached(lead,'sale')||lead.status==='completed');
+  const lost=leads.filter(lead=>lead.status==='lost');
+  const active=leads.filter(lead=>lead.status==='active');
+  const cycleDays=sold.map(adminLeadCycleDays).filter(value=>value!==null);
+  const conversionBase=sold.length+lost.length;
+  const conversionRate=adminPct(sold.length,conversionBase);
+  const sectors={};
+  leads.forEach(lead=>{
+    const sector=adminLeadSector(lead,companies);
+    const bucket=sectors[sector.key]||(sectors[sector.key]={key:sector.key,label:sector.label,leads:0,sold:0,lost:0,active:0,revenue:0,revenueCount:0,cycleDays:[],stageLost:{}});
+    bucket.leads+=1;
+    if(lead.status==='active')bucket.active+=1;
+    if(lead.status==='lost'){
+      bucket.lost+=1;
+      const lostStage=[...(lead.stageHistory||[])].reverse().find(event=>event.outcome==='lost')?.stage||lead.currentStage||'cold_call';
+      bucket.stageLost[lostStage]=(bucket.stageLost[lostStage]||0)+1;
+    }
+    if(adminLeadReached(lead,'sale')||lead.status==='completed'){
+      bucket.sold+=1;
+      const days=adminLeadCycleDays(lead);if(days!==null)bucket.cycleDays.push(days);
+    }
+    const value=adminNumber(leadRevenue[lead.id]);
+    if(value>0){bucket.revenue+=value;bucket.revenueCount+=1;}
+  });
+  const revenueCount=quoteStats.count||0;
+  return {
+    member,leads,leadCount:leads.length,soldCount:sold.length,lostCount:lost.length,activeCount:active.length,conversionRate,
+    avgCycleDays:adminAvg(cycleDays),revenue:quoteStats.total,projectCount:revenueCount,avgProjectValue:revenueCount?quoteStats.total/revenueCount:null,
+    revenueSource:quoteStats.source,stageMetrics:adminStageMetrics(leads),sectors:Object.values(sectors),
+    score:(conversionRate||0)+(sold.length*8)+(quoteStats.total/10000)-(lost.length*2),
+  };
+}
+function buildAdminDashboardStats(){
+  const memberStats=adminSalesMembers().map(adminMemberStats);
+  const allLeads=memberStats.flatMap(item=>item.leads);
+  const stageMetrics=adminStageMetrics(allLeads);
+  const sold=memberStats.reduce((sum,item)=>sum+item.soldCount,0);
+  const lost=memberStats.reduce((sum,item)=>sum+item.lostCount,0);
+  const revenue=memberStats.reduce((sum,item)=>sum+item.revenue,0);
+  const projectCount=memberStats.reduce((sum,item)=>sum+item.projectCount,0);
+  const cycleDays=memberStats.map(item=>item.avgCycleDays).filter(value=>value!==null);
+  const sectorMap={};
+  memberStats.forEach(member=>member.sectors.forEach(sector=>{
+    const bucket=sectorMap[sector.key]||(sectorMap[sector.key]={key:sector.key,label:sector.label,leads:0,sold:0,lost:0,active:0,revenue:0,revenueCount:0,cycleDays:[],stageLost:{}});
+    bucket.leads+=sector.leads;bucket.sold+=sector.sold;bucket.lost+=sector.lost;bucket.active+=sector.active;bucket.revenue+=sector.revenue;bucket.revenueCount+=sector.revenueCount;bucket.cycleDays.push(...sector.cycleDays);
+    Object.entries(sector.stageLost).forEach(([stage,count])=>bucket.stageLost[stage]=(bucket.stageLost[stage]||0)+count);
+  }));
+  const sectors=Object.values(sectorMap).map(sector=>({
+    ...sector,conversionRate:adminPct(sector.sold,sector.sold+sector.lost),dropOffRate:adminPct(sector.lost,sector.sold+sector.lost),
+    avgProjectValue:sector.revenueCount?sector.revenue/sector.revenueCount:null,avgCycleDays:adminAvg(sector.cycleDays),
+    worstStage:Object.entries(sector.stageLost).sort((a,b)=>b[1]-a[1])[0]||null,
+  })).sort((a,b)=>b.leads-a.leads);
+  return {memberStats,stageMetrics,sectors,totalLeads:allLeads.length,sold,lost,active:memberStats.reduce((sum,item)=>sum+item.activeCount,0),conversionRate:adminPct(sold,sold+lost),avgCycleDays:adminAvg(cycleDays),avgProjectValue:projectCount?revenue/projectCount:null,revenue,projectCount};
+}
+function adminKpi(label,value,note,color='var(--text)'){
+  return `<div class="admin-kpi"><div class="admin-kpi-label">${esc(label)}</div><div class="admin-kpi-value" style="color:${color}">${esc(value)}</div><div class="admin-kpi-note">${esc(note)}</div></div>`;
+}
+function renderAdminFunnel(stages){
+  const visible=stages.filter(stage=>stage.entered||stage.progressed||stage.lost||stage.active);
+  if(!visible.length)return '<div class="journey-empty">Brak danych w Drodze Sprzedaży.</div>';
+  return `<div class="admin-funnel">${visible.map(stage=>{
+    const progressed=adminPct(stage.progressed,stage.entered)||0,lost=adminPct(stage.lost,stage.entered)||0,active=adminPct(stage.active,stage.entered)||0;
+    const dropClosed=stage.dropOffRate===null?'—':`${stage.dropOffRate}%`;
+    const avg=stage.avgDays===null?'—':`${stage.avgDays} dni`;
+    return `<div class="admin-funnel-row">
+      <div><div class="admin-funnel-name">${esc(stage.label)}</div><div class="admin-funnel-sub">${stage.entered} wejść · śr. ${esc(avg)}</div></div>
+      <div class="admin-funnel-track" title="Niebieski: przeszli dalej, czerwony: odpadli, szary: aktywni">
+        <span class="admin-funnel-ok" style="width:${Math.min(100,progressed)}%"></span>
+        <span class="admin-funnel-lost" style="width:${Math.min(100,lost)}%"></span>
+        <span class="admin-funnel-active" style="width:${Math.min(100,active)}%"></span>
+      </div>
+      <div class="admin-funnel-stat"><strong style="color:var(--red)">${esc(dropClosed)}</strong> odpada<br>${stage.progressed} dalej · ${stage.lost} utrac.</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+function renderAdminRanking(title,members,empty){
+  const rows=members.filter(item=>item.leadCount>0).slice(0,5);
+  if(!rows.length)return `<div class="admin-panel"><div class="admin-panel-title">${esc(title)}</div><div class="journey-empty">${esc(empty)}</div></div>`;
+  return `<div class="admin-panel"><div class="admin-panel-head"><div class="admin-panel-title">${esc(title)}</div><div class="admin-panel-meta">wg konwersji, sprzedaży i wartości</div></div><div class="admin-rank-list">${rows.map((item,index)=>`
+    <div class="admin-rank-row">
+      <div class="admin-rank-pos">${index+1}</div>
+      <div><div class="admin-rank-name">${esc(item.member.name||item.member.email)}</div><div class="admin-rank-meta">${item.soldCount} sprzedaży · ${item.lostCount} utrac. · ${item.leadCount} leadów</div></div>
+      <div class="admin-rank-score"><strong style="color:var(--text)">${item.conversionRate===null?'—':`${item.conversionRate}%`}</strong><br>${fmtMoney(item.revenue)}</div>
+    </div>`).join('')}</div></div>`;
+}
+function renderAdminSectors(sectors){
+  if(!sectors.length)return '<div class="admin-panel"><div class="admin-panel-title">Sektory usługowe</div><div class="journey-empty">Brak danych sektorowych. Leady z Apollo i firm będą tu wpadać osobno.</div></div>';
+  return `<div class="admin-panel" style="margin-top:14px">
+    <div class="admin-panel-head"><div><div class="admin-panel-title">Sektory usługowe</div><div class="admin-panel-meta">Marketing, software, logistyka i inne branże liczone oddzielnie</div></div></div>
+    <table class="admin-table"><thead><tr><th>Sektor</th><th>Leady</th><th>Konwersja</th><th>Odpada</th><th>Śr. proces</th><th>Śr. wartość</th><th>Najczęstszy odpływ</th></tr></thead><tbody>
+      ${sectors.map(sector=>`<tr>
+        <td><strong>${esc(sector.label)}</strong></td>
+        <td>${sector.leads}</td>
+        <td>${sector.conversionRate===null?'—':`${sector.conversionRate}%`}</td>
+        <td style="color:var(--red)">${sector.dropOffRate===null?'—':`${sector.dropOffRate}%`}</td>
+        <td>${sector.avgCycleDays===null?'—':`${Math.round(sector.avgCycleDays*10)/10} dni`}</td>
+        <td>${sector.avgProjectValue===null?'—':fmtMoney(sector.avgProjectValue)}</td>
+        <td>${sector.worstStage?`${esc(journeyStageLabel(sector.worstStage[0]))} (${sector.worstStage[1]})`:'—'}</td>
+      </tr>`).join('')}
+    </tbody></table>
+  </div>`;
+}
+async function renderAdminDashboard(){
+  const content=document.getElementById('admin-dashboard-content');
+  if(!content)return;
+  if(!isAdmin(getCurrentUser())){showPage('home');return;}
+  content.innerHTML='<div class="admin-panel" style="color:var(--text2)">Pobieranie danych zespołu…</div>';
+  try{
+    await cloudWriteChain;
+    await hydrateTeamData();
+    renderTeamBar();
+  }catch(error){
+    content.innerHTML=`<div class="admin-panel" style="border-color:rgba(239,68,68,.35)"><div style="font-weight:700;color:var(--red);margin-bottom:5px">Nie udało się pobrać danych zespołu</div><div style="font-size:12px;color:var(--text2)">${esc(error.message||'Sprawdź SQL dla dostępu admina do user_app_data.')}</div></div>`;
+    return;
+  }
+  const stats=buildAdminDashboardStats();
+  const best=[...stats.memberStats].sort((a,b)=>b.score-a.score);
+  const weakest=[...stats.memberStats].filter(item=>item.leadCount>0).sort((a,b)=>a.score-b.score);
+  const biggestLeak=stats.stageMetrics.filter(stage=>stage.dropOffRate!==null).sort((a,b)=>b.dropOffRate-a.dropOffRate)[0];
+  content.innerHTML=`
+    <div class="admin-kpis">
+      ${adminKpi('Skuteczność',stats.conversionRate===null?'—':`${stats.conversionRate}%`,`${stats.sold} sprzedaży / ${stats.lost} utraconych`,'var(--green)')}
+      ${adminKpi('Średni proces',stats.avgCycleDays===null?'—':`${Math.round(stats.avgCycleDays*10)/10} dni`,'Od pierwszego etapu do sprzedaży','var(--blue)')}
+      ${adminKpi('Średnia wartość',stats.avgProjectValue===null?'—':fmtMoney(stats.avgProjectValue),`${stats.projectCount} zaakceptowanych wycen / przychodów`,'var(--green)')}
+      ${adminKpi('Największy odpływ',biggestLeak?`${biggestLeak.dropOffRate}%`:'—',biggestLeak?.label||'Brak zamkniętych etapów','var(--red)')}
+    </div>
+    <div class="admin-layout">
+      <div class="admin-panel">
+        <div class="admin-panel-head"><div><div class="admin-panel-title">Lejek sprzedaży zespołu</div><div class="admin-panel-meta">Dokładny procent odpadu na każdym etapie</div></div><div class="admin-panel-meta">${stats.totalLeads} leadów</div></div>
+        ${renderAdminFunnel(stats.stageMetrics)}
+      </div>
+      <div style="display:grid;gap:14px">
+        ${renderAdminRanking('Najlepsze wyniki',best,'Jeszcze nie ma danych do rankingu.')}
+        ${renderAdminRanking('Najwięcej do poprawy',weakest,'Brak utraconych lub zamkniętych szans.')}
+      </div>
+    </div>
+    ${renderAdminSectors(stats.sectors)}
+  `;
+}
+
 const gCompanies = () => DB.get('companies') || [];
 let companiesFilter = 'all';
 let editCompanyId = null;
