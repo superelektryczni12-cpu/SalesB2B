@@ -7,7 +7,7 @@ Desktopowa aplikacja Electron do zarzadzania sprzedaza B2B, spotkaniami i genero
 Aplikacja korzysta z Supabase Auth oraz PostgreSQL. Hasla nie sa zapisywane w aplikacji ani w `localStorage`.
 
 1. Utworz projekt w Supabase.
-2. Otworz `SQL Editor`, wklej caly plik `supabase-setup.sql` i kliknij `Run`. Dla istniejacego projektu wystarczy nowa migracja `supabase-user-data.sql`, a dla czatu pracownikow dodatkowo `supabase-chat.sql`.
+2. Otworz `SQL Editor`, wklej caly plik `supabase-setup.sql` i kliknij `Run`. Dla istniejacego projektu uruchom dodatkowo migracje `supabase-user-data.sql`, `supabase-chat.sql` oraz `supabase-team-management.sql`.
 3. W `Project Settings -> API` skopiuj `Project URL` oraz klucz `anon`/`publishable`.
 4. Wstaw te dwie wartosci do `supabase-config.json`.
 5. Wdroż funkcje `supabase/functions/bright-processor` jako Edge Function o nazwie `bright-processor`.
@@ -16,6 +16,8 @@ Aplikacja korzysta z Supabase Auth oraz PostgreSQL. Hasla nie sa zapisywane w ap
 Pierwsza osoba rejestrujaca sie tworzy organizacje i otrzymuje role administratora. Administrator tworzy pracownikowi kompletne konto, podajac jego e-mail, haslo, role i uprawnienia. Pracownik od razu loguje sie otrzymanymi danymi i nie przechodzi rejestracji ani potwierdzania e-maila.
 
 Wszystkie dane robocze aplikacji sa zapisywane w `user_app_data` z identyfikatorem zalogowanego uzytkownika. Dane sa odtwarzane po zalogowaniu na dowolnym komputerze, a lokalna pamiec pelni tylko role cache.
+
+Panel zespolow zapisuje przelozonego pracownika w `organization_members.manager_member_id`, a cele miesieczne w `organization_members.monthly_goals`. Admin widzi cala organizacje, manager widzi i edytuje tylko osoby przypisane bezposrednio do siebie.
 
 Generator firm zapisuje fakty zwracane przez Google Places, publiczne informacje ze strony firmy oraz - gdy strona ujawnia numer KRS - oficjalne dane z API Krajowego Rejestru Sadowego. Priorytet leada, skala i potencjal budzetowy sa wyraznie oznaczone jako szacunki; aplikacja pokazuje ich podstawy i ograniczenia.
 
@@ -89,7 +91,7 @@ Wybrana osoba z Apollo moze zostac dodana bezposrednio jako lead w Drodze Sprzed
 Najprosciej: pobierz gotowy instalator z folderu `installer`:
 
 ```text
-installer/Sales-B2B-Setup-1.5.5.exe
+installer/Sales-B2B-Setup-1.5.6.exe
 ```
 
 Po pobraniu uruchom plik `.exe` i przejdz instalacje.

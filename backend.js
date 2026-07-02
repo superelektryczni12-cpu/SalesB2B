@@ -91,7 +91,7 @@ function backendStatus() {
 async function getContext(supabase, user) {
   const { data, error } = await supabase
     .from('organization_members')
-    .select('id, organization_id, user_id, email, full_name, role, permissions, status, organizations(name)')
+    .select('id, organization_id, user_id, email, full_name, role, permissions, status, manager_member_id, monthly_goals, organizations(name)')
     .eq('user_id', user.id)
     .eq('status', 'active')
     .maybeSingle();
@@ -108,6 +108,8 @@ async function getContext(supabase, user) {
     name: data.full_name || user.user_metadata?.full_name || user.email,
     role: data.role,
     permissions: data.permissions || [],
+    managerMemberId: data.manager_member_id || null,
+    monthlyGoals: data.monthly_goals || {},
   };
 }
 
@@ -225,11 +227,15 @@ async function listEmployees() {
   const context = await currentContext();
   const { data, error } = await supabase
     .from('organization_members')
-    .select('id, user_id, email, full_name, role, permissions, status, created_at')
+    .select('id, user_id, email, full_name, role, permissions, status, manager_member_id, monthly_goals, created_at')
     .eq('organization_id', context.organizationId)
     .order('created_at', { ascending: true });
   if (error) throw error;
-  return data || [];
+  const rows = data || [];
+  if (context.role === 'manager') {
+    return rows.filter(member => member.id === context.memberId || member.manager_member_id === context.memberId);
+  }
+  return rows;
 }
 
 async function saveEmployee(employee) {
@@ -280,14 +286,17 @@ async function loadTeamData() {
 
   const { data: members, error: membersError } = await supabase
     .from('organization_members')
-    .select('id, user_id, email, full_name, role, permissions, status')
+    .select('id, user_id, email, full_name, role, permissions, status, manager_member_id, monthly_goals')
     .eq('organization_id', context.organizationId)
     .eq('status', 'active')
     .not('user_id', 'is', null)
     .order('created_at', { ascending: true });
   if (membersError) throw membersError;
 
-  const userIds = (members || []).map(member => member.user_id).filter(Boolean);
+  const visibleMembers = context.role === 'manager'
+    ? (members || []).filter(member => member.id === context.memberId || member.manager_member_id === context.memberId)
+    : (members || []);
+  const userIds = visibleMembers.map(member => member.user_id).filter(Boolean);
   let rows = [];
   if (userIds.length) {
     const { data, error } = await supabase
@@ -298,13 +307,15 @@ async function loadTeamData() {
     rows = data || [];
   }
 
-  return (members || []).map(member => ({
+  return visibleMembers.map(member => ({
     memberId: member.id,
     userId: member.user_id,
     email: member.email,
     name: member.full_name || member.email,
     role: member.role,
     permissions: member.permissions || [],
+    managerMemberId: member.manager_member_id || null,
+    monthlyGoals: member.monthly_goals || {},
     data: Object.fromEntries(rows.filter(row => row.user_id === member.user_id).map(row => [row.data_key, row.value])),
   }));
 }
@@ -317,13 +328,16 @@ async function saveTeamUserData(userId, dataKey, value) {
 
   const { data: target, error: targetError } = await supabase
     .from('organization_members')
-    .select('user_id')
+    .select('user_id, manager_member_id')
     .eq('organization_id', context.organizationId)
     .eq('user_id', userId)
     .eq('status', 'active')
     .maybeSingle();
   if (targetError) throw targetError;
   if (!target) throw new Error('Wybrane konto nie należy do tej organizacji.');
+  if (context.role === 'manager' && target.user_id !== context.id && target.manager_member_id !== context.memberId) {
+    throw new Error('Manager może edytować tylko dane swojego zespołu.');
+  }
 
   const { error } = await supabase
     .from('user_app_data')

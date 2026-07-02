@@ -27,6 +27,8 @@ create table if not exists public.organization_members (
   role text not null default 'handlowiec'
     check (role in ('admin', 'manager', 'koordynator', 'handlowiec', 'specjalista')),
   permissions text[] not null default '{}',
+  manager_member_id uuid references public.organization_members(id) on delete set null,
+  monthly_goals jsonb not null default '{}'::jsonb,
   status text not null default 'pending'
     check (status in ('pending', 'active')),
   created_at timestamptz not null default now(),

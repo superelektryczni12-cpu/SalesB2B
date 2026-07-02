@@ -20,6 +20,32 @@ async function findAuthUserByEmail(admin: ReturnType<typeof createClient>, email
   return (data.users || []).find((user) => user.email?.toLowerCase() === email) || null;
 }
 
+function normalizeMonthlyGoals(value: unknown) {
+  const input = value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+  const output: Record<string, number> = {};
+  for (const key of ['calls', 'meetings', 'offers', 'sales', 'revenue']) {
+    const number = Number(input[key]);
+    if (Number.isFinite(number) && number > 0) output[key] = Math.round(number);
+  }
+  return output;
+}
+
+async function validateSupervisor(admin: ReturnType<typeof createClient>, organizationId: string, managerMemberId: string) {
+  const { data, error } = await admin
+    .from('organization_members')
+    .select('id, role, status')
+    .eq('id', managerMemberId)
+    .eq('organization_id', organizationId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data || !['admin', 'manager'].includes(data.role)) {
+    throw new Error('Wybrany przełożony musi być aktywnym adminem albo managerem.');
+  }
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -46,7 +72,7 @@ Deno.serve(async (request) => {
 
     const { data: caller, error: callerError } = await admin
       .from('organization_members')
-      .select('organization_id, role, status')
+      .select('id, organization_id, role, status')
       .eq('user_id', authData.user.id)
       .eq('status', 'active')
       .single();
@@ -62,10 +88,24 @@ Deno.serve(async (request) => {
     const role = String(body.role || 'handlowiec');
     const permissions = Array.isArray(body.permissions) ? body.permissions.map(String) : [];
     const password = String(body.password || '');
+    const requestedManagerMemberId = String(body.managerMemberId || body.manager_member_id || '').trim();
+    const monthlyGoals = normalizeMonthlyGoals(body.monthlyGoals || body.monthly_goals);
 
     if (action === 'create') {
       if (!email || !fullName || password.length < 8 || !allowedRoles.includes(role)) {
         return response({ error: 'Podaj imię, e-mail, rolę i hasło mające co najmniej 8 znaków.' }, 400);
+      }
+      if (caller.role === 'manager' && role === 'manager') {
+        return response({ error: 'Manager może tworzyć tylko pracowników swojego zespołu.' }, 403);
+      }
+      let managerMemberId = requestedManagerMemberId || null;
+      if (caller.role === 'manager') {
+        if (managerMemberId && managerMemberId !== caller.id) {
+          return response({ error: 'Manager może przypisać pracownika wyłącznie do siebie.' }, 403);
+        }
+        managerMemberId = caller.id;
+      } else if (managerMemberId) {
+        await validateSupervisor(admin, caller.organization_id, managerMemberId);
       }
 
       const { data: existing } = await admin
@@ -84,6 +124,8 @@ Deno.serve(async (request) => {
             full_name: fullName,
             role,
             permissions,
+            manager_member_id: managerMemberId,
+            monthly_goals: monthlyGoals,
             status: 'pending',
             updated_at: new Date().toISOString(),
           }).eq('id', existing.id)
@@ -93,6 +135,8 @@ Deno.serve(async (request) => {
             full_name: fullName,
             role,
             permissions,
+            manager_member_id: managerMemberId,
+            monthly_goals: monthlyGoals,
             status: 'pending',
           });
 
@@ -153,11 +197,13 @@ Deno.serve(async (request) => {
           full_name: fullName,
           role,
           permissions,
+          manager_member_id: managerMemberId,
+          monthly_goals: monthlyGoals,
           status: 'active',
           updated_at: new Date().toISOString(),
         })
         .eq('id', pending.id)
-        .select('id, user_id, email, full_name, role, permissions, status, created_at')
+        .select('id, user_id, email, full_name, role, permissions, status, manager_member_id, monthly_goals, created_at')
         .single();
 
       if (memberError) {
@@ -169,7 +215,7 @@ Deno.serve(async (request) => {
     const memberId = String(body.id || '');
     const { data: target, error: targetError } = await admin
       .from('organization_members')
-      .select('id, user_id, role')
+      .select('id, user_id, role, manager_member_id')
       .eq('id', memberId)
       .eq('organization_id', caller.organization_id)
       .single();
@@ -181,6 +227,26 @@ Deno.serve(async (request) => {
     if (action === 'update') {
       if (!email || !fullName || !allowedRoles.includes(role)) {
         return response({ error: 'Nieprawidłowe dane pracownika.' }, 400);
+      }
+      if (caller.role === 'manager') {
+        if (target.manager_member_id !== caller.id) {
+          return response({ error: 'Manager może edytować tylko pracowników swojego zespołu.' }, 403);
+        }
+        if (role === 'manager') {
+          return response({ error: 'Manager nie może nadawać roli managera.' }, 403);
+        }
+      }
+      let managerMemberId = requestedManagerMemberId || null;
+      if (caller.role === 'manager') {
+        if (managerMemberId && managerMemberId !== caller.id) {
+          return response({ error: 'Manager może przypisać pracownika wyłącznie do siebie.' }, 403);
+        }
+        managerMemberId = caller.id;
+      } else if (managerMemberId) {
+        if (managerMemberId === memberId) {
+          return response({ error: 'Pracownik nie może być swoim własnym przełożonym.' }, 400);
+        }
+        await validateSupervisor(admin, caller.organization_id, managerMemberId);
       }
 
       if (target.user_id) {
@@ -206,15 +272,18 @@ Deno.serve(async (request) => {
 
       const { data: member, error } = await admin
         .from('organization_members')
-        .update({ email, full_name: fullName, role, permissions, updated_at: new Date().toISOString() })
+        .update({ email, full_name: fullName, role, permissions, manager_member_id: managerMemberId, monthly_goals: monthlyGoals, updated_at: new Date().toISOString() })
         .eq('id', memberId)
-        .select('id, user_id, email, full_name, role, permissions, status, created_at')
+        .select('id, user_id, email, full_name, role, permissions, status, manager_member_id, monthly_goals, created_at')
         .single();
       if (error) return response({ error: error.message }, 400);
       return response({ employee: member });
     }
 
     if (action === 'delete') {
+      if (caller.role === 'manager' && target.manager_member_id !== caller.id) {
+        return response({ error: 'Manager może usuwać tylko pracowników swojego zespołu.' }, 403);
+      }
       const { error: memberDeleteError } = await admin
         .from('organization_members')
         .delete()
