@@ -237,6 +237,21 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .team-section-meta{font-size:11px;color:var(--text3)}
 .goal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
 .goal-pill{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;padding:3px 8px;font-size:10.5px;color:var(--text2);margin:4px 4px 0 0;background:rgba(255,255,255,.025)}
+.team-management-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;align-items:start}
+.team-management-main,.team-management-side{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px}
+.team-management-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.team-management-title{font-size:15px;font-weight:700}
+.team-management-sub{font-size:12px;color:var(--text2);margin-top:3px;line-height:1.45}
+.team-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.team-kpi{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}
+.team-kpi-label{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);margin-bottom:8px}
+.team-kpi-value{font-size:28px;font-weight:800;letter-spacing:-.02em}
+.team-kpi-note{font-size:11.5px;color:var(--text2);margin-top:4px}
+.team-goal-list{display:grid;gap:8px;margin-top:12px}
+.team-goal-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,.025);font-size:12.5px}
+.team-goal-row strong{font-size:13px;color:var(--text)}
+.team-scope-note{border:1px solid rgba(59,130,246,.18);background:rgba(59,130,246,.06);border-radius:12px;padding:13px;font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:12px}
+@media(max-width:1120px){.nav-pills{max-width:calc(100vw - 126px);overflow-x:auto}.nav-pill{padding:6px 10px;font-size:12.5px}.team-management-layout{grid-template-columns:1fr}.team-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .perm-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:6px}
 .perm-check{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--text);cursor:pointer;padding:8px 10px;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;transition:.15s}
 .perm-check:hover{background:rgba(255,255,255,.06)}
@@ -471,6 +486,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <button class="nav-pill" onclick="showPage('meetings')">Spotkania</button>
     <button class="nav-pill" onclick="showPage('companies')">Firmy</button>
     <button class="nav-pill" onclick="showPage('sales-journey')">Droga Sprzedaży</button>
+    <button class="nav-pill" onclick="showPage('team-management')">Zespół</button>
     <button class="nav-pill" onclick="showPage('admin-dashboard')">Panel Admina</button>
   </div>
   <button class="nav-settings" onclick="showPage('settings')" title="Ustawienia">⚙</button>
@@ -781,6 +797,33 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   <div id="sales-journey-content"></div>
 </div>
 
+<!-- ZESPÓŁ -->
+<div id="page-team-management" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title" id="team-management-title">Zespół</div>
+      <div id="team-management-subtitle" style="font-size:12px;color:var(--text2);margin-top:4px"></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" onclick="loadEmployees()">Odśwież</button>
+      <button class="btn btn-primary" onclick="openNewEmployee()">+ Dodaj pracownika</button>
+    </div>
+  </div>
+  <div id="team-management-summary" class="team-kpis"></div>
+  <div class="team-management-layout">
+    <div class="team-management-main">
+      <div class="team-management-head">
+        <div>
+          <div class="team-management-title">Pracownicy i podległość</div>
+          <div class="team-management-sub">Tutaj tworzysz konta, ustawiasz przełożonego i miesięczne cele pracy.</div>
+        </div>
+      </div>
+      <div id="employees-list"></div>
+    </div>
+    <div class="team-management-side" id="team-management-side"></div>
+  </div>
+</div>
+
 <!-- PANEL ADMINA -->
 <div id="page-admin-dashboard" class="page">
   <div class="page-header">
@@ -828,12 +871,6 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     </div>
     <button class="btn btn-primary" onclick="saveSettings()">Zapisz ustawienia</button>
     <span id="s-ok" style="display:none;color:var(--green);font-size:13px;margin-left:12px">✓ Zapisano</span>
-
-    <div id="admin-only-settings" style="display:none">
-      <div class="section-title" style="margin-top:32px">Zespoły i pracownicy</div>
-      <div id="employees-list" style="margin-bottom:12px"></div>
-      <button class="btn btn-ghost" onclick="openNewEmployee()">+ Dodaj pracownika</button>
-    </div>
 
     <div class="section-title" style="margin-top:32px">Aktualizacje</div>
     <div class="card" style="margin-bottom:18px">
@@ -1237,7 +1274,9 @@ function empInitials(name){ return (name||'?').split(' ').map(w=>w[0]).slice(0,2
 
 function getCurrentUser(){ return currentUser; }
 function getCurrentUserAny(){ return currentUser; }
-function isAdmin(u){ return u&&(u.role==='admin'||u.role==='manager'); }
+function isOrgAdmin(u){ return Boolean(u&&u.role==='admin'); }
+function isTeamLead(u){ return Boolean(u&&(u.role==='admin'||u.role==='manager')); }
+function isAdmin(u){ return isTeamLead(u); }
 function hasPerm(perm){
   const u=getCurrentUser();
   if(!u)return false;
@@ -1318,9 +1357,9 @@ function ownTeamMember(){
   return {memberId:currentUser?.memberId,userId:currentUser?.id,email:currentUser?.email,name:currentUser?.name||currentUser?.email||'Admin',role:currentUser?.role||'admin',permissions:currentUser?.permissions||[],data:{}};
 }
 function currentPanelMember(){return teamDataMembers.find(member=>member.userId===dataOwnerId())||null;}
-function isViewingTeamMember(){return Boolean(isAdmin(currentUser)&&dataOwnerId()!==currentUser?.id);}
+function isViewingTeamMember(){return Boolean(isTeamLead(currentUser)&&dataOwnerId()!==currentUser?.id);}
 function renderTeamBar(){
-  const enabled=isAdmin(currentUser);
+  const enabled=isTeamLead(currentUser);
   document.documentElement.classList.toggle('team-mode',enabled);
   if(!enabled)return;
   if(!teamDataMembers.length)teamDataMembers=[ownTeamMember()];
@@ -1336,7 +1375,7 @@ async function refreshTeamPanels(){
 }
 
 function switchTeamUser(userId){
-  if(!isAdmin(currentUser)||!teamDataMembers.some(member=>member.userId===userId))return;
+  if(!isTeamLead(currentUser)||!teamDataMembers.some(member=>member.userId===userId))return;
   selectedDataUserId=userId;
   renderTeamBar();
   if(curPage==='settings'){showPage('home');return;}
@@ -1398,7 +1437,8 @@ function showApp(user){
   document.getElementById('team-chat-fab').style.display='flex';
   updateNav(user);
   renderTeamBar();
-  loadEmployees();
+  if(isTeamLead(user))loadEmployees();
+  else employeesCache=[];
   refreshChat(true);
   renderHome();
 }
@@ -1414,19 +1454,19 @@ function updateNav(user){
     {perm:'spotkania'},
     {perm:'firmy'},
     {perm:'droga_sprzedazy',sales:true},
+    {teamOnly:true},
     {adminOnly:true},
   ];
   pills.forEach((p,i)=>{
     const item=navItems[i]||{};
     const visible=item.adminOnly
-      ? isAdmin(user)
+      ? isOrgAdmin(user)
+      : item.teamOnly
+      ? isTeamLead(user)
       : isAdmin(user)||user.permissions?.includes('all')||user.permissions?.includes(item.perm)||(item.sales&&user.role==='handlowiec');
     p.style.display=visible?'':'none';
   });
   document.querySelector('.nav-settings').style.display='';
-  // admin section in settings
-  const adminSec=document.getElementById('admin-only-settings');
-  if(adminSec)adminSec.style.display=isAdmin(user)?'block':'none';
   // welcome name
   document.getElementById('home-welcome').textContent=`Witaj, ${user.name||user.email}.`;
 }
@@ -1538,14 +1578,72 @@ async function deleteEmployee(){
     await loadEmployees();
   }catch(error){alert(error.message||'Nie udało się usunąć pracownika.');}
 }
+function visibleTeamEmployees(){
+  const all=gEmps().filter(e=>e.role!=='admin');
+  return currentUser?.role==='manager'?all.filter(e=>e.manager_member_id===currentUser.memberId):all;
+}
+function teamGoalTotals(emps){
+  return emps.reduce((totals,emp)=>{
+    const goals=employeeGoalsObject(emp.monthly_goals||{});
+    totals.calls+=goals.calls;
+    totals.meetings+=goals.meetings;
+    totals.offers+=goals.offers;
+    totals.sales+=goals.sales;
+    totals.revenue+=goals.revenue;
+    return totals;
+  },{calls:0,meetings:0,offers:0,sales:0,revenue:0});
+}
+function renderTeamSummary(){
+  const summary=document.getElementById('team-management-summary');
+  const side=document.getElementById('team-management-side');
+  const subtitle=document.getElementById('team-management-subtitle');
+  const title=document.getElementById('team-management-title');
+  if(!summary||!side)return;
+  const emps=visibleTeamEmployees();
+  const active=emps.filter(e=>e.status==='active').length;
+  const pending=emps.filter(e=>e.status!=='active').length;
+  const managers=emps.filter(e=>e.role==='manager').length;
+  const goals=teamGoalTotals(emps);
+  if(title)title.textContent=isOrgAdmin(currentUser)?'Zespół organizacji':'Mój zespół';
+  if(subtitle)subtitle.textContent=isOrgAdmin(currentUser)
+    ? 'Admin zarządza wszystkimi managerami, handlowcami i celami w organizacji.'
+    : 'Manager widzi tylko osoby przypisane bezpośrednio do swojego zespołu.';
+  summary.innerHTML=[
+    ['Pracownicy',emps.length,isOrgAdmin(currentUser)?'Cała organizacja':'Twój zespół','var(--blue)'],
+    ['Aktywne konta',active,`${pending} oczekujące`,'var(--green)'],
+    ['Managerowie',managers,isOrgAdmin(currentUser)?'Liderzy zespołów':'W Twoim widoku','var(--orange)'],
+    ['Cel spotkań',goals.meetings,`${goals.calls} cold calli`,'var(--text)'],
+  ].map(([label,value,note,color])=>`<div class="team-kpi"><div class="team-kpi-label">${esc(label)}</div><div class="team-kpi-value" style="color:${color}">${esc(value)}</div><div class="team-kpi-note">${esc(note)}</div></div>`).join('');
+  side.innerHTML=`
+    <div class="team-management-title">Cele miesięczne</div>
+    <div class="team-management-sub">Suma celów widocznych pracowników. Admin widzi wszystko, manager tylko swój zespół.</div>
+    <div class="team-goal-list">
+      <div class="team-goal-row"><span>Cold calle</span><strong>${goals.calls}</strong></div>
+      <div class="team-goal-row"><span>Spotkania</span><strong>${goals.meetings}</strong></div>
+      <div class="team-goal-row"><span>Oferty</span><strong>${goals.offers}</strong></div>
+      <div class="team-goal-row"><span>Sprzedaże</span><strong>${goals.sales}</strong></div>
+      <div class="team-goal-row"><span>Przychód</span><strong>${fmtMoney(goals.revenue)}</strong></div>
+    </div>
+    <div class="team-scope-note" style="margin-top:14px">${isOrgAdmin(currentUser)
+      ? 'Możesz dodawać managerów, handlowców i przypisywać pracowników pod dowolnego aktywnego managera.'
+      : 'Możesz dodawać i edytować tylko pracowników przypisanych bezpośrednio pod Twoje konto.'}</div>
+  `;
+}
+async function renderTeamManagement(){
+  if(!isTeamLead(currentUser)){showPage('home');return;}
+  const list=document.getElementById('employees-list');
+  if(list&&!gEmps().length)list.innerHTML='<div style="color:var(--text2);font-size:13px">Pobieranie pracowników...</div>';
+  renderTeamSummary();
+  await loadEmployees();
+}
 async function loadEmployees(){
-  try{employeesCache=await window.electronAPI.listEmployees();renderEmployees();}
+  if(!isTeamLead(currentUser)){employeesCache=[];return;}
+  try{employeesCache=await window.electronAPI.listEmployees();renderEmployees();renderTeamSummary();}
   catch(error){const el=document.getElementById('employees-list');if(el)el.innerHTML=`<div style="color:var(--red);font-size:13px">${error.message||'Błąd pobierania pracowników.'}</div>`;}
 }
 function renderEmployees(){
   const el=document.getElementById('employees-list');if(!el)return;
-  const all=gEmps().filter(e=>e.role!=='admin');
-  const emps=currentUser?.role==='manager'?all.filter(e=>e.manager_member_id===currentUser.memberId):all;
+  const emps=visibleTeamEmployees();
   if(!emps.length){el.innerHTML=`<div style="color:var(--text2);font-size:13px;margin-bottom:8px">${currentUser?.role==='manager'?'Brak pracowników w Twoim zespole.':'Brak pracowników.'}</div>`;return;}
   const groups=new Map();
   emps.forEach(emp=>{
@@ -1800,11 +1898,11 @@ function showPage(p){
   document.querySelector('.nav-home').classList.toggle('active',p==='home');
   document.querySelector('.nav-settings').classList.toggle('active',p==='settings');
   document.getElementById('page-'+p).classList.add('active');
-  const tabs=['calendar','projects','clients','finance','meetings','companies','sales-journey','admin-dashboard'];
+  const tabs=['calendar','projects','clients','finance','meetings','companies','sales-journey','team-management','admin-dashboard'];
   const i=tabs.indexOf(p);if(i>=0)document.querySelectorAll('.nav-pill')[i].classList.add('active');
   curPage=p;
-  if(p==='admin-dashboard'&&isAdmin(currentUser)){selectedDataUserId=currentUser.id;renderTeamBar();}
-  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,companies:renderCompanies,'sales-journey':renderSalesJourney,'admin-dashboard':renderAdminDashboard})[p]?.();
+  if(p==='admin-dashboard'&&isOrgAdmin(currentUser)){selectedDataUserId=currentUser.id;renderTeamBar();}
+  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,companies:renderCompanies,'sales-journey':renderSalesJourney,'team-management':renderTeamManagement,'admin-dashboard':renderAdminDashboard})[p]?.();
 }
 
 function renderHome(){
@@ -1921,10 +2019,6 @@ function deleteTx(){if(!editTxId||!confirm('Usunąć transakcję?'))return;DB.se
 function loadSettings(){
   const s=gs();
   document.getElementById('s-name').value=s.name||'';document.getElementById('s-company').value=s.companyName||'';document.getElementById('s-nip').value=s.nip||'';document.getElementById('s-address').value=s.address||'';document.getElementById('s-email').value=s.email||'';document.getElementById('s-phone').value=s.phone||'';document.getElementById('s-www').value=s.www||'';document.getElementById('s-vat').value=s.vatRate||23;document.getElementById('s-rec').value=s.rates?.implementation||180;document.getElementById('s-edit').value=s.rates?.automation||200;document.getElementById('s-travel').value=s.rates?.travel||1.15;
-  const u=getCurrentUserAny();
-  const adminSec=document.getElementById('admin-only-settings');
-  if(adminSec)adminSec.style.display=isAdmin(u)?'block':'none';
-  if(isAdmin(u))loadEmployees();
 }
 function saveSettings(){DB.set('settings',{name:document.getElementById('s-name').value,companyName:document.getElementById('s-company').value,nip:document.getElementById('s-nip').value,address:document.getElementById('s-address').value,email:document.getElementById('s-email').value,phone:document.getElementById('s-phone').value,www:document.getElementById('s-www').value,vatRate:parseFloat(document.getElementById('s-vat').value)||23,rates:{implementation:parseFloat(document.getElementById('s-rec').value)||180,automation:parseFloat(document.getElementById('s-edit').value)||200,travel:parseFloat(document.getElementById('s-travel').value)||1.15}});const ok=document.getElementById('s-ok');ok.style.display='inline';setTimeout(()=>ok.style.display='none',2200)}
 
@@ -2453,7 +2547,7 @@ function journeyLeadDetailLine(lead){
 }
 
 function renderSalesJourney(){
-  const adminOverview=isAdmin(getCurrentUser())&&!isViewingTeamMember();
+  const adminOverview=isOrgAdmin(getCurrentUser())&&!isViewingTeamMember();
   document.getElementById('journey-add-btn').style.display=adminOverview?'none':'inline-flex';
   document.getElementById('journey-refresh-btn').style.display=adminOverview?'inline-flex':'none';
   document.getElementById('journey-view-subtitle').textContent=adminOverview
@@ -2551,7 +2645,7 @@ function renderJourneyLostArchive(leads,sectionLabel){
 }
 
 function openNewJourneyLead(prefill={}){
-  if(isAdmin(getCurrentUser())&&!isViewingTeamMember())return;
+  if(isOrgAdmin(getCurrentUser())&&!isViewingTeamMember())return;
   editJourneyLeadId=null;
   document.getElementById('journey-lead-title').textContent='Nowy potencjalny klient';
   document.getElementById('journey-company').value=prefill.company||'';
@@ -2565,7 +2659,7 @@ function openNewJourneyLead(prefill={}){
 }
 
 function openEditJourneyLead(id){
-  if(isAdmin(getCurrentUser())&&!isViewingTeamMember())return;
+  if(isOrgAdmin(getCurrentUser())&&!isViewingTeamMember())return;
   const lead=gSalesJourney().leads.find(item=>item.id===id);if(!lead)return;
   editJourneyLeadId=id;
   document.getElementById('journey-lead-title').textContent=lead.status==='lost'?'Utracony klient':'Edytuj klienta';
@@ -2580,7 +2674,7 @@ function openEditJourneyLead(id){
 }
 
 function saveJourneyLead(){
-  if(isAdmin(getCurrentUser())&&!isViewingTeamMember())return;
+  if(isOrgAdmin(getCurrentUser())&&!isViewingTeamMember())return;
   const company=document.getElementById('journey-company').value.trim();
   if(!company){alert('Podaj nazwę firmy lub klienta.');return;}
   const journey=gSalesJourney();
@@ -2914,7 +3008,7 @@ function renderAdminSectors(sectors){
 async function renderAdminDashboard(){
   const content=document.getElementById('admin-dashboard-content');
   if(!content)return;
-  if(!isAdmin(getCurrentUser())){showPage('home');return;}
+  if(!isOrgAdmin(getCurrentUser())){showPage('home');return;}
   content.innerHTML='<div class="admin-panel" style="color:var(--text2)">Pobieranie danych zespołu…</div>';
   try{
     await cloudWriteChain;
@@ -3196,7 +3290,7 @@ function renderCompanies() {
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
           ${c.phone?`<a href="tel:${c.phone}" class="btn btn-primary btn-sm" style="text-decoration:none">📞 Zadzwoń</a>`:''}
           ${c.email?`<a href="mailto:${c.email}" class="btn btn-ghost btn-sm" style="text-decoration:none">✉ Wyślij email</a>`:''}
-          ${!isAdmin(getCurrentUser())||isViewingTeamMember()?`<button class="btn btn-primary btn-sm" onclick="addCompanyToSalesJourney('${c.id}')">Dodaj do Drogi Sprzedaży</button>`:''}
+          ${!isOrgAdmin(getCurrentUser())||isViewingTeamMember()?`<button class="btn btn-primary btn-sm" onclick="addCompanyToSalesJourney('${c.id}')">Dodaj do Drogi Sprzedaży</button>`:''}
           ${gs().apolloEnabled&&c.www?`<button class="btn btn-ghost btn-sm" onclick="openApolloContacts('${c.id}')">Decydenci${aiArray(c.apolloContacts).length?` (${aiArray(c.apolloContacts).length})`:''}</button>`:''}
           <button class="btn btn-primary btn-sm" onclick="openCompanyAI('${c.id}','brief')">Brief AI</button>
           <button class="btn btn-ghost btn-sm" onclick="openCompanyAI('${c.id}','post')">Po rozmowie</button>

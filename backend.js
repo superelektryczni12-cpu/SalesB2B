@@ -225,6 +225,9 @@ async function getSalesJourneyStats() {
 async function listEmployees() {
   const supabase = getClient();
   const context = await currentContext();
+  if (!['admin', 'manager'].includes(context.role)) {
+    throw new Error('Brak dostepu do panelu zespolu.');
+  }
   const { data, error } = await supabase
     .from('organization_members')
     .select('id, user_id, email, full_name, role, permissions, status, manager_member_id, monthly_goals, created_at')
