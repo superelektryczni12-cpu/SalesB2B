@@ -333,6 +333,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 .journey-stage{border:1px solid var(--border);background:rgba(255,255,255,.018);border-radius:8px;min-height:170px}
 .journey-stage-head{padding:11px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:8px;position:sticky;top:0;background:#151515;z-index:1}
 .journey-stage-name{font-size:12px;font-weight:700;color:var(--text)}
+.journey-stage-meta{font-size:10.5px;color:var(--text3);line-height:1.35;margin-top:3px}
 .journey-count{min-width:24px;height:22px;padding:0 7px;border-radius:7px;background:rgba(255,255,255,.07);display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text2)}
 .journey-stage-body{display:grid;gap:7px;padding:8px}
 .journey-lead{border:1px solid var(--border2);background:var(--card);border-radius:7px;padding:11px}
@@ -1263,7 +1264,7 @@ const ge=()=>DB.get('events')||[];
 const gq=()=>DB.get('quotes')||[];
 const gt=()=>DB.get('transactions')||[];
 const gEmps=()=>employeesCache;
-const gSalesJourney=()=>{const value=DB.get('sales_journey');return value&&Array.isArray(value.leads)?value:{leads:[]};};
+const gSalesJourney=()=>normalizeJourneyData(DB.get('sales_journey'));
 
 // ══════════════════════════════
 // AUTH
@@ -2113,8 +2114,9 @@ function selectedApolloContact(company,personId=company?.selectedApolloContactId
 function firstApolloPhone(contact){
   return aiArray(contact?.phoneNumbers).map(phone=>phone.rawNumber||phone.number).find(Boolean)||'';
 }
-function journeyStageIndex(stageId){return SALES_JOURNEY_STAGES.findIndex(stage=>stage.id===stageId);}
+function journeyStageIndex(stageId){return SALES_JOURNEY_STAGES.findIndex(stage=>stage.id===normalizeJourneyStage(stageId));}
 function moveJourneyLeadToStage(lead,targetStage,now=new Date().toISOString()){
+  targetStage=normalizeJourneyStage(targetStage);
   if(!targetStage||lead.currentStage===targetStage)return;
   const currentIndex=journeyStageIndex(lead.currentStage),targetIndex=journeyStageIndex(targetStage);
   if(targetIndex<0)return;
@@ -2134,7 +2136,7 @@ function markJourneyLeadLost(lead,reason='Odrzucony',note='',now=new Date().toIS
   lead.status='lost';lead.updatedAt=now;
 }
 function companyJourneyStageForStatus(status){
-  return status==='zainteresowany'?'small_audit':'cold_call';
+  return status==='zainteresowany'?'discovery':'cold_call';
 }
 function applyCompanyToJourneyLead(lead,company,apolloContact=null){
   const phone=firstApolloPhone(apolloContact)||company.phone||lead.phone||'';
@@ -2508,20 +2510,34 @@ function deleteManualMeeting() {
 // DROGA SPRZEDAŻY
 // ══════════════════════════════
 const SALES_JOURNEY_NEW_STAGES=[
-  {id:'cold_call',label:'Cold call'},
-  {id:'small_audit',label:'Mały audyt'},
-  {id:'offer_meeting',label:'Spotkanie ofertowe'},
-  {id:'big_audit',label:'Duży audyt'},
-  {id:'sale',label:'Sprzedaż'},
+  {id:'cold_call',label:'Cold call',duration:'15-20 min',goal:'cel: spotkanie'},
+  {id:'discovery',label:'Discovery',duration:'20-30 min',goal:'diagnoza SPIN / NEAT'},
+  {id:'analysis',label:'Analiza ROI',duration:'2 godz.',goal:'koszt problemu + zakres'},
+  {id:'offer',label:'Oferta',duration:'1 godz.',goal:'prezentacja wariantów'},
+  {id:'negotiation',label:'Negocjacje',duration:'1-7 dni',goal:'obiekcje i decyzja'},
+  {id:'sale',label:'Umowa / zaliczka',duration:'1-3 dni',goal:'50% zaliczka'},
+  {id:'delivery',label:'Realizacja',duration:'2-8 tyg.',goal:'projekt'},
 ];
 const SALES_JOURNEY_CLIENT_STAGES=Array.from({length:12},(_,index)=>({id:`month_${index+1}`,label:`Mies. ${index+1}`}));
 const SALES_JOURNEY_STAGES=[...SALES_JOURNEY_NEW_STAGES,...SALES_JOURNEY_CLIENT_STAGES];
+const SALES_JOURNEY_STAGE_ALIASES={small_audit:'discovery',offer_meeting:'offer',big_audit:'analysis'};
 let editJourneyLeadId=null;
 let pendingJourneyLossId=null;
 
-function journeyStageLabel(stageId){return SALES_JOURNEY_STAGES.find(stage=>stage.id===stageId)?.label||stageId;}
+function normalizeJourneyStage(stageId){const value=String(stageId||'');return SALES_JOURNEY_STAGE_ALIASES[value]||value;}
+function normalizeJourneyData(value){
+  const journey=value&&Array.isArray(value.leads)?value:{leads:[]};
+  journey.leads.forEach(lead=>{
+    if(!lead||typeof lead!=='object')return;
+    lead.currentStage=normalizeJourneyStage(lead.currentStage||'cold_call');
+    lead.stageHistory=Array.isArray(lead.stageHistory)?lead.stageHistory:[];
+    lead.stageHistory.forEach(event=>{if(event&&typeof event==='object')event.stage=normalizeJourneyStage(event.stage);});
+  });
+  return journey;
+}
+function journeyStageLabel(stageId){const normalized=normalizeJourneyStage(stageId);return SALES_JOURNEY_STAGES.find(stage=>stage.id===normalized)?.label||normalized;}
 function nextJourneyStage(stageId){
-  const index=SALES_JOURNEY_STAGES.findIndex(stage=>stage.id===stageId);
+  const index=SALES_JOURNEY_STAGES.findIndex(stage=>stage.id===normalizeJourneyStage(stageId));
   return index>=0&&index<SALES_JOURNEY_STAGES.length-1?SALES_JOURNEY_STAGES[index+1]:null;
 }
 function activeJourneyEvent(lead){
@@ -2569,12 +2585,12 @@ function renderSalesJourneySalesperson(){
     <div class="journey-summary">
       ${journeySummaryCard('Wszyscy potencjalni',leads.length,'Dodani do Twojego lejka')}
       ${journeySummaryCard('Aktywni',active.length,'W trakcie procesu','var(--blue)')}
-      ${journeySummaryCard('Sprzedaże',sold,'Dotarli do etapu sprzedaży','var(--green)')}
+      ${journeySummaryCard('Umowy',sold,'Dotarli do umowy i zaliczki','var(--green)')}
       ${journeySummaryCard('Utraceni',lost.length,'Z zapisanym etapem i powodem','var(--red)')}
     </div>
-    ${renderJourneySection('Nowi klienci','Od pierwszego telefonu do sprzedaży',SALES_JOURNEY_NEW_STAGES,active)}
+    ${renderJourneySection('Nowi klienci','Proces Operio: od pierwszego telefonu do realizacji projektu',SALES_JOURNEY_NEW_STAGES,active)}
     ${renderJourneyLostArchive(lostNew,'Nowi klienci')}
-    ${renderJourneySection('Nasi klienci',`${clients} aktywnych klientów po sprzedaży`,SALES_JOURNEY_CLIENT_STAGES,active)}
+    ${renderJourneySection('Nasi klienci',`${clients} aktywnych klientów po realizacji`,SALES_JOURNEY_CLIENT_STAGES,active)}
     ${renderJourneyLostArchive(lostClients,'Nasi klienci')}
   `;
 }
@@ -2589,14 +2605,14 @@ function renderJourneySection(title,meta,stages,leads){
 function renderJourneyStage(stage,leads){
   const stageLeads=leads.filter(lead=>lead.currentStage===stage.id);
   return `<div class="journey-stage">
-    <div class="journey-stage-head"><div class="journey-stage-name">${esc(stage.label)}</div><div class="journey-count">${stageLeads.length}</div></div>
+    <div class="journey-stage-head"><div><div class="journey-stage-name">${esc(stage.label)}</div>${stage.duration||stage.goal?`<div class="journey-stage-meta">${esc([stage.duration,stage.goal].filter(Boolean).join(' · '))}</div>`:''}</div><div class="journey-count">${stageLeads.length}</div></div>
     <div class="journey-stage-body">${stageLeads.length?stageLeads.map(renderJourneyLeadCard).join(''):'<div class="journey-empty">Brak klientów</div>'}</div>
   </div>`;
 }
 
 function renderJourneyLeadCard(lead){
   const next=nextJourneyStage(lead.currentStage);
-  const nextLabel=!next?'Zakończ 12. miesiąc':lead.currentStage==='sale'?'Rozpocznij Mies. 1':'Klient przeszedł';
+  const nextLabel=!next?'Zakończ 12. miesiąc':lead.currentStage==='delivery'?'Rozpocznij Mies. 1':'Klient przeszedł';
   const contact=[lead.contact,lead.phone].filter(Boolean).join(' · ')||'Brak danych kontaktowych';
   const details=journeyLeadDetailLine(lead);
   const age=journeyDaysInStage(lead);
@@ -2711,7 +2727,7 @@ function advanceJourneyLead(id){
   if(!event){event={stage:lead.currentStage,enteredAt:lead.updatedAt||lead.createdAt||now};lead.stageHistory.push(event);}
   event.exitedAt=now;event.outcome='progressed';
   const next=nextJourneyStage(lead.currentStage);
-  if(next){const wasSale=lead.currentStage==='sale';lead.currentStage=next.id;lead.stageHistory.push({stage:next.id,enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''});if(next.id==='sale'||wasSale)ensureClientFromJourneyLead(lead);}
+  if(next){const wasSale=lead.currentStage==='sale';lead.currentStage=next.id;lead.stageHistory.push({stage:next.id,enteredAt:now,exitedAt:'',outcome:'',lossReason:'',lossNote:''});if(next.id==='sale'||next.id==='month_1'||wasSale)ensureClientFromJourneyLead(lead);}
   else{lead.currentStage='';lead.status='completed';}
   lead.updatedAt=now;
   DB.set('sales_journey',journey);
@@ -2760,7 +2776,7 @@ async function renderSalesJourneyAdmin(){
     content.innerHTML=`
       <div class="journey-summary">
         ${journeySummaryCard('Wszystkie szanse',stats.totalLeads||0,'Bez nazw i danych kontaktowych')}
-        ${journeySummaryCard('Cold call → sprzedaż',saleRate===null?'—':`${saleRate}%`,'Udział szans, które dotarły do sprzedaży','var(--green)')}
+        ${journeySummaryCard('Cold call → umowa',saleRate===null?'—':`${saleRate}%`,'Udział szans, które dotarły do umowy','var(--green)')}
         ${journeySummaryCard('Największa utrata',biggestLeak?`${biggestLeak.dropOffRate}%`:'—',biggestLeak?.label||'Brak zakończonych etapów','var(--red)')}
         ${journeySummaryCard('Handlowcy z dostępem',stats.activeUsers||0,'Aktywne konta zespołu','var(--blue)')}
       </div>
@@ -2811,9 +2827,13 @@ function adminNumber(value){const num=Number(value);return Number.isFinite(num)?
 function adminDateMs(value){const ms=Date.parse(String(value||''));return Number.isFinite(ms)?ms:null;}
 function adminAvg(values){const nums=values.filter(value=>Number.isFinite(value));return nums.length?nums.reduce((sum,value)=>sum+value,0)/nums.length:null;}
 function adminPct(part,total){return total?Math.round((part/total)*1000)/10:null;}
-function adminLeadReached(lead,stageId){return (lead.stageHistory||[]).some(event=>event.stage===stageId)||lead.currentStage===stageId;}
+function adminLeadReached(lead,stageId){
+  const target=normalizeJourneyStage(stageId);
+  return (lead.stageHistory||[]).some(event=>normalizeJourneyStage(event.stage)===target)||normalizeJourneyStage(lead.currentStage)===target;
+}
 function adminLeadEventDate(lead,stageId){
-  const event=(lead.stageHistory||[]).find(item=>item.stage===stageId);
+  const target=normalizeJourneyStage(stageId);
+  const event=(lead.stageHistory||[]).find(item=>normalizeJourneyStage(item.stage)===target);
   return adminDateMs(event?.enteredAt||event?.exitedAt);
 }
 function adminLeadSaleMs(lead){
@@ -2831,9 +2851,9 @@ function adminStageMetrics(leads){
   const metrics=Object.fromEntries(SALES_JOURNEY_STAGES.map(stage=>[stage.id,{...stage,entered:0,progressed:0,lost:0,active:0,durationMs:0,durationCount:0,lossReasons:{}}]));
   leads.forEach(lead=>{
     const history=Array.isArray(lead.stageHistory)?lead.stageHistory:[];
-    if(!history.length&&lead.currentStage&&metrics[lead.currentStage])metrics[lead.currentStage].entered+=1;
+    if(!history.length&&lead.currentStage&&metrics[normalizeJourneyStage(lead.currentStage)])metrics[normalizeJourneyStage(lead.currentStage)].entered+=1;
     history.forEach(event=>{
-      const metric=metrics[event.stage];if(!metric)return;
+      const metric=metrics[normalizeJourneyStage(event.stage)];if(!metric)return;
       metric.entered+=1;
       if(event.outcome==='progressed')metric.progressed+=1;
       if(event.outcome==='lost'){
@@ -2844,7 +2864,7 @@ function adminStageMetrics(leads){
       const entered=adminDateMs(event.enteredAt),exited=adminDateMs(event.exitedAt);
       if(entered!==null&&exited!==null&&exited>=entered){metric.durationMs+=exited-entered;metric.durationCount+=1;}
     });
-    if(lead.status==='active'&&lead.currentStage&&metrics[lead.currentStage])metrics[lead.currentStage].active+=1;
+    if(lead.status==='active'&&lead.currentStage&&metrics[normalizeJourneyStage(lead.currentStage)])metrics[normalizeJourneyStage(lead.currentStage)].active+=1;
   });
   return SALES_JOURNEY_STAGES.map(stage=>{
     const metric=metrics[stage.id],closed=metric.progressed+metric.lost;
@@ -2917,7 +2937,7 @@ function adminMemberStats(member){
     if(lead.status==='active')bucket.active+=1;
     if(lead.status==='lost'){
       bucket.lost+=1;
-      const lostStage=[...(lead.stageHistory||[])].reverse().find(event=>event.outcome==='lost')?.stage||lead.currentStage||'cold_call';
+      const lostStage=normalizeJourneyStage([...(lead.stageHistory||[])].reverse().find(event=>event.outcome==='lost')?.stage||lead.currentStage||'cold_call');
       bucket.stageLost[lostStage]=(bucket.stageLost[lostStage]||0)+1;
     }
     if(adminLeadReached(lead,'sale')||lead.status==='completed'){

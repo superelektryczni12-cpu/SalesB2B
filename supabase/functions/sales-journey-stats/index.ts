@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const stages = [
+const legacyStages = [
   { id: 'cold_call', label: 'Cold call', group: 'new' },
   { id: 'small_audit', label: 'Mały audyt', group: 'new' },
   { id: 'offer_meeting', label: 'Spotkanie ofertowe', group: 'new' },
@@ -13,6 +13,23 @@ const stages = [
   { id: 'sale', label: 'Sprzedaż', group: 'new' },
   ...Array.from({ length: 12 }, (_, index) => ({ id: `month_${index + 1}`, label: `Mies. ${index + 1}`, group: 'client' })),
 ];
+
+const stages = [
+  { id: 'cold_call', label: 'Cold call', group: 'new' },
+  { id: 'discovery', label: 'Discovery', group: 'new' },
+  { id: 'analysis', label: 'Analiza ROI', group: 'new' },
+  { id: 'offer', label: 'Oferta', group: 'new' },
+  { id: 'negotiation', label: 'Negocjacje', group: 'new' },
+  { id: 'sale', label: 'Umowa / zaliczka', group: 'new' },
+  { id: 'delivery', label: 'Realizacja', group: 'new' },
+  ...Array.from({ length: 12 }, (_, index) => ({ id: `month_${index + 1}`, label: `Mies. ${index + 1}`, group: 'client' })),
+];
+
+const stageAliases: Record<string, string> = {
+  small_audit: 'discovery',
+  offer_meeting: 'offer',
+  big_audit: 'analysis',
+};
 
 function json(body: Record<string, unknown>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -23,6 +40,11 @@ function json(body: Record<string, unknown>, status = 200) {
 
 function text(value: unknown, maxLength = 100) {
   return String(value ?? '').trim().slice(0, maxLength);
+}
+
+function stageId(value: unknown) {
+  const id = text(value);
+  return stageAliases[id] || id;
 }
 
 function parseDate(value: unknown) {
@@ -107,8 +129,8 @@ Deno.serve(async (request) => {
         const history = Array.isArray(lead.stageHistory) ? lead.stageHistory : [];
         for (const eventValue of history) {
           const event = eventValue && typeof eventValue === 'object' ? eventValue as Record<string, unknown> : {};
-          const stageId = text(event.stage);
-          const metric = metrics[stageId];
+          const id = stageId(event.stage);
+          const metric = metrics[id];
           if (!metric) continue;
           metric.entered += 1;
           if (event.outcome === 'progressed') metric.progressed += 1;
@@ -125,8 +147,8 @@ Deno.serve(async (request) => {
           }
         }
         if (lead.status === 'active') {
-          const stageId = text(lead.currentStage);
-          if (metrics[stageId]) metrics[stageId].active += 1;
+          const id = stageId(lead.currentStage);
+          if (metrics[id]) metrics[id].active += 1;
         }
       }
     }

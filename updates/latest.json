@@ -1,9 +1,9 @@
 {
-  "version": "1.5.7",
-  "fileName": "Sales-B2B-Setup-1.5.7.exe",
-  "url": "https://github.com/superelektryczni12-cpu/SalesB2B/raw/main/installer/Sales-B2B-Setup-1.5.7.exe",
-  "size": 87139175,
-  "sha512": "qswMRg9aD0ySCxcwEUXp9w0OGNhoKPZ9/uXa9CweQmq8Plqdga1QRQjr7SIQ/Sryg08gQ6W7kC7hAPeP4Y433g==",
+  "version": "1.5.8",
+  "fileName": "Sales-B2B-Setup-1.5.8.exe",
+  "url": "https://github.com/superelektryczni12-cpu/SalesB2B/raw/main/installer/Sales-B2B-Setup-1.5.8.exe",
+  "size": 87139419,
+  "sha512": "Hg2C2gLOU3b4Qq2bEt1GrG0G+s7wcD06hZRuaMA8Yb/kJid2bCQvDVnje7AeFEghrTNWk9LlcmXMvFXpBl5Y1A==",
   "notes": "Nowa wersja Sales B2B jest gotowa do instalacji.",
-  "publishedAt": "2026-07-02T21:13:47.417Z"
+  "publishedAt": "2026-07-02T21:22:14.893Z"
 }
