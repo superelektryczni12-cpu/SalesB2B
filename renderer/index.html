@@ -733,6 +733,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
         <label>Wielkość</label>
         <select id="gen-size">
           <option value="smb">MŚP 11-200</option>
+          <option value="any">Dowolna</option>
           <option value="micro">Mikro 1-10</option>
           <option value="small">Małe 11-50</option>
           <option value="medium">Średnie 51-200</option>
@@ -3786,14 +3787,25 @@ function deleteCompany() {
 const GOOGLE_PLACES_API_KEY = 'AIzaSyAkAJfARQ2P1WUO7__-1IvPuAeeFDBK0lA';
 
 const INDUSTRY_QUERIES = {
-  marketing: 'agencja marketingowa',
-  software: 'software house IT',
-  ecommerce: 'sklep internetowy e-commerce',
-  real_estate: 'agencja nieruchomości',
-  consulting: 'firma doradcza konsulting',
-  hr: 'agencja rekrutacyjna HR',
-  logistics: 'firma transportowa logistyka',
-  finance: 'biuro rachunkowe księgowość',
+  marketing: 'marketing agency digital marketing advertising',
+  software: 'software development software house information technology',
+  ecommerce: 'ecommerce online retail marketplace',
+  real_estate: 'real estate property management developer',
+  consulting: 'business consulting management consulting advisory',
+  hr: 'recruiting staffing human resources',
+  logistics: 'logistics transportation freight trucking warehousing supply chain',
+  finance: 'accounting bookkeeping financial services tax advisory',
+};
+
+const INDUSTRY_APOLLO_TAGS = {
+  marketing: ['marketing','advertising','digital marketing','social media marketing','lead generation'],
+  software: ['software','information technology','software development','custom software','web development'],
+  ecommerce: ['ecommerce','online retail','retail','marketplace','consumer goods'],
+  real_estate: ['real estate','property management','commercial real estate','real estate development'],
+  consulting: ['consulting','management consulting','business consulting','advisory'],
+  hr: ['recruiting','staffing','human resources','talent acquisition'],
+  logistics: ['logistics','transportation','freight','trucking','warehousing','supply chain','spedition'],
+  finance: ['accounting','bookkeeping','financial services','tax','finance'],
 };
 
 const INDUSTRY_LABELS = {
@@ -3831,6 +3843,7 @@ const APOLLO_ROLE_PRESETS = {
 };
 
 const APOLLO_EMPLOYEE_RANGES = {
+  any: [],
   micro: ['1,10'],
   small: ['11,50'],
   medium: ['51,200'],
@@ -3889,6 +3902,7 @@ function apolloGeneratorPayload(){
     industry,
     industryQuery: INDUSTRY_QUERIES[industry]||industry,
     keywords: INDUSTRY_QUERIES[industry]||industry,
+    keywordTags: INDUSTRY_APOLLO_TAGS[industry]||[industry],
     locations: apolloRegionLocations(region),
     employeeRanges: APOLLO_EMPLOYEE_RANGES[size]||APOLLO_EMPLOYEE_RANGES.smb,
     seniorities: rolePreset.seniorities,
@@ -4025,7 +4039,11 @@ async function generateAICompanies() {
       generated.push(company);
     }
     if(!generated.length){
-      status.textContent='Nie znaleziono nowych firm w Apollo dla tych filtrów albo wszystkie są już w bazie.';
+      const found=Number(response?.meta?.found||apolloCompanies.length||0);
+      const mode=response?.meta?.mode==='people_fallback'?' przez decydentów':'';
+      status.textContent=found
+        ? `Apollo znalazło ${found} firm${mode}, ale wszystkie są już w bazie. Zmień branżę/region albo wyczyść bazę testową.`
+        : 'Nie znaleziono firm w Apollo nawet po automatycznym poluzowaniu filtrów. Spróbuj innej branży lub regionu.';
       btn.disabled=false;btn.textContent='Generuj z Apollo';
       return;
     }
