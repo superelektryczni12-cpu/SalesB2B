@@ -493,7 +493,7 @@ async function searchCompaniesFromPeople(body: Record<string, unknown>, limit: n
 }
 
 async function searchCompanies(body: Record<string, unknown>) {
-  const limit = clampInt(body.limit, 5, 50, 20);
+  const limit = clampInt(body.limit, 20, 100, 100);
   const organizationSearch = await searchOrganizationsRelaxed(body, limit);
   if (organizationSearch.organizations.length) {
     const contactGroups = await searchContactsForOrganizations(organizationSearch.organizations, body);

@@ -740,24 +740,6 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
           <option value="growth">Rozwojowe 201-500</option>
         </select>
       </div>
-      <div class="form-group" style="margin-bottom:0">
-        <label>Decydenci</label>
-        <select id="gen-roles">
-          <option value="owners">Właściciele / CEO</option>
-          <option value="operations">Operacje / COO</option>
-          <option value="sales">Sprzedaż</option>
-          <option value="marketing">Marketing</option>
-          <option value="it">IT / CTO</option>
-        </select>
-      </div>
-      <div class="form-group" style="margin-bottom:0">
-        <label>Limit</label>
-        <select id="gen-limit">
-          <option value="20">20</option>
-          <option value="35">35</option>
-          <option value="50">50</option>
-        </select>
-      </div>
       <label class="perm-check" style="margin:0;height:38px;align-items:center;white-space:nowrap"><input id="gen-google-enrich" type="checkbox" checked> Google</label>
       <button class="btn btn-primary" onclick="generateAICompanies()" id="gen-btn">Generuj z Apollo</button>
       <button class="btn btn-danger btn-sm" onclick="if(confirm('Usunąć wszystkie firmy z bazy?')){DB.set('companies',[]);renderCompanies()}" title="Wyczyść bazę firm" style="white-space:nowrap">Wyczyść bazę</button>
@@ -3233,6 +3215,7 @@ function renderCompanies() {
     const reviewsText = c.ratingsTotal!==null&&c.ratingsTotal!==undefined ? `${c.ratingsTotal}` : 'Brak danych';
     const manualSize = c.size&&c.sizeSource==='manual' ? c.size : '';
     const aiOverview = renderCompanyAIOverview(c);
+    const decisionMakersText = c.decisionMakers || apolloDecisionMakersSummary(c.apolloContacts);
 
     // Assigned employee avatar
     let assignedHtml = '';
@@ -3276,6 +3259,7 @@ function renderCompanies() {
           ${c.email?`<div class="lead-field"><div class="lead-field-lbl">Email</div><div class="lead-field-val"><a href="mailto:${esc(c.email)}" style="color:var(--blue)">${esc(c.email)}</a></div></div>`:''}
           ${c.www?`<div class="lead-field"><div class="lead-field-lbl">WWW</div><div class="lead-field-val"><a href="${safeExternalUrl(c.www)}" target="_blank" style="color:var(--blue)">${esc(c.www)}</a></div></div>`:''}
           ${c.contact?`<div class="lead-field"><div class="lead-field-lbl">Osoba kontaktowa</div><div class="lead-field-val">${esc(c.contact)}</div></div>`:''}
+          ${decisionMakersText?`<div class="lead-field"><div class="lead-field-lbl">Główni decydenci</div><div class="lead-field-val">${esc(decisionMakersText)}</div></div>`:''}
           ${c.linkedin?`<div class="lead-field"><div class="lead-field-lbl">LinkedIn</div><div class="lead-field-val"><a href="${safeExternalUrl(c.linkedin)}" target="_blank" style="color:var(--blue)">Otwórz profil</a></div></div>`:''}
           ${manualSize?`<div class="lead-field"><div class="lead-field-lbl">Pracownicy (dane ręczne)</div><div class="lead-field-val">${esc(manualSize)}</div></div>`:''}
           ${c.krs?`<div class="lead-field"><div class="lead-field-lbl">KRS</div><div class="lead-field-val">${esc(c.krs)}</div></div>`:''}
@@ -3819,29 +3803,6 @@ const INDUSTRY_LABELS = {
   finance: 'Finanse / księgowość',
 };
 
-const APOLLO_ROLE_PRESETS = {
-  owners: {
-    seniorities: ['owner','founder','c_suite','partner'],
-    titles: ['owner','founder','co-founder','chief executive officer','ceo','managing director','president','prezes','właściciel'],
-  },
-  operations: {
-    seniorities: ['c_suite','vp','head','director'],
-    titles: ['chief operating officer','coo','operations director','head of operations','dyrektor operacyjny','operations manager'],
-  },
-  sales: {
-    seniorities: ['c_suite','vp','head','director','manager'],
-    titles: ['chief revenue officer','cro','sales director','head of sales','sales manager','dyrektor sprzedaży','kierownik sprzedaży'],
-  },
-  marketing: {
-    seniorities: ['c_suite','vp','head','director','manager'],
-    titles: ['chief marketing officer','cmo','marketing director','head of marketing','marketing manager','dyrektor marketingu'],
-  },
-  it: {
-    seniorities: ['c_suite','vp','head','director','manager'],
-    titles: ['chief technology officer','cto','chief information officer','cio','it director','head of it','technology manager'],
-  },
-};
-
 const APOLLO_EMPLOYEE_RANGES = {
   any: [],
   micro: ['1,10'],
@@ -3896,8 +3857,6 @@ function apolloGeneratorPayload(){
   const industry=document.getElementById('gen-industry').value;
   const region=document.getElementById('gen-region').value;
   const size=document.getElementById('gen-size')?.value||'smb';
-  const roles=document.getElementById('gen-roles')?.value||'owners';
-  const rolePreset=APOLLO_ROLE_PRESETS[roles]||APOLLO_ROLE_PRESETS.owners;
   return {
     industry,
     industryQuery: INDUSTRY_QUERIES[industry]||industry,
@@ -3905,19 +3864,25 @@ function apolloGeneratorPayload(){
     keywordTags: INDUSTRY_APOLLO_TAGS[industry]||[industry],
     locations: apolloRegionLocations(region),
     employeeRanges: APOLLO_EMPLOYEE_RANGES[size]||APOLLO_EMPLOYEE_RANGES.smb,
-    seniorities: rolePreset.seniorities,
-    titles: rolePreset.titles,
-    limit: parseInt(document.getElementById('gen-limit')?.value||'20',10)||20,
+    limit: 100,
   };
 }
 function companyDedupeKey(company){
   return String(company.apolloDomain||company.domain||company.www||company.name||'').toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').trim();
 }
 function normalizeCompanyName(value){return String(value||'').toLowerCase().replace(/[^a-z0-9ąćęłńóśźż ]/gi,' ').replace(/\s+/g,' ').trim();}
+function apolloDecisionMakersSummary(contacts){
+  return aiArray(contacts).slice(0,5).map(contact=>[
+    contact.fullName,
+    contact.title,
+    contact.decisionScore?`dopasowanie ${contact.decisionScore}/5`:'',
+  ].filter(Boolean).join(' - ')).filter(Boolean).join('; ');
+}
 function apolloCompanyToLocal(raw,industry,industryLabel){
   const now=new Date().toISOString();
   const contacts=aiArray(raw.contacts).map(contact=>({...contact,apolloFetchedAt:now,source:'Apollo'}));
   const best=contacts.find(contact=>contact.apolloPersonId===raw.bestContactId)||contacts[0]||null;
+  const decisionMakers=apolloDecisionMakersSummary(contacts);
   const company={
     id: uid(),
     name: raw.name||raw.domain||'Firma z Apollo',
@@ -3943,13 +3908,14 @@ function apolloCompanyToLocal(raw,industry,industryLabel){
     apolloOrganizationId: raw.apolloOrganizationId||'',
     apolloDomain: raw.domain||'',
     apolloContacts: contacts,
-    apolloSearchSource: 'people_search',
+    apolloSearchSource: raw.searchSource||'organization_search',
     apolloDecisionScore: raw.bestDecisionScore||null,
     apolloDecisionReason: raw.bestDecisionReason||'',
     apolloIndustries: aiArray(raw.industries),
     apolloKeywords: aiArray(raw.keywords),
     apolloDescription: raw.description||'',
-    notes: `Źródła danych: Apollo People Search. ${raw.description?`Opis Apollo: ${raw.description}. `:''}Decydenci: ${contacts.length}. Dane e-mail/telefon osoby pobieraj świadomie przez wzbogacenie Apollo.`,
+    decisionMakers,
+    notes: `Źródła danych: Apollo. ${raw.description?`Opis Apollo: ${raw.description}. `:''}Główni decydenci: ${decisionMakers||'Apollo nie zwróciło jeszcze konkretnych osób dla tej firmy'}. Dane e-mail/telefon osoby pobieraj świadomie przez wzbogacenie Apollo.`,
     status: 'nowy',
     createdAt: now,
   };
@@ -4020,7 +3986,7 @@ async function generateAICompanies() {
   btn.disabled=true;
   btn.textContent='Szukam...';
   status.style.display='block';
-  status.textContent='Szukam firm i decydentów w Apollo...';
+  status.textContent='Szukam firm w Apollo i zapisuję głównych decydentów...';
   const existing=gCompanies();
   const existingKeys=new Set(existing.map(companyDedupeKey).filter(Boolean));
   try{
