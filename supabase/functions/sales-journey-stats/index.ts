@@ -88,9 +88,10 @@ Deno.serve(async (request) => {
     if (membersError) throw membersError;
     const userIds = (members || [])
       .filter((member) => {
-        if (['admin', 'manager'].includes(member.role)) return false;
         const permissions = Array.isArray(member.permissions) ? member.permissions : [];
-        return member.role === 'handlowiec' || permissions.includes('all') || permissions.includes('droga_sprzedazy');
+        return ['admin', 'manager', 'handlowiec'].includes(member.role)
+          || permissions.includes('all')
+          || permissions.includes('droga_sprzedazy');
       })
       .map((member) => member.user_id)
       .filter(Boolean);
@@ -181,6 +182,7 @@ Deno.serve(async (request) => {
       totalLeads,
       completedClients,
       activeUsers: userIds.length,
+      includesCaller: userIds.includes(authData.user.id),
       generatedAt: new Date().toISOString(),
     });
   } catch (error) {

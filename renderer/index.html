@@ -2194,6 +2194,16 @@ function syncCompanyStatusToJourney(companyId,status,options={}){
   }
   return ensureCompanyJourneyLead(companyId,{...options,status,stage:companyJourneyStageForStatus(status),create:true});
 }
+function backfillCompanyJourneyLeads(){
+  const trackedStatuses=['zadzwoniono','zainteresowany','follow_up','odrzucony'];
+  const existing=new Set(gSalesJourney().leads.map(lead=>lead.sourceCompanyId).filter(Boolean));
+  gCompanies()
+    .filter(company=>trackedStatuses.includes(company.status)&&!existing.has(company.id))
+    .forEach(company=>{
+      syncCompanyStatusToJourney(company.id,company.status,{source:'Baza firm'});
+      existing.add(company.id);
+    });
+}
 
 // ══════════════════════════════
 // SPOTKANIA
@@ -2552,6 +2562,7 @@ function journeyLeadDetailLine(lead){
 }
 
 function renderSalesJourney(){
+  backfillCompanyJourneyLeads();
   const adminOverview=isOrgAdmin(getCurrentUser())&&!isViewingTeamMember();
   document.getElementById('journey-add-btn').style.display=adminOverview?'none':'inline-flex';
   document.getElementById('journey-refresh-btn').style.display=adminOverview?'inline-flex':'none';
@@ -2751,12 +2762,73 @@ function addCompanyToSalesJourney(companyId){
   ensureCompanyJourneyLead(companyId,{create:true,source:'Baza firm',stage:'cold_call',open:true});
 }
 
+function journeyStatsStageGroup(stageId){
+  return String(stageId||'').startsWith('month_')?'client':'new';
+}
+function localSalesJourneyStats(){
+  const leads=gSalesJourney().leads;
+  return {
+    stages:adminStageMetrics(leads).map(stage=>({...stage,group:journeyStatsStageGroup(stage.id)})),
+    totalLeads:leads.length,
+    completedClients:leads.filter(lead=>lead.status==='completed').length,
+    activeUsers:leads.length?1:0,
+    generatedAt:new Date().toISOString(),
+  };
+}
+function mergeLossReasons(a=[],b=[]){
+  const merged={};
+  [...a,...b].forEach(item=>{
+    const reason=item?.reason||'Nie podano';
+    merged[reason]=(merged[reason]||0)+(Number(item?.count)||0);
+  });
+  return Object.entries(merged).map(([reason,count])=>({reason,count})).sort((x,y)=>y.count-x.count);
+}
+function mergeSalesJourneyStats(remote={},local={}){
+  const remoteStages=Array.isArray(remote.stages)?remote.stages:[];
+  const localStages=Array.isArray(local.stages)?local.stages:[];
+  const byId=new Map([...remoteStages,...localStages].map(stage=>[stage.id,{...stage}]));
+  localStages.forEach(localStage=>{
+    const current=byId.get(localStage.id)||localStage;
+    const remoteStage=remoteStages.find(stage=>stage.id===localStage.id)||{};
+    const progressed=(Number(remoteStage.progressed)||0)+(Number(localStage.progressed)||0);
+    const lost=(Number(remoteStage.lost)||0)+(Number(localStage.lost)||0);
+    const entered=(Number(remoteStage.entered)||0)+(Number(localStage.entered)||0);
+    const active=(Number(remoteStage.active)||0)+(Number(localStage.active)||0);
+    const closed=progressed+lost;
+    byId.set(localStage.id,{
+      ...current,
+      ...remoteStage,
+      id:localStage.id,
+      label:remoteStage.label||localStage.label,
+      group:remoteStage.group||localStage.group||journeyStatsStageGroup(localStage.id),
+      entered,
+      progressed,
+      lost,
+      active,
+      conversionRate:closed?Math.round((progressed/closed)*1000)/10:null,
+      dropOffRate:closed?Math.round((lost/closed)*1000)/10:null,
+      avgDays:remoteStage.avgDays??localStage.avgDays??null,
+      lossReasons:mergeLossReasons(remoteStage.lossReasons,localStage.lossReasons),
+    });
+  });
+  return {
+    ...remote,
+    stages:SALES_JOURNEY_STAGES.map(stage=>byId.get(stage.id)||{...stage,group:journeyStatsStageGroup(stage.id),entered:0,progressed:0,lost:0,active:0,conversionRate:null,dropOffRate:null,avgDays:null,lossReasons:[]}),
+    totalLeads:(Number(remote.totalLeads)||0)+(Number(local.totalLeads)||0),
+    completedClients:(Number(remote.completedClients)||0)+(Number(local.completedClients)||0),
+    activeUsers:(Number(remote.activeUsers)||0)+(Number(local.activeUsers)||0),
+    generatedAt:remote.generatedAt||local.generatedAt||new Date().toISOString(),
+  };
+}
+
 async function renderSalesJourneyAdmin(){
   const content=document.getElementById('sales-journey-content');
   content.innerHTML='<div class="card" style="color:var(--text2)">Pobieranie anonimowych statystyk zespołu…</div>';
   try{
     await cloudWriteChain;
-    const stats=await window.electronAPI.getSalesJourneyStats();
+    let stats=await window.electronAPI.getSalesJourneyStats();
+    const localStats=localSalesJourneyStats();
+    if(localStats.totalLeads&&!stats.includesCaller)stats=mergeSalesJourneyStats(stats,localStats);
     const stages=Array.isArray(stats.stages)?stats.stages:[];
     const cold=stages.find(stage=>stage.id==='cold_call');
     const sale=stages.find(stage=>stage.id==='sale');
@@ -2767,7 +2839,7 @@ async function renderSalesJourneyAdmin(){
         ${journeySummaryCard('Wszystkie szanse',stats.totalLeads||0,'Bez nazw i danych kontaktowych')}
         ${journeySummaryCard('Cold call → umowa',saleRate===null?'—':`${saleRate}%`,'Udział szans, które dotarły do umowy','var(--green)')}
         ${journeySummaryCard('Największa utrata',biggestLeak?`${biggestLeak.dropOffRate}%`:'—',biggestLeak?.label||'Brak zakończonych etapów','var(--red)')}
-        ${journeySummaryCard('Handlowcy z dostępem',stats.activeUsers||0,'Aktywne konta zespołu','var(--blue)')}
+        ${journeySummaryCard('Konta z dostępem',stats.activeUsers||0,'Aktywne konta w lejku','var(--blue)')}
       </div>
       ${renderJourneyAdminSection('Nowi klienci','Konwersja i utrata na etapach sprzedaży',stages.filter(stage=>stage.group==='new'))}
       ${renderJourneyAdminSection('Nasi klienci','Utrzymanie klientów w kolejnych miesiącach',stages.filter(stage=>stage.group==='client'))}
