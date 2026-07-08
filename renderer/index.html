@@ -3103,6 +3103,10 @@ function calculateLeadEstimate(company){
   const rating=company.rating!==null&&company.rating!==undefined&&company.rating!==''&&Number.isFinite(Number(company.rating))?Number(company.rating):null;
   const reviews=Math.max(0,Number(company.ratingsTotal)||0);
   const capital=capitalNumber(company.shareCapital);
+  const employees=Number(company.estimatedEmployees)||0;
+  const contacts=aiArray(company.apolloContacts);
+  const bestDecisionScore=Math.max(Number(company.apolloDecisionScore)||0,...contacts.map(contact=>Number(contact.decisionScore)||0));
+  const annualRevenue=Number(company.annualRevenue)||0;
   const reasons=[];
   const limitations=[];
   let points=0;
@@ -3124,16 +3128,55 @@ function calculateLeadEstimate(company){
     reasons.push(`Kapitał zakładowy z KRS: ${formatCapital(company.shareCapital,company.shareCapitalCurrency)}`);
     points+=capital>=5000000?20:capital>=500000?14:capital>=100000?8:4;
   }else limitations.push('Brak potwierdzonego kapitału zakładowego');
+  if(company.apolloOrganizationId||company.apolloDomain){
+    points+=12;
+    reasons.push('Firma potwierdzona w Apollo');
+  }
+  if((company.apolloOrganizationId||company.apolloDomain)&&(company.phone||contacts.length)){
+    points+=10;
+    reasons.push('Apollo zwróciło kanał pierwszego kontaktu');
+  }
+  if(employees>0){
+    reasons.push(`Liczba pracowników z Apollo: ${employees}`);
+    points+=employees>=11&&employees<=200?18:employees>=201&&employees<=500?14:employees>=1&&employees<=10?7:employees>500?8:0;
+  }else if(aiArray(company.apolloRequestedEmployeeRanges).length){
+    points+=8;
+    reasons.push(`Firma pasuje do wybranego filtra wielkości Apollo: ${aiArray(company.apolloRequestedEmployeeRanges).join(', ')}`);
+  }else limitations.push('Brak liczby pracowników w Apollo');
+  if(contacts.length){
+    reasons.push(`Apollo znalazło ${contacts.length} decydentów`);
+    points+=contacts.length>=3?12:contacts.length===2?10:7;
+  }else limitations.push('Brak decydentów z Apollo');
+  if(bestDecisionScore>0){
+    reasons.push(`Dopasowanie najlepszego decydenta: ${bestDecisionScore}/5`);
+    points+=bestDecisionScore>=5?10:bestDecisionScore>=4?8:bestDecisionScore>=3?5:2;
+  }
+  if(company.apolloDescription||company.apolloKeywords?.length){
+    points+=5;
+    reasons.push('Apollo zwróciło opis lub tagi branżowe firmy');
+  }
+  if(company.industryKey){
+    points+=8;
+    reasons.push(`Pasuje do sektora: ${INDUSTRY_LABELS[company.industryKey]||company.industryKey}`);
+  }
+  if(annualRevenue>0){
+    points+=annualRevenue>=50000000?16:annualRevenue>=10000000?12:annualRevenue>=1000000?8:4;
+    reasons.push('Apollo zwróciło przychód firmy');
+  }
 
   const leadScore=points>=78?5:points>=58?4:points>=38?3:points>=20?2:1;
   let estimatedScale='Brak podstaw do oszacowania';
   if(company.size&&company.sizeSource==='manual')estimatedScale=`Dane wprowadzone ręcznie: ${company.size}`;
+  else if(employees>0)estimatedScale=employees>=201?'Apollo: firma rozwojowa lub średnia':employees>=51?'Apollo: średnia firma':employees>=11?'Apollo: mała firma MŚP':'Apollo: mikro firma';
   else if(capital!==null)estimatedScale=capital>=5000000?'Szacunek: średnia lub duża':capital>=500000?'Szacunek: mała lub średnia':'Szacunek: mikro lub mała';
   else if(reviews>=200)estimatedScale='Szacunek: rozpoznawalna firma o dużej widoczności';
   else if(reviews>=25&&company.www)estimatedScale='Szacunek: aktywna mikro lub mała firma';
 
   let budgetPotential='Brak podstaw do oszacowania';
-  if(capital!==null)budgetPotential=capital>=5000000?'Szacunek: wysoki':capital>=500000?'Szacunek: średni lub wysoki':capital>=100000?'Szacunek: średni':'Szacunek: niski lub średni';
+  if(annualRevenue>0)budgetPotential=annualRevenue>=50000000?'Apollo: wysoki':annualRevenue>=10000000?'Apollo: średni lub wysoki':annualRevenue>=1000000?'Apollo: średni':'Apollo: niski lub średni';
+  else if(capital!==null)budgetPotential=capital>=5000000?'Szacunek: wysoki':capital>=500000?'Szacunek: średni lub wysoki':capital>=100000?'Szacunek: średni':'Szacunek: niski lub średni';
+  else if(employees>=51)budgetPotential='Szacunek: średni na podstawie liczby pracowników z Apollo';
+  else if(employees>=11)budgetPotential='Szacunek: niski lub średni na podstawie liczby pracowników z Apollo';
   else if(points>=58)budgetPotential='Szacunek: średni lub wysoki na podstawie obecności online';
   else if(points>=38)budgetPotential='Szacunek: średni na podstawie obecności online';
   else if(points>=20)budgetPotential='Szacunek: niski lub średni na podstawie obecności online';
@@ -3214,6 +3257,7 @@ function renderCompanies() {
     const ratingText = c.rating!==null&&c.rating!==undefined ? `${Number(c.rating).toFixed(1)} ★` : 'Brak danych';
     const reviewsText = c.ratingsTotal!==null&&c.ratingsTotal!==undefined ? `${c.ratingsTotal}` : 'Brak danych';
     const manualSize = c.size&&c.sizeSource==='manual' ? c.size : '';
+    const apolloSize = c.estimatedEmployees ? `${c.estimatedEmployees} pracowników` : '';
     const aiOverview = renderCompanyAIOverview(c);
     const decisionMakersText = c.decisionMakers || apolloDecisionMakersSummary(c.apolloContacts);
 
@@ -3262,6 +3306,7 @@ function renderCompanies() {
           ${decisionMakersText?`<div class="lead-field"><div class="lead-field-lbl">Główni decydenci</div><div class="lead-field-val">${esc(decisionMakersText)}</div></div>`:''}
           ${c.linkedin?`<div class="lead-field"><div class="lead-field-lbl">LinkedIn</div><div class="lead-field-val"><a href="${safeExternalUrl(c.linkedin)}" target="_blank" style="color:var(--blue)">Otwórz profil</a></div></div>`:''}
           ${manualSize?`<div class="lead-field"><div class="lead-field-lbl">Pracownicy (dane ręczne)</div><div class="lead-field-val">${esc(manualSize)}</div></div>`:''}
+          ${apolloSize?`<div class="lead-field"><div class="lead-field-lbl">Pracownicy (Apollo)</div><div class="lead-field-val">${esc(apolloSize)}</div></div>`:''}
           ${c.krs?`<div class="lead-field"><div class="lead-field-lbl">KRS</div><div class="lead-field-val">${esc(c.krs)}</div></div>`:''}
           ${c.nip?`<div class="lead-field"><div class="lead-field-lbl">NIP</div><div class="lead-field-val">${esc(c.nip)}</div></div>`:''}
           ${c.regon?`<div class="lead-field"><div class="lead-field-lbl">REGON</div><div class="lead-field-val">${esc(c.regon)}</div></div>`:''}
@@ -3878,7 +3923,7 @@ function apolloDecisionMakersSummary(contacts){
     contact.decisionScore?`dopasowanie ${contact.decisionScore}/5`:'',
   ].filter(Boolean).join(' - ')).filter(Boolean).join('; ');
 }
-function apolloCompanyToLocal(raw,industry,industryLabel){
+function apolloCompanyToLocal(raw,industry,industryLabel,requestPayload={}){
   const now=new Date().toISOString();
   const contacts=aiArray(raw.contacts).map(contact=>({...contact,apolloFetchedAt:now,source:'Apollo'}));
   const best=contacts.find(contact=>contact.apolloPersonId===raw.bestContactId)||contacts[0]||null;
@@ -3914,6 +3959,7 @@ function apolloCompanyToLocal(raw,industry,industryLabel){
     apolloIndustries: aiArray(raw.industries),
     apolloKeywords: aiArray(raw.keywords),
     apolloDescription: raw.description||'',
+    apolloRequestedEmployeeRanges: aiArray(requestPayload.employeeRanges),
     decisionMakers,
     notes: `Źródła danych: Apollo. ${raw.description?`Opis Apollo: ${raw.description}. `:''}Główni decydenci: ${decisionMakers||'Apollo nie zwróciło jeszcze konkretnych osób dla tej firmy'}. Dane e-mail/telefon osoby pobieraj świadomie przez wzbogacenie Apollo.`,
     status: 'nowy',
@@ -3990,11 +4036,12 @@ async function generateAICompanies() {
   const existing=gCompanies();
   const existingKeys=new Set(existing.map(companyDedupeKey).filter(Boolean));
   try{
-    const response=await window.electronAPI.apolloContacts('search_companies',apolloGeneratorPayload());
+    const requestPayload=apolloGeneratorPayload();
+    const response=await window.electronAPI.apolloContacts('search_companies',requestPayload);
     const apolloCompanies=aiArray(response.companies);
     const generated=[];
     for(const raw of apolloCompanies){
-      const company=apolloCompanyToLocal(raw,industry,industryLabel);
+      const company=apolloCompanyToLocal(raw,industry,industryLabel,requestPayload);
       const key=companyDedupeKey(company);
       if(!key||existingKeys.has(key))continue;
       existingKeys.add(key);
