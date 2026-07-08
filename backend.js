@@ -617,6 +617,17 @@ async function assignBooking(id, assignedTo) {
   return true;
 }
 
+async function syncOperioBookings() {
+  const { data, error } = await getClient().functions.invoke('operio-bookings-pending', { body: {} });
+  if (error) throw error;
+  const pending = Array.isArray(data?.bookings) ? data.bookings : [];
+  const added = [];
+  for (const booking of pending) {
+    added.push(await addBooking(booking));
+  }
+  return added;
+}
+
 module.exports = {
   backendStatus,
   restoreSession,
@@ -642,4 +653,5 @@ module.exports = {
   addBooking,
   updateBookingStatus,
   assignBooking,
+  syncOperioBookings,
 };

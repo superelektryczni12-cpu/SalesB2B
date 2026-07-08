@@ -84,7 +84,9 @@ const isMac = process.platform === 'darwin';
 ipcMain.handle('get-bookings', () => backend.getBookings());
 ipcMain.handle('update-booking-status', (_e, id, status) => backend.updateBookingStatus(id, status));
 
-// Local HTTP server — receives bookings from revforge.html
+// Local HTTP server — legacy: only receives bookings when operio-site is opened
+// from this same machine. The public operio-site deployment posts bookings to
+// the "operio-booking" Supabase Edge Function instead (see supabase-operio-bookings.sql).
 const server = http.createServer((req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -134,6 +136,22 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(3721, '127.0.0.1');
+
+// Pulls bookings submitted on the public operio-site (via Supabase) into the
+// logged-in user's local booking inbox — mirrors what the local server above
+// does for same-machine submissions.
+async function pollOperioBookings() {
+  try {
+    const added = await backend.syncOperioBookings();
+    if (mainWindow) {
+      for (const booking of added) mainWindow.webContents.send('new-booking', booking);
+    }
+  } catch {
+    // Brak zalogowanego użytkownika lub funkcja jeszcze niewdrożona — pomijamy w ciszy.
+  }
+}
+setInterval(pollOperioBookings, 60_000);
+setTimeout(pollOperioBookings, 5_000);
 
 // macOS menu bar
 function buildMenu() {

@@ -86,6 +86,28 @@ Kontakty Apollo, wielkosc firmy, branze, opis organizacji i wybrany decydent sa 
 
 Wybrana osoba z Apollo moze zostac dodana bezposrednio jako lead w Drodze Sprzedazy. Jesli pozniej Apollo dopelni e-mail lub telefon, powiazany lead zostanie uzupelniony automatycznie. Brief AI dostaje pelny kontekst firmy z Apollo oraz fakty uzupelnione z Google/KRS, wiec hipotezy sprzedazowe opieraja sie na zapisanych danych firmy.
 
+## Strona Operio (operio-site)
+
+Folder `operio-site` to publiczna strona wizytowkowa "Operio" (zewnetrzny dzial rozwoju sprzedazy dla MSP). To osobny projekt statyczny, niezalezny od apki desktopowej, mysli o wlasnej domenie. Kazdy przycisk "Umow rozmowe" otwiera modal z formularzem i kalendarzem terminow.
+
+Formularz zapisuje rezerwacje przez Edge Function `operio-booking` (Supabase), a nie przez lokalny serwer apki. Apka desktopowa Sales B2B odbiera te rezerwacje automatycznie:
+
+1. W Supabase wklej i uruchom `supabase-operio-bookings.sql` (tworzy tabele `operio_bookings` z wlaczonym RLS bez publicznych polityk, plus kolumne `imported_at` do sledzenia importu).
+2. Wdroz `supabase/functions/operio-booking/index.ts` jako funkcje `operio-booking` z **wylaczona weryfikacja JWT** (formularz wypelniaja anonimowi odwiedzajacy, ktorzy nie sa zalogowani do apki). Ta funkcja tylko zapisuje rezerwacje do tabeli.
+3. Wdroz `supabase/functions/operio-bookings-pending/index.ts` jako funkcje `operio-bookings-pending` z **wlaczona weryfikacja JWT** (wywoluje ja wylacznie zalogowana apka Sales B2B). Ta funkcja zwraca niezaimportowane rezerwacje i oznacza je jako zaimportowane.
+4. Obie funkcje korzystaja z sekretu `SUPABASE_SERVICE_ROLE_KEY`, ktory Supabase ustawia automatycznie dla kazdej Edge Function.
+
+Zalogowana apka odpytuje `operio-bookings-pending` co 60 sekund (`main.js`) i kazda nowa rezerwacje dodaje do lokalnej listy bookingow zalogowanego uzytkownika — dokladnie tak, jak wczesniej robil to lokalny serwer na porcie `3721`, tylko teraz dziala to z dowolnego miejsca w internecie, nie tylko z tego samego komputera.
+
+### Wdrozenie na Vercel i podpiecie domeny
+
+1. Zaimportuj repozytorium w Vercel, a w ustawieniach projektu ustaw **Root Directory** na `operio-site`. Framework Preset: `Other` (strona jest statycznym `index.html`).
+2. Po pierwszym deployu wejdz w `Project Settings -> Domains`, dodaj docelowa domene (np. `operio.pl`) i postepuj wedlug instrukcji Vercel — zwykle rekord `A` na `76.76.21.21` dla domeny glownej lub `CNAME` na `cname.vercel-dns.com` dla subdomeny, ustawiony u rejestratora domeny.
+3. Zaktualizuj w `operio-site/index.html` oraz `operio-site/robots.txt` adres `https://operio.pl/` na docelowa domene, jesli bedzie inna.
+4. Certyfikat SSL Vercel wystawia automatycznie po propagacji DNS.
+
+Lokalny serwer w `main.js` (port `3721`) zostal zachowany tylko jako narzedzie deweloperskie do lokalnych testow — publiczna strona go nie uzywa.
+
 ## Uruchomienie
 
 Najprosciej: pobierz gotowy instalator z folderu `installer`:
