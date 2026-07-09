@@ -72,6 +72,8 @@ ipcMain.handle('chat-file-url', (_e, filePath) => backend.createChatFileUrl(file
 ipcMain.handle('sales-ai-generate', (_e, action, payload) => backend.generateSalesAI(action, payload));
 ipcMain.handle('apollo-contacts', (_e, action, payload) => backend.apolloContacts(action, payload));
 ipcMain.handle('sales-journey-stats', () => backend.getSalesJourneyStats());
+ipcMain.handle('cold-email-generate', (_e, payload) => backend.generateColdEmail(payload));
+ipcMain.handle('instantly-push', (_e, payload) => backend.pushToInstantly(payload));
 ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('updates-check', (_e, manual = false) => updateManager.checkForUpdates({ manual: Boolean(manual) }));
 ipcMain.handle('updates-install', () => updateManager.downloadAndInstall());

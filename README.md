@@ -86,6 +86,25 @@ Kontakty Apollo, wielkosc firmy, branze, opis organizacji i wybrany decydent sa 
 
 Wybrana osoba z Apollo moze zostac dodana bezposrednio jako lead w Drodze Sprzedazy. Jesli pozniej Apollo dopelni e-mail lub telefon, powiazany lead zostanie uzupelniony automatycznie. Brief AI dostaje pelny kontekst firmy z Apollo oraz fakty uzupelnione z Google/KRS, wiec hipotezy sprzedazowe opieraja sie na zapisanych danych firmy.
 
+## Cold Mailing (Operio)
+
+Zakladka `Cold Mailing` to pipeline cold outreachu dla wlasnej dzialalnosci Operio: wyszukiwanie ICP przez Apollo, wzbogacenie kontaktu, AI-owa sekwencja 3 maili (Dzien 0 / +3 / +10) wedlug wewnetrznego skryptu Operio, i wysylka przez Instantly.ai (skrzynka `oliwer@operio-consulting.pl`, ktora odpowiada juz za rozgrzewke i deliverability). Aplikacja nie wysyla maili sama — generuje tresc i przekazuje leada do gotowej kampanii Instantly, ktora odpala caly harmonogram.
+
+### Jednorazowa konfiguracja
+
+1. W Instantly stworz **jedna kampanie** (np. "Operio Cold Outreach") z dokladnie 3 krokami wysylanymi Dzien 0 / +3 / +10, skrzynka `oliwer@operio-consulting.pl`. Tresc kazdego kroku ustaw jako **czyste merge-tagi**, bo pelny, unikalny tekst per-lead generuje i wysyla aplikacja jako `custom_variables`:
+   - Krok 1: temat `{{subject1}}`, tresc `{{body1}}`
+   - Krok 2: temat `{{subject2}}`, tresc `{{body2}}`
+   - Krok 3: temat `{{subject3}}`, tresc `{{body3}}`
+2. Skopiuj `campaign_id` tej kampanii (widoczny w URL/ustawieniach kampanii w Instantly) i wklej go w zakladce `Cold Mailing -> Instantly - ID kampanii`.
+3. W Instantly utworz API key (`Settings -> Integrations -> API Keys`) i dodaj go w Supabase jako sekret `INSTANTLY_API_KEY`.
+4. Wdroz `supabase/functions/cold-email-generate` jako funkcje `cold-email-generate` z **wlaczona weryfikacja JWT** (korzysta z sekretu `OPENAI_API_KEY`, tak samo jak `sales-ai`).
+5. Wdroz `supabase/functions/instantly-push` jako funkcje `instantly-push` z **wlaczona weryfikacja JWT** (obie funkcje wywoluje wylacznie zalogowana aplikacja).
+
+### Jak to dziala
+
+Przycisk "Szukaj klientow Operio" wysyla do Apollo filtry ICP wpisane na sztywno w aplikacji (polskie MSP 10-80 pracownikow, branze handel/uslugi B2B/produkcja/IT/finanse/spedycja, decydenci CEO/Wlasciciel/Dyrektor Sprzedazy/COO) i dopisuje znalezione firmy do tej samej listy `companies`, co zwykly generator Apollo. Przycisk "Decydenci" przy firmie to ten sam modal co w zakladce Firmy — po pobraniu e-maila kontaktu pojawia sie przycisk "Generuj cold email", ktory otwiera edytowalne 3 szkice (mozna poprawic temat/tresc przed wyslaniem). "Wyslij do Instantly" tworzy leada w skonfigurowanej kampanii z tresciami jako `custom_variables` — od tego momentu Instantly sam pilnuje harmonogramu wysylki, bez dalszych klikniec w aplikacji. Status "W sekwencji Instantly" jest zapisywany w rekordzie firmy, zeby nie wyslac tego samego kontaktu dwa razy.
+
 ## Strona Operio (operio-site)
 
 Folder `operio-site` to publiczna strona wizytowkowa "Operio" (zewnetrzny dzial rozwoju sprzedazy dla MSP). To osobny projekt statyczny, niezalezny od apki desktopowej, mysli o wlasnej domenie. Kazdy przycisk "Umow rozmowe" otwiera modal z formularzem i kalendarzem terminow.
