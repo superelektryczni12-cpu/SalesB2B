@@ -43,6 +43,16 @@ AI dziala przez Edge Function `sales-ai`, aby klucz dostawcy nie trafil do aplik
 3. W `Edge Functions -> Secrets` dodaj sekret `OPENAI_API_KEY`.
 4. Opcjonalnie ustaw `OPENAI_MODEL`; bez tej wartosci funkcja korzysta z `gpt-5.5`.
 
+### Transkrypcja nagran rozmow
+
+W panelu "Po rozmowie" mozna zamiast (albo obok) recznej notatki wgrac nagranie rozmowy (do 25 MB, plik audio) — aplikacja sama zrobi transkrypcje i wstawi ja do pola notatki, gotowa do analizy tym samym przyciskiem "Analizuj rozmowe" co dzis.
+
+1. W Supabase wklej i uruchom `supabase-call-recordings.sql` (tworzy prywatny bucket `sales-b2b-call-recordings`, limit 25 MB, polityki RLS analogiczne do `sales-b2b-chat-files`).
+2. Wdroz `supabase/functions/transcribe-call/index.ts` jako funkcje `transcribe-call` z **wlaczona weryfikacja JWT**.
+3. Funkcja korzysta z tego samego sekretu `OPENAI_API_KEY` co `sales-ai` (Whisper) — nie trzeba dodawac nic nowego, jesli `sales-ai` juz dziala.
+
+Dluzsze nagrania (powyzej ok. 60-90 minut w m4a/mp3, zaleznie od jakosci) przekrocza limit 25 MB i transkrypcja zwroci czytelny blad zamiast sie wywalic w nieskonczonosc — to twardy limit pojedynczego pliku w OpenAI Whisper API.
+
 Ta funkcja nie wymaga dodatkowego SQL. Dostep otrzymuja tylko zalogowane, aktywne konta z `organization_members`.
 
 ## Droga Sprzedazy
