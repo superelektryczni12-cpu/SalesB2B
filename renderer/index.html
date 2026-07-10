@@ -3919,11 +3919,14 @@ function selectApolloContact(personId){
 // ══════════════════════════════
 const OPERIO_ICP_PAYLOAD={
   industry:'operio_icp',
-  industryQuery:'wholesale trade b2b services manufacturing production information technology accounting financial services logistics transportation freight',
-  keywords:'wholesale trade b2b services manufacturing production information technology accounting financial services logistics transportation freight',
-  keywordTags:['information technology','software','it services','manufacturing','production','wholesale','b2b services','professional services','logistics','transportation','freight','accounting','financial services'],
+  industryQuery:'wholesale trade retail b2b services manufacturing production information technology accounting financial services logistics transportation freight',
+  keywords:'wholesale trade retail b2b services manufacturing production information technology accounting financial services logistics transportation freight',
+  keywordTags:['information technology','software','it services','manufacturing','production','wholesale','trade','retail','b2b services','professional services','logistics','transportation','freight','accounting','financial services'],
   locations:['Poland'],
-  employeeRanges:['11,50','51,200'],
+  employeeRanges:['10,80'],
+  // 2-30 mln PLN przychodu, przeliczone orientacyjnie po ok. 4 PLN/USD (Apollo filtruje w USD)
+  revenueMin:500000,
+  revenueMax:7500000,
   seniorities:['owner','founder','c_suite','director'],
   titles:['CEO','Właściciel','Prezes','Dyrektor Sprzedaży','COO','Dyrektor Zarządzający'],
   limit:100,
