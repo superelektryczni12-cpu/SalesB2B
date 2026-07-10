@@ -3893,28 +3893,35 @@ const OPERIO_ICP_PAYLOAD={
   titles:['CEO','Właściciel','Prezes','Dyrektor Sprzedaży','COO','Dyrektor Zarządzający'],
   limit:100,
 };
+const OPERIO_ICP_MAX_PAGES=20;
 async function searchOperioIcpCompanies(){
   const btn=document.getElementById('cm-search-btn');
   const status=document.getElementById('cm-search-status');
   btn.disabled=true;btn.textContent='Szukam...';
-  status.style.display='block';status.textContent='Szukam firm pasujących do ICP Operio w Apollo...';
+  status.style.display='block';status.textContent='Szukam firm pasujących do ICP Operio w Apollo (strona 1)...';
   const existing=gCompanies();
   const existingKeys=new Set(existing.map(companyDedupeKey).filter(Boolean));
+  const generated=[];
   try{
-    const response=await window.electronAPI.apolloContacts('search_companies',OPERIO_ICP_PAYLOAD);
-    const apolloCompanies=aiArray(response.companies);
-    const generated=[];
-    for(const raw of apolloCompanies){
-      const company=apolloCompanyToLocal(raw,'operio_icp','ICP Operio',OPERIO_ICP_PAYLOAD);
-      const key=companyDedupeKey(company);
-      if(!key||existingKeys.has(key))continue;
-      existingKeys.add(key);
-      company.coldMailingSource='operio_icp';
-      generated.push(company);
+    for(let page=1;page<=OPERIO_ICP_MAX_PAGES;page++){
+      status.textContent=`Szukam firm pasujących do ICP Operio w Apollo (strona ${page}/${OPERIO_ICP_MAX_PAGES})... Dotąd znaleziono ${generated.length}.`;
+      const response=await window.electronAPI.apolloContacts('search_companies',{...OPERIO_ICP_PAYLOAD,page});
+      const apolloCompanies=aiArray(response.companies);
+      if(!apolloCompanies.length)break;
+      let newOnThisPage=0;
+      for(const raw of apolloCompanies){
+        const company=apolloCompanyToLocal(raw,'operio_icp','ICP Operio',OPERIO_ICP_PAYLOAD);
+        const key=companyDedupeKey(company);
+        if(!key||existingKeys.has(key))continue;
+        existingKeys.add(key);
+        company.coldMailingSource='operio_icp';
+        generated.push(company);
+        newOnThisPage++;
+      }
+      if(!newOnThisPage)break;
     }
     if(!generated.length){
-      const found=Number(response?.meta?.found||apolloCompanies.length||0);
-      status.textContent=found?`Apollo znalazło ${found} firm, ale wszystkie są już w bazie.`:'Nie znaleziono nowych firm pasujących do ICP Operio. Spróbuj ponownie później.';
+      status.textContent='Nie znaleziono nowych firm pasujących do ICP Operio (albo wszystkie już są w bazie). Spróbuj ponownie później.';
       btn.disabled=false;btn.textContent='Szukaj klientów Operio';
       return;
     }
@@ -3923,7 +3930,13 @@ async function searchOperioIcpCompanies(){
     renderColdMailingCompanies();
     setTimeout(()=>{status.style.display='none';},5000);
   }catch(error){
-    status.textContent=error.message||'Nie udało się wyszukać firm w Apollo.';
+    if(generated.length){
+      DB.set('companies',[...generated,...existing]);
+      renderColdMailingCompanies();
+      status.textContent=`Dodano ${generated.length} firm przed błędem: ${error.message||'nie udało się dokończyć wyszukiwania.'}`;
+    }else{
+      status.textContent=error.message||'Nie udało się wyszukać firm w Apollo.';
+    }
   }finally{
     btn.disabled=false;btn.textContent='Szukaj klientów Operio';
   }
