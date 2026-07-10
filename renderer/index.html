@@ -3469,7 +3469,7 @@ function renderCompanies() {
           ${c.phone?`<a href="tel:${c.phone}" class="btn btn-primary btn-sm" style="text-decoration:none">📞 Zadzwoń</a>`:''}
           ${c.email?`<a href="mailto:${c.email}" class="btn btn-ghost btn-sm" style="text-decoration:none">✉ Wyślij email</a>`:''}
           ${!isOrgAdmin(getCurrentUser())||isViewingTeamMember()?`<button class="btn btn-primary btn-sm" onclick="addCompanyToSalesJourney('${c.id}')">Dodaj do Drogi Sprzedaży</button>`:''}
-          ${gs().apolloEnabled&&c.www?`<button class="btn btn-ghost btn-sm" onclick="openApolloContacts('${c.id}')">Decydenci${aiArray(c.apolloContacts).length?` (${aiArray(c.apolloContacts).length})`:''}</button>`:''}
+          ${c.www?`<button class="btn btn-ghost btn-sm" onclick="openApolloContacts('${c.id}')">Decydenci${aiArray(c.apolloContacts).length?` (${aiArray(c.apolloContacts).length})`:''}</button>`:''}
           <button class="btn btn-primary btn-sm" onclick="openCompanyAI('${c.id}','brief')">Brief AI</button>
           <button class="btn btn-ghost btn-sm" onclick="openCompanyAI('${c.id}','post')">Po rozmowie</button>
           <button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="openEditCompany('${c.id}')">Edytuj</button>
@@ -3948,7 +3948,12 @@ function openColdEmailDrafts(personId){
   const company=gCompanies().find(item=>item.id===activeApolloCompanyId);
   const contact=aiArray(company?.apolloContacts).find(item=>item.apolloPersonId===personId);
   if(!company||!contact)return;
-  if(!contact.email){alert('Najpierw pobierz e-mail i telefon tego kontaktu przyciskiem "Pobierz e-mail i telefon".');return;}
+  if(!contact.email){
+    alert(contact.apolloEnrichedAt
+      ? 'Apollo nie ma zapisanego adresu e-mail dla tej osoby — bez adresu nie da się wysłać cold emaila. Wybierz innego decydenta z listy.'
+      : 'Najpierw pobierz e-mail i telefon tego kontaktu przyciskiem "Pobierz e-mail i telefon".');
+    return;
+  }
   coldEmailDraft={companyId:company.id,personId,emails:null};
   document.getElementById('cold-email-title').textContent=`Cold email · ${contact.fullName||'Kontakt'} · ${company.name}`;
   document.getElementById('cold-email-drafts').innerHTML='';
