@@ -3710,6 +3710,10 @@ async function copySalesAIFollowUp(){
 }
 
 let activeApolloCompanyId=null;
+const APOLLO_PHONE_TIMEOUT_MS=3*60*1000;
+function apolloPhonePendingExpired(contact){
+  return contact.phoneStatus==='pending'&&contact.apolloPhoneRequestedAt&&(Date.now()-new Date(contact.apolloPhoneRequestedAt).getTime())>APOLLO_PHONE_TIMEOUT_MS;
+}
 
 function companyDomain(value){
   const raw=String(value||'').trim();if(!raw)return '';
@@ -3742,7 +3746,8 @@ function renderApolloContacts(){
     const phones=aiArray(contact.phoneNumbers);
     const selected=company.selectedApolloContactId===contact.apolloPersonId;
     const lead=apolloLeadForContact(company,contact);
-    const phoneLabel=contact.phoneStatus==='pending'?'Telefon jest przygotowywany przez Apollo':contact.phoneStatus==='unavailable'?'Apollo nie zwróciło telefonu':'Telefon niepobrany';
+    const phoneExpired=apolloPhonePendingExpired(contact);
+    const phoneLabel=contact.phoneStatus==='pending'&&!phoneExpired?'Telefon jest przygotowywany przez Apollo':contact.phoneStatus==='unavailable'||phoneExpired?'Apollo nie ma numeru dla tej osoby':'Telefon niepobrany';
     return `<div class="apollo-contact">
       <div class="apollo-contact-head">
         <div style="flex:1;min-width:0">
@@ -3759,7 +3764,7 @@ function renderApolloContacts(){
       </div>
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
         ${!contact.apolloEnrichedAt?`<button class="btn btn-ghost btn-sm" onclick="enrichApolloContact('${contact.apolloPersonId}')">Pobierz e-mail i telefon</button>`:''}
-        ${contact.phoneStatus==='pending'?`<button class="btn btn-ghost btn-sm" onclick="pollApolloPhone('${contact.apolloPersonId}')">Sprawdź telefon</button>`:''}
+        ${contact.phoneStatus==='pending'&&!phoneExpired?`<button class="btn btn-ghost btn-sm" onclick="pollApolloPhone('${contact.apolloPersonId}')">Sprawdź telefon</button>`:''}
         <button class="btn btn-primary btn-sm" onclick="createApolloLead('${contact.apolloPersonId}')">${lead?'Otwórz lead':'Dodaj jako lead'}</button>
         <button class="btn btn-primary btn-sm" onclick="selectApolloContact('${contact.apolloPersonId}')">Użyj w Briefie AI</button>
         <button class="btn btn-ghost btn-sm" onclick="openColdEmailDrafts('${contact.apolloPersonId}')">Generuj cold email</button>
@@ -3811,6 +3816,7 @@ async function enrichApolloContact(personId){
     saved.emailStatus=response.emailStatus||'';
     saved.apolloPhoneRequestId=response.requestId||'';
     saved.phoneStatus=response.phoneStatus||'unavailable';
+    saved.apolloPhoneRequestedAt=response.phoneStatus==='pending'?new Date().toISOString():'';
     saved.apolloEnrichedAt=new Date().toISOString();
     if(companies[companyIndex].selectedApolloContactId===personId||saved.apolloLeadId)applyApolloContactToCompany(companies[companyIndex],saved);
     DB.set('companies',companies);
@@ -3826,7 +3832,19 @@ async function pollApolloPhone(personId,silent=false){
   try{
     await cloudWriteChain;
     const response=await window.electronAPI.apolloContacts('poll_phone',{personId,requestId:contact.apolloPhoneRequestId});
-    if(response.pending){if(!silent)setApolloStatus('Apollo nadal przygotowuje telefon. Spróbuj ponownie za chwilę.');return;}
+    if(response.pending){
+      if(apolloPhonePendingExpired(contact)){
+        const companies=gCompanies();const companyIndex=companies.findIndex(item=>item.id===company.id);if(companyIndex<0)return;
+        const saved=aiArray(companies[companyIndex].apolloContacts).find(item=>item.apolloPersonId===personId);if(!saved)return;
+        saved.phoneStatus='unavailable';saved.phoneCheckedAt=new Date().toISOString();
+        DB.set('companies',companies);
+        renderApolloContacts();
+        if(!silent)setApolloStatus('Apollo nie znalazło numeru w rozsądnym czasie.','');
+        return;
+      }
+      if(!silent)setApolloStatus('Apollo nadal przygotowuje telefon. Spróbuj ponownie za chwilę.');
+      return;
+    }
     const companies=gCompanies();const companyIndex=companies.findIndex(item=>item.id===company.id);if(companyIndex<0)return;
     const saved=aiArray(companies[companyIndex].apolloContacts).find(item=>item.apolloPersonId===personId);if(!saved)return;
     saved.phoneNumbers=aiArray(response.phoneNumbers);
@@ -3875,28 +3893,35 @@ const OPERIO_ICP_PAYLOAD={
   titles:['CEO','Właściciel','Prezes','Dyrektor Sprzedaży','COO','Dyrektor Zarządzający'],
   limit:100,
 };
+const OPERIO_ICP_MAX_PAGES=20;
 async function searchOperioIcpCompanies(){
   const btn=document.getElementById('cm-search-btn');
   const status=document.getElementById('cm-search-status');
   btn.disabled=true;btn.textContent='Szukam...';
-  status.style.display='block';status.textContent='Szukam firm pasujących do ICP Operio w Apollo...';
+  status.style.display='block';status.textContent='Szukam firm pasujących do ICP Operio w Apollo (strona 1)...';
   const existing=gCompanies();
   const existingKeys=new Set(existing.map(companyDedupeKey).filter(Boolean));
+  const generated=[];
   try{
-    const response=await window.electronAPI.apolloContacts('search_companies',OPERIO_ICP_PAYLOAD);
-    const apolloCompanies=aiArray(response.companies);
-    const generated=[];
-    for(const raw of apolloCompanies){
-      const company=apolloCompanyToLocal(raw,'operio_icp','ICP Operio',OPERIO_ICP_PAYLOAD);
-      const key=companyDedupeKey(company);
-      if(!key||existingKeys.has(key))continue;
-      existingKeys.add(key);
-      company.coldMailingSource='operio_icp';
-      generated.push(company);
+    for(let page=1;page<=OPERIO_ICP_MAX_PAGES;page++){
+      status.textContent=`Szukam firm pasujących do ICP Operio w Apollo (strona ${page}/${OPERIO_ICP_MAX_PAGES})... Dotąd znaleziono ${generated.length}.`;
+      const response=await window.electronAPI.apolloContacts('search_companies',{...OPERIO_ICP_PAYLOAD,page});
+      const apolloCompanies=aiArray(response.companies);
+      if(!apolloCompanies.length)break;
+      let newOnThisPage=0;
+      for(const raw of apolloCompanies){
+        const company=apolloCompanyToLocal(raw,'operio_icp','ICP Operio',OPERIO_ICP_PAYLOAD);
+        const key=companyDedupeKey(company);
+        if(!key||existingKeys.has(key))continue;
+        existingKeys.add(key);
+        company.coldMailingSource='operio_icp';
+        generated.push(company);
+        newOnThisPage++;
+      }
+      if(!newOnThisPage)break;
     }
     if(!generated.length){
-      const found=Number(response?.meta?.found||apolloCompanies.length||0);
-      status.textContent=found?`Apollo znalazło ${found} firm, ale wszystkie są już w bazie.`:'Nie znaleziono nowych firm pasujących do ICP Operio. Spróbuj ponownie później.';
+      status.textContent='Nie znaleziono nowych firm pasujących do ICP Operio (albo wszystkie już są w bazie). Spróbuj ponownie później.';
       btn.disabled=false;btn.textContent='Szukaj klientów Operio';
       return;
     }
@@ -3905,7 +3930,13 @@ async function searchOperioIcpCompanies(){
     renderColdMailingCompanies();
     setTimeout(()=>{status.style.display='none';},5000);
   }catch(error){
-    status.textContent=error.message||'Nie udało się wyszukać firm w Apollo.';
+    if(generated.length){
+      DB.set('companies',[...generated,...existing]);
+      renderColdMailingCompanies();
+      status.textContent=`Dodano ${generated.length} firm przed błędem: ${error.message||'nie udało się dokończyć wyszukiwania.'}`;
+    }else{
+      status.textContent=error.message||'Nie udało się wyszukać firm w Apollo.';
+    }
   }finally{
     btn.disabled=false;btn.textContent='Szukaj klientów Operio';
   }

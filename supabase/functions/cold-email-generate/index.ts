@@ -180,8 +180,8 @@ Deno.serve(async (request) => {
     const contact = compactContact(body?.contact);
     if (!cleanText(company.name, 300)) return json({ error: 'Brakuje nazwy firmy.' }, 400);
 
-    const result = await callOpenAI(company, contact);
-    return json({ ...result, generatedAt: new Date().toISOString() });
+    const { result, model } = await callOpenAI(company, contact);
+    return json({ ...result, model, generatedAt: new Date().toISOString() });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Błąd serwera AI.';
     return json({ error: message }, message.includes('OPENAI_API_KEY') ? 503 : 500);
