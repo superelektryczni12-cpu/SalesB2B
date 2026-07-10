@@ -348,6 +348,13 @@ function keywordTags(body: Record<string, unknown>) {
   return keywords.split(/[,;|]/).map((item) => text(item, 120).toLowerCase()).filter(Boolean).slice(0, 12);
 }
 
+function applyRevenueRange(params: URLSearchParams, body: Record<string, unknown>) {
+  const revenueMin = clampInt(body.revenueMin, 0, 1_000_000_000, 0);
+  const revenueMax = clampInt(body.revenueMax, 0, 1_000_000_000, 0);
+  if (revenueMin > 0) params.set('revenue_range[min]', String(revenueMin));
+  if (revenueMax > 0) params.set('revenue_range[max]', String(revenueMax));
+}
+
 function buildOrganizationParams(body: Record<string, unknown>, options: Record<string, unknown>, limit: number) {
   const params = new URLSearchParams();
   params.set('page', String(clampInt(body.page, 1, 20, 1)));
@@ -355,6 +362,7 @@ function buildOrganizationParams(body: Record<string, unknown>, options: Record<
   addQueryValues(params, 'q_organization_keyword_tags', options.keywordTags, 12);
   addQueryValues(params, 'organization_locations', options.locations, 24);
   addQueryValues(params, 'organization_num_employees_ranges', options.employeeRanges, 8);
+  applyRevenueRange(params, body);
   return params;
 }
 
@@ -368,6 +376,7 @@ function buildPeopleParams(body: Record<string, unknown>, options: Record<string
   addQueryValues(params, 'person_titles', options.titles);
   addQueryValues(params, 'organization_locations', options.locations);
   addQueryValues(params, 'organization_num_employees_ranges', options.employeeRanges);
+  applyRevenueRange(params, body);
   params.set('include_similar_titles', 'true');
   return params;
 }

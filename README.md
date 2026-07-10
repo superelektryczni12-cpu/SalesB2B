@@ -55,6 +55,16 @@ Dluzsze nagrania (powyzej ok. 60-90 minut w m4a/mp3, zaleznie od jakosci) przekr
 
 Ta funkcja nie wymaga dodatkowego SQL. Dostep otrzymuja tylko zalogowane, aktywne konta z `organization_members`.
 
+### BriefAI
+
+Osobna zakladka (obok "Firmy") na dowolne "rozmowy": handlowiec zaklada nazwana sesje, wybiera etap sprzedazy (Cold call ... Realizacja, albo dowolny miesiac wspolpracy), opcjonalnie podpina istniejaca firme z bazy, wkleja notatki tekstowe oraz zalacza pliki i zrzuty ekranu (obrazy mozna wklejac bezposrednio przez Ctrl+V). AI generuje z tego wszystkiego brief w tym samym formacie co brief przy karcie firmy, dopasowany do wybranego etapu.
+
+1. W Supabase wklej i uruchom `supabase-brief-attachments.sql` (tworzy prywatny bucket `sales-b2b-brief-attachments`, limit 10 MB/plik, polityki RLS analogiczne do `sales-b2b-chat-files`).
+2. Wdroz `supabase/functions/briefai-generate/index.ts` jako funkcje `briefai-generate` z **wlaczona weryfikacja JWT**.
+3. Funkcja korzysta z tego samego sekretu `OPENAI_API_KEY` co `sales-ai` — nie trzeba dodawac nic nowego.
+
+Obsluguje zalaczniki obrazkowe (wysylane do modelu jako wejscie wizualne — model "czyta" tresc zrzutu ekranu) oraz male pliki tekstowe (.txt/.csv, do 50 KB tresci). Inne typy plikow (PDF, DOCX itd.) sa odrzucane z czytelnym komunikatem — nie sa wspierane w tej wersji. Limit to 5 zalacznikow na rozmowe.
+
 ## Droga Sprzedazy
 
 Zakladka prowadzi klienta przez etapy `Cold call -> Maly audyt -> Spotkanie ofertowe -> Duzy audyt -> Sprzedaz`, a nastepnie przez 12 miesiecy wspolpracy. Handlowiec widzi i edytuje wylacznie klientow zapisanych na swoim koncie. Przy utracie zapisuje etap, powod oraz opcjonalne wyjasnienie.
