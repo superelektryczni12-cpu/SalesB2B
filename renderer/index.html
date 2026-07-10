@@ -3744,7 +3744,10 @@ async function copySalesAIFollowUp(){
 let activeApolloCompanyId=null;
 const APOLLO_PHONE_TIMEOUT_MS=3*60*1000;
 function apolloPhonePendingExpired(contact){
-  return contact.phoneStatus==='pending'&&contact.apolloPhoneRequestedAt&&(Date.now()-new Date(contact.apolloPhoneRequestedAt).getTime())>APOLLO_PHONE_TIMEOUT_MS;
+  if(contact.phoneStatus!=='pending')return false;
+  const referenceTime=contact.apolloPhoneRequestedAt||contact.apolloEnrichedAt;
+  if(!referenceTime)return false;
+  return (Date.now()-new Date(referenceTime).getTime())>APOLLO_PHONE_TIMEOUT_MS;
 }
 
 function companyDomain(value){
