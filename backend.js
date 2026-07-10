@@ -6,6 +6,7 @@ const crypto = require('crypto');
 
 const CONFIG_FILE = path.join(__dirname, 'supabase-config.json');
 const CHAT_BUCKET = 'sales-b2b-chat-files';
+const CALL_RECORDINGS_BUCKET = 'sales-b2b-call-recordings';
 
 function readConfig() {
   try {
@@ -610,6 +611,34 @@ async function createChatFileUrl(filePath) {
   return data.signedUrl;
 }
 
+async function uploadCallRecording(file = {}) {
+  const supabase = getClient();
+  const context = await currentContext();
+  const name = safeChatFileName(file.name);
+  const size = Number(file.size) || 0;
+  if (!file.dataBase64) throw new Error('Nie udało się odczytać nagrania.');
+  if (size > 25 * 1024 * 1024) throw new Error('Nagranie może mieć maksymalnie 25 MB.');
+  const buffer = Buffer.from(String(file.dataBase64), 'base64');
+  const filePath = `${context.organizationId}/${context.memberId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${name}`;
+  const { error } = await supabase.storage
+    .from(CALL_RECORDINGS_BUCKET)
+    .upload(filePath, buffer, {
+      contentType: cleanString(file.type, 120) || 'application/octet-stream',
+      upsert: false,
+    });
+  if (error) throw error;
+  return { path: filePath, name, size: buffer.length };
+}
+
+async function transcribeCallRecording(recordingPath) {
+  await currentUser();
+  const body = { path: cleanString(recordingPath, 500) };
+  const { data, error } = await getClient().functions.invoke('transcribe-call', { body });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 async function getBookings() {
   const data = await loadUserData();
   return Array.isArray(data.bookings) ? data.bookings : [];
@@ -671,6 +700,8 @@ module.exports = {
   sendChatMessage,
   uploadChatFile,
   createChatFileUrl,
+  uploadCallRecording,
+  transcribeCallRecording,
   generateSalesAI,
   apolloContacts,
   getSalesJourneyStats,

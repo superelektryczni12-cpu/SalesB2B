@@ -1129,6 +1129,14 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
 
     <div id="sales-ai-post-pane" style="display:none">
       <div class="form-group">
+        <label>Nagranie rozmowy (opcjonalnie)</label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <input id="call-recording-input" type="file" accept="audio/*" style="max-width:260px">
+          <button class="btn btn-ghost btn-sm" id="call-recording-btn" onclick="transcribeCallRecording()">Transkrybuj</button>
+        </div>
+        <div id="call-recording-status" class="sales-ai-status"></div>
+      </div>
+      <div class="form-group">
         <label>Notatka po rozmowie</label>
         <textarea id="sales-ai-call-note" rows="7" placeholder="Najważniejsze informacje przekazane przez rozmówcę..."></textarea>
       </div>
@@ -3618,6 +3626,8 @@ function openCompanyAI(id,mode='brief'){
   displayedPostCallAnalysis=latest?.analysis||null;
   document.getElementById('sales-ai-company').textContent=`Asystent · ${company.name}`;
   document.getElementById('sales-ai-call-note').value='';
+  document.getElementById('call-recording-input').value='';
+  setSalesAIStatus('call-recording-status','');
   document.getElementById('sales-ai-brief-output').innerHTML=renderSalesAIBrief(company.aiBrief);
   document.getElementById('sales-ai-brief-btn').textContent=company.aiBrief?'Odśwież brief AI':'Generuj brief AI';
   document.getElementById('sales-ai-post-output').innerHTML=renderPostCallResult(displayedPostCallAnalysis);
@@ -3654,6 +3664,28 @@ async function generateCompanyBrief(){
     setSalesAIStatus('sales-ai-brief-status',error.message||'Nie udało się wygenerować briefu.','error');
     button.textContent=company.aiBrief?'Odśwież brief AI':'Generuj brief AI';
   }finally{button.disabled=false;}
+}
+async function transcribeCallRecording(){
+  const input=document.getElementById('call-recording-input');
+  const file=input.files?.[0];
+  if(!file){setSalesAIStatus('call-recording-status','Wybierz plik audio.','error');return;}
+  if(file.size>25*1024*1024){setSalesAIStatus('call-recording-status','Nagranie może mieć maksymalnie 25 MB (ok. 60-90 min w m4a/mp3).','error');return;}
+  const button=document.getElementById('call-recording-btn');
+  button.disabled=true;button.textContent='Transkrybuję...';
+  setSalesAIStatus('call-recording-status','Wysyłam nagranie...');
+  try{
+    const dataBase64=await fileToBase64(file);
+    const uploaded=await window.electronAPI.uploadCallRecording({name:file.name,type:file.type,size:file.size,dataBase64});
+    setSalesAIStatus('call-recording-status','Transkrybuję nagranie (może potrwać do minuty)...');
+    const response=await window.electronAPI.transcribeCallRecording(uploaded.path);
+    const note=document.getElementById('sales-ai-call-note');
+    note.value=note.value.trim()?`${note.value.trim()}\n\n${response.transcript}`:response.transcript;
+    setSalesAIStatus('call-recording-status','Gotowe. Przejrzyj transkrypt i kliknij "Analizuj rozmowę".','ok');
+  }catch(error){
+    setSalesAIStatus('call-recording-status',error.message||'Nie udało się transkrybować nagrania.','error');
+  }finally{
+    button.disabled=false;button.textContent='Transkrybuj';
+  }
 }
 async function analyzeCompanyCall(){
   const company=gCompanies().find(item=>item.id===activeSalesAICompanyId);if(!company)return;
@@ -3712,7 +3744,10 @@ async function copySalesAIFollowUp(){
 let activeApolloCompanyId=null;
 const APOLLO_PHONE_TIMEOUT_MS=3*60*1000;
 function apolloPhonePendingExpired(contact){
-  return contact.phoneStatus==='pending'&&contact.apolloPhoneRequestedAt&&(Date.now()-new Date(contact.apolloPhoneRequestedAt).getTime())>APOLLO_PHONE_TIMEOUT_MS;
+  if(contact.phoneStatus!=='pending')return false;
+  const referenceTime=contact.apolloPhoneRequestedAt||contact.apolloEnrichedAt;
+  if(!referenceTime)return false;
+  return (Date.now()-new Date(referenceTime).getTime())>APOLLO_PHONE_TIMEOUT_MS;
 }
 
 function companyDomain(value){
