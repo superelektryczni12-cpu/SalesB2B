@@ -488,6 +488,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <button class="nav-pill" onclick="showPage('companies')">Firmy</button>
     <button class="nav-pill" onclick="showPage('sales-journey')">Droga Sprzedaży</button>
     <button class="nav-pill" onclick="showPage('team-management')">Zespół</button>
+    <button class="nav-pill" onclick="showPage('cold-mailing')">Cold Mailing</button>
     <button class="nav-pill" onclick="showPage('admin-dashboard')">Panel Admina</button>
   </div>
   <button class="nav-settings" onclick="showPage('settings')" title="Ustawienia">⚙</button>
@@ -808,6 +809,39 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   </div>
 </div>
 
+<!-- COLD MAILING -->
+<div id="page-cold-mailing" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Cold Mailing</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px">ICP Operio → Apollo → AI → sekwencja w Instantly.</div>
+    </div>
+  </div>
+
+  <!-- INSTANTLY SETTINGS -->
+  <div class="card" style="margin-bottom:18px;max-width:560px">
+    <div class="form-group" style="margin-bottom:8px">
+      <label>Instantly — ID kampanii "Operio Cold Outreach"</label>
+      <input id="cm-campaign-id" placeholder="np. 019dd250-5a43-7130-a4d9-e6f81262b95c">
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="saveColdMailingCampaignId()">Zapisz</button>
+    <span id="cm-campaign-ok" style="display:none;color:var(--green);font-size:12.5px;margin-left:10px">✓ Zapisano</span>
+  </div>
+
+  <!-- ICP SEARCH -->
+  <div class="ai-gen-panel" style="margin-bottom:18px">
+    <div style="font-size:13px;font-weight:600;color:var(--blue);margin-bottom:10px">Szukaj klientów Operio</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Jedno kliknięcie — filtry Apollo wpisane na sztywno pod ICP Operio: polskie MŚP 10-80 pracowników (handel, usługi B2B, produkcja, IT, finanse, spedycja), decydenci CEO/Właściciel/Dyrektor Sprzedaży/COO.</div>
+    <button class="btn btn-primary" onclick="searchOperioIcpCompanies()" id="cm-search-btn">Szukaj klientów Operio</button>
+    <div id="cm-search-status" style="font-size:12px;color:var(--text2);margin-top:10px;display:none"></div>
+  </div>
+
+  <div id="cold-mailing-empty" style="display:none;color:var(--text2);padding:32px 0;font-size:14px;text-align:center">
+    Brak firm z presetu Operio. Kliknij "Szukaj klientów Operio" powyżej.
+  </div>
+  <div id="cold-mailing-list"></div>
+</div>
+
 <!-- PANEL ADMINA -->
 <div id="page-admin-dashboard" class="page">
   <div class="page-header">
@@ -1120,6 +1154,21 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="closeM('m-apollo-contacts')">Zamknij</button>
       <button class="btn btn-primary btn-sm" id="apollo-search-btn" onclick="searchApolloContacts()">Odśwież listę</button>
+    </div>
+  </div>
+</div>
+
+<!-- COLD EMAIL DRAFTS MODAL -->
+<div class="overlay" id="m-cold-email">
+  <div class="modal modal-xl">
+    <button class="modal-close" onclick="closeM('m-cold-email')">✕</button>
+    <h2 id="cold-email-title">Cold email</h2>
+    <div id="cold-email-status" class="sales-ai-status"></div>
+    <div id="cold-email-drafts"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-cold-email')">Zamknij</button>
+      <button class="btn btn-ghost btn-sm" id="cold-email-generate-btn" onclick="generateColdEmailDrafts()">Generuj</button>
+      <button class="btn btn-primary btn-sm" id="cold-email-send-btn" style="display:none" onclick="sendColdEmailToInstantly()">Wyślij do Instantly</button>
     </div>
   </div>
 </div>
@@ -1439,6 +1488,7 @@ function updateNav(user){
     {perm:'firmy'},
     {perm:'droga_sprzedazy',sales:true},
     {teamOnly:true},
+    {adminOnly:true},
     {adminOnly:true},
   ];
   pills.forEach((p,i)=>{
@@ -1888,11 +1938,11 @@ function showPage(p){
   document.querySelector('.nav-home').classList.toggle('active',p==='home');
   document.querySelector('.nav-settings').classList.toggle('active',p==='settings');
   document.getElementById('page-'+p).classList.add('active');
-  const tabs=['calendar','projects','clients','finance','meetings','companies','sales-journey','team-management','admin-dashboard'];
+  const tabs=['calendar','projects','clients','finance','meetings','companies','sales-journey','team-management','cold-mailing','admin-dashboard'];
   const i=tabs.indexOf(p);if(i>=0)document.querySelectorAll('.nav-pill')[i].classList.add('active');
   curPage=p;
   if(p==='admin-dashboard'&&isOrgAdmin(currentUser)){selectedDataUserId=currentUser.id;renderTeamBar();}
-  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,companies:renderCompanies,'sales-journey':renderSalesJourney,'team-management':renderTeamManagement,'admin-dashboard':renderAdminDashboard})[p]?.();
+  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,companies:renderCompanies,'sales-journey':renderSalesJourney,'team-management':renderTeamManagement,'cold-mailing':renderColdMailing,'admin-dashboard':renderAdminDashboard})[p]?.();
 }
 
 function renderHome(){
@@ -3712,6 +3762,7 @@ function renderApolloContacts(){
         ${contact.phoneStatus==='pending'?`<button class="btn btn-ghost btn-sm" onclick="pollApolloPhone('${contact.apolloPersonId}')">Sprawdź telefon</button>`:''}
         <button class="btn btn-primary btn-sm" onclick="createApolloLead('${contact.apolloPersonId}')">${lead?'Otwórz lead':'Dodaj jako lead'}</button>
         <button class="btn btn-primary btn-sm" onclick="selectApolloContact('${contact.apolloPersonId}')">Użyj w Briefie AI</button>
+        <button class="btn btn-ghost btn-sm" onclick="openColdEmailDrafts('${contact.apolloPersonId}')">Generuj cold email</button>
       </div>
     </div>`;
   }).join('');
@@ -3808,6 +3859,181 @@ function selectApolloContact(personId){
   DB.set('companies',companies);
   syncJourneyFromCompany(companies[companyIndex]);
   closeM('m-apollo-contacts');renderCompanies();openCompanyAI(companies[companyIndex].id,'brief');
+}
+
+// ══════════════════════════════
+// COLD MAILING — ICP Operio, generowanie AI, wysyłka do Instantly
+// ══════════════════════════════
+const OPERIO_ICP_PAYLOAD={
+  industry:'operio_icp',
+  industryQuery:'wholesale trade b2b services manufacturing production information technology accounting financial services logistics transportation freight',
+  keywords:'wholesale trade b2b services manufacturing production information technology accounting financial services logistics transportation freight',
+  keywordTags:['information technology','software','it services','manufacturing','production','wholesale','b2b services','professional services','logistics','transportation','freight','accounting','financial services'],
+  locations:['Poland'],
+  employeeRanges:['11,50','51,200'],
+  seniorities:['owner','founder','c_suite','director'],
+  titles:['CEO','Właściciel','Prezes','Dyrektor Sprzedaży','COO','Dyrektor Zarządzający'],
+  limit:100,
+};
+async function searchOperioIcpCompanies(){
+  const btn=document.getElementById('cm-search-btn');
+  const status=document.getElementById('cm-search-status');
+  btn.disabled=true;btn.textContent='Szukam...';
+  status.style.display='block';status.textContent='Szukam firm pasujących do ICP Operio w Apollo...';
+  const existing=gCompanies();
+  const existingKeys=new Set(existing.map(companyDedupeKey).filter(Boolean));
+  try{
+    const response=await window.electronAPI.apolloContacts('search_companies',OPERIO_ICP_PAYLOAD);
+    const apolloCompanies=aiArray(response.companies);
+    const generated=[];
+    for(const raw of apolloCompanies){
+      const company=apolloCompanyToLocal(raw,'operio_icp','ICP Operio',OPERIO_ICP_PAYLOAD);
+      const key=companyDedupeKey(company);
+      if(!key||existingKeys.has(key))continue;
+      existingKeys.add(key);
+      company.coldMailingSource='operio_icp';
+      generated.push(company);
+    }
+    if(!generated.length){
+      const found=Number(response?.meta?.found||apolloCompanies.length||0);
+      status.textContent=found?`Apollo znalazło ${found} firm, ale wszystkie są już w bazie.`:'Nie znaleziono nowych firm pasujących do ICP Operio. Spróbuj ponownie później.';
+      btn.disabled=false;btn.textContent='Szukaj klientów Operio';
+      return;
+    }
+    DB.set('companies',[...generated,...existing]);
+    status.textContent=`Dodano ${generated.length} firm pasujących do ICP Operio.`;
+    renderColdMailingCompanies();
+    setTimeout(()=>{status.style.display='none';},5000);
+  }catch(error){
+    status.textContent=error.message||'Nie udało się wyszukać firm w Apollo.';
+  }finally{
+    btn.disabled=false;btn.textContent='Szukaj klientów Operio';
+  }
+}
+function renderColdMailing(){
+  document.getElementById('cm-campaign-id').value=gs().instantlyCampaignId||'';
+  renderColdMailingCompanies();
+}
+function saveColdMailingCampaignId(){
+  const value=document.getElementById('cm-campaign-id').value.trim();
+  DB.set('settings',{...gs(),instantlyCampaignId:value});
+  const ok=document.getElementById('cm-campaign-ok');
+  ok.style.display='inline';setTimeout(()=>{ok.style.display='none';},2000);
+}
+function renderColdMailingCompanies(){
+  const list=gCompanies().filter(c=>c.coldMailingSource==='operio_icp');
+  const el=document.getElementById('cold-mailing-list');
+  const emptyEl=document.getElementById('cold-mailing-empty');
+  if(!list.length){el.innerHTML='';emptyEl.style.display='block';return;}
+  emptyEl.style.display='none';
+  el.innerHTML=list.map(c=>{
+    const initials=(c.name||'?').split(' ').filter(Boolean).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const contactsCount=aiArray(c.apolloContacts).length;
+    const statusBadge=c.coldMailing?.status==='w_sekwencji'?'<span class="badge badge-interested" style="margin-left:8px">W sekwencji Instantly ✅</span>':'';
+    return `<div class="lead-card">
+      <div class="lead-card-header" style="cursor:default">
+        <div class="lead-avatar" style="background:#3b82f622;color:#3b82f6">${esc(initials)}</div>
+        <div style="flex:1">
+          <div class="lead-name">${esc(c.name)}${statusBadge}</div>
+          <div class="lead-meta">${[c.city||'Miasto: brak danych',c.estimatedEmployees?`${c.estimatedEmployees} pracowników`:'Wielkość: brak danych',c.apolloDescription?c.apolloDescription.slice(0,80):''].filter(Boolean).map(esc).join(' · ')}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="openApolloContacts('${c.id}')">Decydenci${contactsCount?` (${contactsCount})`:''}</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let coldEmailDraft=null;
+function openColdEmailDrafts(personId){
+  const company=gCompanies().find(item=>item.id===activeApolloCompanyId);
+  const contact=aiArray(company?.apolloContacts).find(item=>item.apolloPersonId===personId);
+  if(!company||!contact)return;
+  if(!contact.email){alert('Najpierw pobierz e-mail i telefon tego kontaktu przyciskiem "Pobierz e-mail i telefon".');return;}
+  coldEmailDraft={companyId:company.id,personId,emails:null};
+  document.getElementById('cold-email-title').textContent=`Cold email · ${contact.fullName||'Kontakt'} · ${company.name}`;
+  document.getElementById('cold-email-drafts').innerHTML='';
+  document.getElementById('cold-email-status').textContent='';
+  document.getElementById('cold-email-send-btn').style.display='none';
+  closeM('m-apollo-contacts');
+  openM('m-cold-email');
+  generateColdEmailDrafts();
+}
+function renderColdEmailDraftsModal(){
+  const el=document.getElementById('cold-email-drafts');
+  if(!coldEmailDraft?.emails){el.innerHTML='';return;}
+  const labels={1:'Email 1 · Dzień 0',2:'Email 2 · Dzień +3',3:'Email 3 · Dzień +10'};
+  el.innerHTML=coldEmailDraft.emails.map(email=>`
+    <div class="card" style="margin-bottom:14px">
+      <div class="form-section-label" style="font-size:11px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">${esc(labels[email.step]||`Email ${email.step}`)}</div>
+      <div class="form-group"><label>Temat</label><input class="cold-email-subject" data-step="${email.step}" value="${esc(email.subject)}"></div>
+      <div class="form-group" style="margin-bottom:0"><label>Treść</label><textarea class="cold-email-body" data-step="${email.step}" rows="6">${esc(email.body)}</textarea></div>
+    </div>`).join('');
+}
+async function generateColdEmailDrafts(){
+  if(!coldEmailDraft)return;
+  const company=gCompanies().find(item=>item.id===coldEmailDraft.companyId);
+  const contact=aiArray(company?.apolloContacts).find(item=>item.apolloPersonId===coldEmailDraft.personId);
+  if(!company||!contact)return;
+  const btn=document.getElementById('cold-email-generate-btn');
+  const status=document.getElementById('cold-email-status');
+  btn.disabled=true;status.textContent='Generuję sekwencję 3 maili...';status.className='sales-ai-status';
+  try{
+    const response=await window.electronAPI.generateColdEmail({
+      company:{name:company.name,industry:company.industry,estimatedEmployees:company.estimatedEmployees,size:company.size,city:company.city,apolloDescription:company.apolloDescription,apolloKeywords:company.apolloKeywords,apolloIndustries:company.apolloIndustries,apolloDecisionReason:company.apolloDecisionReason},
+      contact:{name:contact.fullName,title:contact.title},
+    });
+    coldEmailDraft.emails=aiArray(response.emails).sort((a,b)=>a.step-b.step);
+    renderColdEmailDraftsModal();
+    document.getElementById('cold-email-send-btn').style.display=coldEmailDraft.emails.length?'':'none';
+    status.textContent='Gotowe. Przejrzyj i popraw treść przed wysyłką.';status.className='sales-ai-status ok';
+  }catch(error){
+    status.textContent=error.message||'Nie udało się wygenerować maili.';status.className='sales-ai-status error';
+  }finally{
+    btn.disabled=false;
+  }
+}
+async function sendColdEmailToInstantly(){
+  if(!coldEmailDraft?.emails)return;
+  const companies=gCompanies();
+  const companyIndex=companies.findIndex(item=>item.id===coldEmailDraft.companyId);
+  if(companyIndex<0)return;
+  const company=companies[companyIndex];
+  const contact=aiArray(company.apolloContacts).find(item=>item.apolloPersonId===coldEmailDraft.personId);
+  if(!contact)return;
+  const campaignId=(gs().instantlyCampaignId||'').trim();
+  if(!campaignId){alert('Najpierw ustaw ID kampanii Instantly w zakładce Cold Mailing.');return;}
+  const status=document.getElementById('cold-email-status');
+  const btn=document.getElementById('cold-email-send-btn');
+  const bySubjectStep=step=>document.querySelector(`.cold-email-subject[data-step="${step}"]`)?.value||'';
+  const byBodyStep=step=>document.querySelector(`.cold-email-body[data-step="${step}"]`)?.value||'';
+  const nameParts=(contact.fullName||'').trim().split(/\s+/);
+  btn.disabled=true;status.textContent='Wysyłam do Instantly...';status.className='sales-ai-status';
+  try{
+    const result=await window.electronAPI.pushToInstantly({
+      campaignId,
+      lead:{
+        email:contact.email,
+        firstName:nameParts[0]||'',
+        lastName:nameParts.slice(1).join(' ')||'',
+        companyName:company.name,
+        jobTitle:contact.title||'',
+      },
+      customVariables:{
+        subject1:bySubjectStep(1),body1:byBodyStep(1),
+        subject2:bySubjectStep(2),body2:byBodyStep(2),
+        subject3:bySubjectStep(3),body3:byBodyStep(3),
+      },
+    });
+    companies[companyIndex].coldMailing={status:'w_sekwencji',sentAt:new Date().toISOString(),instantlyLeadId:result.instantlyLeadId||'',personId:contact.apolloPersonId};
+    DB.set('companies',companies);
+    status.textContent='Wysłano — lead trafił do sekwencji Instantly.';status.className='sales-ai-status ok';
+    renderColdMailingCompanies();
+    setTimeout(()=>{closeM('m-cold-email');},1200);
+  }catch(error){
+    status.textContent=error.message||'Nie udało się wysłać do Instantly.';status.className='sales-ai-status error';
+  }finally{
+    btn.disabled=false;
+  }
 }
 
 function openNewCompany() {

@@ -222,6 +222,31 @@ async function getSalesJourneyStats() {
   return data;
 }
 
+async function generateColdEmail(payload) {
+  await currentUser();
+  const body = {
+    company: payload?.company || {},
+    contact: payload?.contact || {},
+  };
+  const { data, error } = await getClient().functions.invoke('cold-email-generate', { body });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+async function pushToInstantly(payload) {
+  await currentUser();
+  const body = {
+    campaignId: payload?.campaignId || '',
+    lead: payload?.lead || {},
+    customVariables: payload?.customVariables || {},
+  };
+  const { data, error } = await getClient().functions.invoke('instantly-push', { body });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 async function listEmployees() {
   const supabase = getClient();
   const context = await currentContext();
@@ -654,4 +679,6 @@ module.exports = {
   updateBookingStatus,
   assignBooking,
   syncOperioBookings,
+  generateColdEmail,
+  pushToInstantly,
 };

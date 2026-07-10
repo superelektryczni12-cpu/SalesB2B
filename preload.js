@@ -27,6 +27,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   generateSalesAI: (action, payload) => ipcRenderer.invoke('sales-ai-generate', action, payload),
   apolloContacts: (action, payload) => ipcRenderer.invoke('apollo-contacts', action, payload),
   getSalesJourneyStats: () => ipcRenderer.invoke('sales-journey-stats'),
+  generateColdEmail: (payload) => ipcRenderer.invoke('cold-email-generate', payload),
+  pushToInstantly: (payload) => ipcRenderer.invoke('instantly-push', payload),
   getAppVersion: () => ipcRenderer.invoke('app-version'),
   checkForUpdates: (manual = false) => ipcRenderer.invoke('updates-check', manual),
   installUpdate: () => ipcRenderer.invoke('updates-install'),
