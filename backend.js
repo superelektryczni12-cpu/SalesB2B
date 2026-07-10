@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const CONFIG_FILE = path.join(__dirname, 'supabase-config.json');
 const CHAT_BUCKET = 'sales-b2b-chat-files';
 const CALL_RECORDINGS_BUCKET = 'sales-b2b-call-recordings';
+const BRIEF_ATTACHMENTS_BUCKET = 'sales-b2b-brief-attachments';
 
 function readConfig() {
   try {
@@ -59,6 +60,7 @@ let client;
 const APP_DATA_KEYS = new Set([
   'settings', 'clients', 'projects', 'events', 'quotes', 'transactions',
   'companies', 'manual_meetings', 'bookings', 'sales_journey', 'seeded',
+  'brief_sessions',
 ]);
 
 function getClient() {
@@ -639,6 +641,41 @@ async function transcribeCallRecording(recordingPath) {
   return data;
 }
 
+async function uploadBriefAttachment(file = {}) {
+  const supabase = getClient();
+  const context = await currentContext();
+  const name = safeChatFileName(file.name);
+  const size = Number(file.size) || 0;
+  if (!file.dataBase64) throw new Error('Nie udało się odczytać załącznika.');
+  if (size > 10 * 1024 * 1024) throw new Error('Załącznik może mieć maksymalnie 10 MB.');
+  const buffer = Buffer.from(String(file.dataBase64), 'base64');
+  const filePath = `${context.organizationId}/${context.memberId}/${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${name}`;
+  const { error } = await supabase.storage
+    .from(BRIEF_ATTACHMENTS_BUCKET)
+    .upload(filePath, buffer, {
+      contentType: cleanString(file.type, 120) || 'application/octet-stream',
+      upsert: false,
+    });
+  if (error) throw error;
+  return { path: filePath, name, type: cleanString(file.type, 120), size: buffer.length };
+}
+
+async function generateBriefAI(payload) {
+  await currentUser();
+  const body = {
+    name: payload?.name || '',
+    stage: payload?.stage || '',
+    notes: payload?.notes || '',
+    company: payload?.company || null,
+    seller: payload?.seller || {},
+    attachments: payload?.attachments || [],
+  };
+  const { data, error } = await getClient().functions.invoke('briefai-generate', { body });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 async function getBookings() {
   const data = await loadUserData();
   return Array.isArray(data.bookings) ? data.bookings : [];
@@ -702,6 +739,8 @@ module.exports = {
   createChatFileUrl,
   uploadCallRecording,
   transcribeCallRecording,
+  uploadBriefAttachment,
+  generateBriefAI,
   generateSalesAI,
   apolloContacts,
   getSalesJourneyStats,

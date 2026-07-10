@@ -486,6 +486,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <button class="nav-pill" onclick="showPage('finance')">Finanse</button>
     <button class="nav-pill" onclick="showPage('meetings')">Spotkania</button>
     <button class="nav-pill" onclick="showPage('companies')">Firmy</button>
+    <button class="nav-pill" onclick="showPage('brief-ai')">BriefAI</button>
     <button class="nav-pill" onclick="showPage('sales-journey')">Droga Sprzedaży</button>
     <button class="nav-pill" onclick="showPage('team-management')">Zespół</button>
     <button class="nav-pill" onclick="showPage('cold-mailing')">Cold Mailing</button>
@@ -765,6 +766,21 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     Brak firm. Dodaj ręcznie lub użyj generatora AI powyżej.
   </div>
   <div id="companies-list"></div>
+</div>
+
+<!-- BRIEF AI -->
+<div id="page-brief-ai" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">BriefAI</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px">Notatki, pliki i zrzuty ekranu → brief na rozmowę dopasowany do etapu sprzedaży.</div>
+    </div>
+    <button class="btn btn-primary" onclick="openNewBriefSession()">+ Nowa rozmowa</button>
+  </div>
+  <div id="brief-sessions-empty" style="display:none;color:var(--text2);padding:32px 0;font-size:14px;text-align:center">
+    Brak rozmów. Kliknij "+ Nowa rozmowa", żeby zacząć.
+  </div>
+  <div id="brief-sessions-list"></div>
 </div>
 
 <!-- DROGA SPRZEDAŻY -->
@@ -1181,6 +1197,32 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   </div>
 </div>
 
+<!-- BRIEF AI SESSION MODAL -->
+<div class="overlay" id="m-brief-session">
+  <div class="modal modal-xl">
+    <button class="modal-close" onclick="closeM('m-brief-session')">✕</button>
+    <h2 id="brief-session-title">Nowa rozmowa</h2>
+    <div class="row2">
+      <div class="form-group"><label>Nazwa rozmowy *</label><input id="brief-session-name" placeholder="np. TechWings — pierwszy kontakt"></div>
+      <div class="form-group"><label>Etap sprzedaży</label><select id="brief-session-stage"></select></div>
+    </div>
+    <div class="form-group"><label>Firma (opcjonalnie)</label><select id="brief-session-company"><option value="">— brak / wpisz w notatkach —</option></select></div>
+    <div class="form-group"><label>Notatki, dane o firmie, wklejony tekst</label><textarea id="brief-session-notes" rows="6" placeholder="Wklej tu tekst, dane o firmie, wnioski z researchu... Zrzuty ekranu możesz wkleić bezpośrednio (Ctrl+V) w dowolnym miejscu tego okna."></textarea></div>
+    <div class="form-group">
+      <label>Załączniki (obrazy, .txt, .csv — max 5, do 10MB każdy)</label>
+      <input id="brief-session-files" type="file" multiple accept="image/*,.txt,.csv" onchange="handleBriefAttachmentFiles(this.files);this.value=''">
+      <div id="brief-session-attachments" style="margin-top:8px"></div>
+    </div>
+    <div id="brief-session-status" class="sales-ai-status"></div>
+    <div id="brief-session-output"></div>
+    <div class="modal-actions">
+      <button class="btn btn-danger btn-sm" id="brief-session-delete-btn" style="display:none;margin-right:auto" onclick="deleteBriefSession()">Usuń rozmowę</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-brief-session')">Zamknij</button>
+      <button class="btn btn-primary btn-sm" id="brief-session-generate-btn" onclick="generateBriefSession()">Generuj brief</button>
+    </div>
+  </div>
+</div>
+
 <!-- SALES JOURNEY LEAD MODAL -->
 <div class="overlay" id="m-journey-lead">
   <div class="modal">
@@ -1276,7 +1318,7 @@ let cloudWriteChain=Promise.resolve();
 let suppressCloudWrites=false;
 let teamDataMembers=[];
 let selectedDataUserId=null;
-const USER_DATA_KEYS=['settings','clients','projects','events','quotes','transactions','companies','manual_meetings','bookings','sales_journey','seeded'];
+const USER_DATA_KEYS=['settings','clients','projects','events','quotes','transactions','companies','manual_meetings','bookings','sales_journey','seeded','brief_sessions'];
 
 function dataOwnerId(){return currentUser?(isAdmin(currentUser)&&selectedDataUserId?selectedDataUserId:currentUser.id):null;}
 function userStorageKey(key,userId=dataOwnerId()){return userId?`salesb2b:${userId}:${key}`:null;}
@@ -1493,6 +1535,7 @@ function updateNav(user){
     {perm:'klienci'},
     {perm:'finanse'},
     {perm:'spotkania'},
+    {perm:'firmy'},
     {perm:'firmy'},
     {perm:'droga_sprzedazy',sales:true},
     {teamOnly:true},
@@ -1946,11 +1989,11 @@ function showPage(p){
   document.querySelector('.nav-home').classList.toggle('active',p==='home');
   document.querySelector('.nav-settings').classList.toggle('active',p==='settings');
   document.getElementById('page-'+p).classList.add('active');
-  const tabs=['calendar','projects','clients','finance','meetings','companies','sales-journey','team-management','cold-mailing','admin-dashboard'];
+  const tabs=['calendar','projects','clients','finance','meetings','companies','brief-ai','sales-journey','team-management','cold-mailing','admin-dashboard'];
   const i=tabs.indexOf(p);if(i>=0)document.querySelectorAll('.nav-pill')[i].classList.add('active');
   curPage=p;
   if(p==='admin-dashboard'&&isOrgAdmin(currentUser)){selectedDataUserId=currentUser.id;renderTeamBar();}
-  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,companies:renderCompanies,'sales-journey':renderSalesJourney,'team-management':renderTeamManagement,'cold-mailing':renderColdMailing,'admin-dashboard':renderAdminDashboard})[p]?.();
+  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,companies:renderCompanies,'brief-ai':renderBriefAI,'sales-journey':renderSalesJourney,'team-management':renderTeamManagement,'cold-mailing':renderColdMailing,'admin-dashboard':renderAdminDashboard})[p]?.();
 }
 
 function renderHome(){
@@ -3595,6 +3638,169 @@ function renderSalesAIBrief(brief){
     <div class="sales-ai-panel"><div class="sales-ai-label">Obiekcje</div><div class="sales-ai-list">${objections.length?objections.map(item=>`<div><strong>${esc(item.objection)}</strong><br>${esc(item.response)}</div>`).join(''):'<div>Brak.</div>'}</div></div>
     <div class="sales-ai-box fact"><div class="sales-ai-label">Następny najlepszy krok</div><div class="sales-ai-copy">${esc(brief.nextBestAction)}</div></div>
     <div class="sales-ai-copy" style="color:var(--amber)">${esc(brief.caution)}</div>`;
+}
+// ══════════════════════════════
+// BRIEF AI — dowolne rozmowy: tekst + pliki + zrzuty ekranu -> brief wg etapu
+// ══════════════════════════════
+const gBriefSessions=()=>DB.get('brief_sessions')||[];
+let activeBriefSessionId=null;
+let activeBriefAttachments=[];
+
+function renderBriefAI(){
+  const sessions=gBriefSessions();
+  const el=document.getElementById('brief-sessions-list');
+  const emptyEl=document.getElementById('brief-sessions-empty');
+  if(!sessions.length){el.innerHTML='';emptyEl.style.display='block';return;}
+  emptyEl.style.display='none';
+  const stageLabel=id=>SALES_JOURNEY_STAGES.find(s=>s.id===id)?.label||id;
+  el.innerHTML=[...sessions].sort((a,b)=>(b.updatedAt||b.createdAt||'').localeCompare(a.updatedAt||a.createdAt||'')).map(session=>`
+    <div class="lead-card" style="cursor:pointer" onclick="openBriefSession('${session.id}')">
+      <div class="lead-card-header">
+        <div style="flex:1">
+          <div class="lead-name">${esc(session.name)}</div>
+          <div class="lead-meta">${esc(stageLabel(session.stage))}${session.companyName?` · ${esc(session.companyName)}`:''}${session.generatedAt?` · brief: ${esc(aiStamp(session.generatedAt))}`:' · brief jeszcze niewygenerowany'}</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function populateBriefStageSelect(selected){
+  const el=document.getElementById('brief-session-stage');
+  el.innerHTML=SALES_JOURNEY_STAGES.map(stage=>`<option value="${stage.id}"${stage.id===selected?' selected':''}>${esc(stage.label)}</option>`).join('');
+}
+function populateBriefCompanySelect(selected){
+  const el=document.getElementById('brief-session-company');
+  el.innerHTML='<option value="">— brak / wpisz w notatkach —</option>'+gCompanies().map(c=>`<option value="${c.id}"${c.id===selected?' selected':''}>${esc(c.name)}</option>`).join('');
+}
+function renderBriefAttachmentsList(){
+  const el=document.getElementById('brief-session-attachments');
+  if(!activeBriefAttachments.length){el.innerHTML='';return;}
+  el.innerHTML=activeBriefAttachments.map((att,index)=>`
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:8px;margin-bottom:6px;font-size:12.5px">
+      <span style="flex:1">${att.isImage?'🖼️':'📄'} ${esc(att.name)}</span>
+      <button class="btn-icon" onclick="removeBriefAttachment(${index})" title="Usuń">✕</button>
+    </div>`).join('');
+}
+function removeBriefAttachment(index){
+  activeBriefAttachments.splice(index,1);
+  renderBriefAttachmentsList();
+}
+async function uploadOneBriefAttachment(file){
+  const isImage=file.type.startsWith('image/');
+  const isText=file.type==='text/plain'||file.type==='text/csv'||/\.(txt|csv)$/i.test(file.name||'');
+  if(!isImage&&!isText){setSalesAIStatus('brief-session-status',`Nieobsługiwany typ pliku: ${file.name}. Obsługujemy obrazy oraz .txt/.csv.`,'error');return;}
+  if(file.size>10*1024*1024){setSalesAIStatus('brief-session-status',`Plik ${file.name} przekracza 10MB.`,'error');return;}
+  setSalesAIStatus('brief-session-status',`Wysyłam ${file.name}...`);
+  try{
+    const dataBase64=await fileToBase64(file);
+    const uploaded=await window.electronAPI.uploadBriefAttachment({name:file.name,type:file.type,size:file.size,dataBase64});
+    activeBriefAttachments.push({path:uploaded.path,name:uploaded.name,type:file.type,isImage});
+    renderBriefAttachmentsList();
+    setSalesAIStatus('brief-session-status','');
+  }catch(error){
+    setSalesAIStatus('brief-session-status',error.message||`Nie udało się wysłać ${file.name}.`,'error');
+  }
+}
+async function handleBriefAttachmentFiles(fileList){
+  for(const file of [...(fileList||[])]){
+    if(activeBriefAttachments.length>=5){setSalesAIStatus('brief-session-status','Maksymalnie 5 załączników.','error');break;}
+    await uploadOneBriefAttachment(file);
+  }
+}
+document.addEventListener('paste',async(event)=>{
+  const modal=document.getElementById('m-brief-session');
+  if(!modal||!modal.classList.contains('open'))return;
+  if(activeBriefAttachments.length>=5)return;
+  const items=[...(event.clipboardData?.items||[])];
+  const imageItem=items.find(item=>item.type&&item.type.startsWith('image/'));
+  if(!imageItem)return;
+  event.preventDefault();
+  const blob=imageItem.getAsFile();
+  if(!blob)return;
+  const named=new File([blob],`zrzut-ekranu-${Date.now()}.png`,{type:blob.type||'image/png'});
+  await uploadOneBriefAttachment(named);
+});
+function openNewBriefSession(){
+  activeBriefSessionId=null;
+  activeBriefAttachments=[];
+  document.getElementById('brief-session-title').textContent='Nowa rozmowa';
+  document.getElementById('brief-session-name').value='';
+  document.getElementById('brief-session-notes').value='';
+  populateBriefStageSelect('cold_call');
+  populateBriefCompanySelect('');
+  renderBriefAttachmentsList();
+  document.getElementById('brief-session-output').innerHTML='';
+  setSalesAIStatus('brief-session-status','');
+  document.getElementById('brief-session-delete-btn').style.display='none';
+  document.getElementById('brief-session-generate-btn').textContent='Generuj brief';
+  openM('m-brief-session');
+}
+function openBriefSession(id){
+  const session=gBriefSessions().find(item=>item.id===id);if(!session)return;
+  activeBriefSessionId=id;
+  activeBriefAttachments=aiArray(session.attachments);
+  document.getElementById('brief-session-title').textContent=session.name;
+  document.getElementById('brief-session-name').value=session.name;
+  document.getElementById('brief-session-notes').value=session.notes||'';
+  populateBriefStageSelect(session.stage);
+  populateBriefCompanySelect(session.companyId||'');
+  renderBriefAttachmentsList();
+  document.getElementById('brief-session-output').innerHTML=renderSalesAIBrief(session.brief);
+  setSalesAIStatus('brief-session-status',session.generatedAt?`Ostatni brief: ${aiStamp(session.generatedAt)}.`:'');
+  document.getElementById('brief-session-delete-btn').style.display='';
+  document.getElementById('brief-session-generate-btn').textContent=session.brief?'Generuj ponownie':'Generuj brief';
+  openM('m-brief-session');
+}
+async function generateBriefSession(){
+  const name=document.getElementById('brief-session-name').value.trim();
+  if(!name){setSalesAIStatus('brief-session-status','Podaj nazwę rozmowy.','error');return;}
+  const stage=document.getElementById('brief-session-stage').value;
+  const companyId=document.getElementById('brief-session-company').value;
+  const notes=document.getElementById('brief-session-notes').value.trim();
+  const company=companyId?gCompanies().find(c=>c.id===companyId):null;
+  const btn=document.getElementById('brief-session-generate-btn');
+  btn.disabled=true;btn.textContent='Generuję...';
+  setSalesAIStatus('brief-session-status','Analizuję notatki, załączniki i dane firmy...');
+  try{
+    const response=await window.electronAPI.generateBriefAI({
+      name,stage,notes,
+      company:company?companySalesAIContext(company):null,
+      seller:sellerSalesAIContext(),
+      attachments:activeBriefAttachments.map(att=>({path:att.path,isImage:att.isImage,name:att.name})),
+    });
+    const sessions=gBriefSessions();
+    const now=new Date().toISOString();
+    let session=sessions.find(item=>item.id===activeBriefSessionId);
+    if(!session){
+      session={id:uid(),createdAt:now};
+      sessions.unshift(session);
+      activeBriefSessionId=session.id;
+    }
+    Object.assign(session,{
+      name,stage,companyId:companyId||'',companyName:company?.name||'',notes,
+      attachments:activeBriefAttachments,brief:response.brief,
+      generatedAt:response.generatedAt,model:response.model,updatedAt:now,
+    });
+    DB.set('brief_sessions',sessions);
+    document.getElementById('brief-session-output').innerHTML=renderSalesAIBrief(response.brief);
+    document.getElementById('brief-session-title').textContent=name;
+    document.getElementById('brief-session-delete-btn').style.display='';
+    setSalesAIStatus('brief-session-status',`Brief wygenerowany ${aiStamp(response.generatedAt)}.`,'ok');
+    btn.textContent='Generuj ponownie';
+    renderBriefAI();
+  }catch(error){
+    setSalesAIStatus('brief-session-status',error.message||'Nie udało się wygenerować briefu.','error');
+    btn.textContent=activeBriefSessionId?'Generuj ponownie':'Generuj brief';
+  }finally{
+    btn.disabled=false;
+  }
+}
+function deleteBriefSession(){
+  if(!activeBriefSessionId)return;
+  if(!confirm('Usunąć tę rozmowę?'))return;
+  const sessions=gBriefSessions().filter(item=>item.id!==activeBriefSessionId);
+  DB.set('brief_sessions',sessions);
+  closeM('m-brief-session');
+  renderBriefAI();
 }
 function renderPostCallResult(analysis){
   if(!analysis)return '';

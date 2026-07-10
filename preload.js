@@ -26,6 +26,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   createChatFileUrl: (path) => ipcRenderer.invoke('chat-file-url', path),
   uploadCallRecording: (file) => ipcRenderer.invoke('call-recording-upload', file),
   transcribeCallRecording: (path) => ipcRenderer.invoke('call-recording-transcribe', path),
+  uploadBriefAttachment: (file) => ipcRenderer.invoke('brief-attachment-upload', file),
+  generateBriefAI: (payload) => ipcRenderer.invoke('briefai-generate', payload),
   generateSalesAI: (action, payload) => ipcRenderer.invoke('sales-ai-generate', action, payload),
   apolloContacts: (action, payload) => ipcRenderer.invoke('apollo-contacts', action, payload),
   getSalesJourneyStats: () => ipcRenderer.invoke('sales-journey-stats'),
