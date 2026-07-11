@@ -1,0 +1,21 @@
+# Operio
+
+> Operio to butikowa firma konsultingowa, która porządkuje i automatyzuje sprzedaż w polskich MŚP zatrudniających 10-80 osób: wdrożenia CRM, proces sprzedażowy, automatyzacja operacji, analityka i strategia wzrostu.
+
+Operio pracuje wyłącznie z firmami z aktywnym działem handlowym (min. 2 handlowców), w branżach: handel, usługi B2B, produkcja, spedycja, IT, finanse. Model współpracy jest modułowy — klient zaczyna od jednego obszaru (np. CRM) i dokłada kolejne w miarę potrzeb.
+
+## Strony
+
+- [Strona główna](https://operio.com.pl/): oferta, model współpracy, formularz rezerwacji bezpłatnej 15-minutowej rozmowy.
+- [Blog](https://operio.com.pl/blog/): artykuły o procesach sprzedażowych, CRM, automatyzacji i typowych problemach firm B2B.
+
+## Kontakt
+
+- E-mail: oliwer@operio-consulting.pl
+- Rezerwacja rozmowy: https://operio.com.pl/#hero
+
+<!-- POSTS_START -->
+## Wpisy na blogu
+
+- [Dlaczego leady giną, gdy firma rośnie (i jak to naprawić)](https://operio.com.pl/blog/gubione-leady-w-b2b.html) (2026-07-12): Firmy 10-80 osób tracą leady, gdy sprzedaż rośnie szybciej niż system, który ją ogarnia.
+<!-- POSTS_END -->
