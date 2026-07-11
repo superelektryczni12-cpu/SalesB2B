@@ -96,7 +96,7 @@ ZAKAZY:
 
 PODPIS: kończ każdy email dokładnie tak:
 Oliwer
-Operio | operio-consulting.pl
+Operio | operio.com.pl
 
 Zwróć dokładnie 3 emaile w tablicy "emails", step 1, 2, 3, w tej kolejności.`;
 
