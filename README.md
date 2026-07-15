@@ -125,6 +125,33 @@ Zakladka `Cold Mailing` to pipeline cold outreachu dla wlasnej dzialalnosci Oper
 
 Przycisk "Szukaj klientow Operio" wysyla do Apollo filtry ICP wpisane na sztywno w aplikacji (polskie MSP 10-80 pracownikow, branze handel/uslugi B2B/produkcja/IT/finanse/spedycja, decydenci CEO/Wlasciciel/Dyrektor Sprzedazy/COO) i dopisuje znalezione firmy do tej samej listy `companies`, co zwykly generator Apollo. Przycisk "Decydenci" przy firmie to ten sam modal co w zakladce Firmy — po pobraniu e-maila kontaktu pojawia sie przycisk "Generuj cold email", ktory otwiera edytowalne 3 szkice (mozna poprawic temat/tresc przed wyslaniem). "Wyslij do Instantly" tworzy leada w skonfigurowanej kampanii z tresciami jako `custom_variables` — od tego momentu Instantly sam pilnuje harmonogramu wysylki, bez dalszych klikniec w aplikacji. Status "W sekwencji Instantly" jest zapisywany w rekordzie firmy, zeby nie wyslac tego samego kontaktu dwa razy.
 
+## Maile (Gmail)
+
+Zakladka `Maile` pozwala kazdemu pracownikowi podlaczyc wlasna skrzynke Google Workspace (np. `imie.nazwisko@operio-consulting.pl`) i czytac oraz wysylac maile bez wychodzenia z aplikacji. Kazdy pracownik loguje sie do swojego wlasnego konta Google osobno (OAuth2) — nie ma trybu "polacz wszystkich naraz". Tokeny dostepu kazdego pracownika sa widoczne wylacznie dla niego samego, rowniez dla administratora organizacji (celowo, patrz komentarz w `supabase-gmail.sql`).
+
+### Jednorazowa konfiguracja (Google Cloud)
+
+1. Zaloz projekt w [Google Cloud Console](https://console.cloud.google.com/) (albo uzyj istniejacego).
+2. Wlacz **Gmail API** (`APIs & Services -> Library -> Gmail API -> Enable`).
+3. `APIs & Services -> OAuth consent screen`: ustaw **User Type = Internal** (dostepne, bo organizacja korzysta z prawdziwego Google Workspace na domenie `operio-consulting.pl`) — dzieki temu Google nie wymaga weryfikacji aplikacji ani listy testerow, a tokeny nie wygasaja po 7 dniach.
+4. `APIs & Services -> Credentials -> Create Credentials -> OAuth client ID`, typ **Desktop app**. Po utworzeniu skopiuj **Client ID** i **Client Secret**.
+5. Uzupelnij `google-oauth-config.json` w repo: wklej `clientId`. **Client Secret nigdy nie trafia do tego pliku ani do aplikacji desktopowej** — idzie wylacznie jako sekret Edge Function w kroku 8.
+
+### Jednorazowa konfiguracja (Supabase)
+
+6. W `SQL Editor` wklej i uruchom `supabase-gmail.sql` (tworzy tabele `gmail_accounts` z RLS ograniczonym wylacznie do wlasciciela konta — bez wyjatku dla admina/managera, w odroznieniu od `user_app_data`).
+7. W `Edge Functions -> Secrets` dodaj sekrety `GOOGLE_CLIENT_ID` i `GOOGLE_CLIENT_SECRET` (te same wartosci co w kroku 4).
+8. Wdroz `supabase/functions/gmail-oauth-exchange` jako funkcje `gmail-oauth-exchange` z **wlaczona weryfikacja JWT**.
+9. Wdroz `supabase/functions/gmail-api` jako funkcje `gmail-api` z **wlaczona weryfikacja JWT**.
+
+### Nadanie dostepu pracownikom
+
+10. W zakladce `Zespol -> Edytuj pracownika` zaznacz uprawnienie **Maile** w sekcji "Dostep do sekcji". Dopiero wtedy pracownik zobaczy zakladke.
+
+### Jak to dziala
+
+Przycisk "Polacz Gmail" otwiera systemowa przegladarke z ekranem logowania Google (aplikacja desktopowa uruchamia tymczasowy lokalny serwer na wolnym porcie, zeby odebrac kod autoryzacji — nie wymaga to zadnej dodatkowej konfiguracji sieciowej). Po zalogowaniu aplikacja pokazuje liste watkow z Odebranych, pozwala odpowiadac w watku (z zachowaniem `In-Reply-To`/`References`, wiec odpowiedz trafia do tego samego watku w Gmailu) oraz pisac nowe wiadomosci, z zalacznikami do 10 MB/plik (max 5 na wiadomosc). Aplikacja nie przechowuje tresci maili — kazde otwarcie watku pobiera aktualne dane bezposrednio z Gmail API.
+
 ## Strona Operio (operio-site)
 
 Folder `operio-site` to publiczna strona wizytowkowa "Operio" (zewnetrzny dzial rozwoju sprzedazy dla MSP). To osobny projekt statyczny, niezalezny od apki desktopowej, mysli o wlasnej domenie. Kazdy przycisk "Umow rozmowe" otwiera modal z formularzem i kalendarzem terminow.

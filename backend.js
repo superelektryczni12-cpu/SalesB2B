@@ -1,13 +1,20 @@
-const { app } = require('electron');
+const { app, shell } = require('electron');
 const { createClient } = require('@supabase/supabase-js');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const http = require('http');
 
 const CONFIG_FILE = path.join(__dirname, 'supabase-config.json');
+const GOOGLE_OAUTH_CONFIG_FILE = path.join(__dirname, 'google-oauth-config.json');
 const CHAT_BUCKET = 'sales-b2b-chat-files';
 const CALL_RECORDINGS_BUCKET = 'sales-b2b-call-recordings';
 const BRIEF_ATTACHMENTS_BUCKET = 'sales-b2b-brief-attachments';
+const GMAIL_SCOPES = [
+  'https://www.googleapis.com/auth/gmail.modify',
+  'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/userinfo.email',
+];
 
 function readConfig() {
   try {
@@ -24,6 +31,18 @@ function isConfigured(config) {
     !config.url.includes('TWOJ-PROJEKT') &&
     !config.anonKey.includes('WSTAW_TUTAJ')
   );
+}
+
+function readGoogleOAuthConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(GOOGLE_OAUTH_CONFIG_FILE, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function isGoogleOAuthConfigured(config) {
+  return Boolean(config.clientId && !config.clientId.includes('WSTAW_TUTAJ'));
 }
 
 class FileAuthStorage {
@@ -245,6 +264,98 @@ async function pushToInstantly(payload) {
     customVariables: payload?.customVariables || {},
   };
   const { data, error } = await getClient().functions.invoke('instantly-push', { body });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+async function gmailApi(action, payload) {
+  await currentUser();
+  const body = payload && typeof payload === 'object' ? { ...payload, action } : { action };
+  const { data, error } = await getClient().functions.invoke('gmail-api', { body });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+function gmailStatus() {
+  return gmailApi('status');
+}
+
+function disconnectGmail() {
+  return gmailApi('disconnect');
+}
+
+function listGmailThreads(pageToken) {
+  return gmailApi('list_threads', { pageToken: pageToken || '' });
+}
+
+function getGmailThread(threadId) {
+  return gmailApi('get_thread', { threadId });
+}
+
+function markGmailThreadRead(threadId) {
+  return gmailApi('mark_read', { threadId });
+}
+
+function sendGmailMessage(payload) {
+  return gmailApi('send', payload);
+}
+
+function downloadGmailAttachment(messageId, attachmentId, filename, mimeType) {
+  return gmailApi('get_attachment', { messageId, attachmentId, filename, mimeType });
+}
+
+async function connectGmail() {
+  const oauthConfig = readGoogleOAuthConfig();
+  if (!isGoogleOAuthConfigured(oauthConfig)) {
+    throw new Error('Uzupełnij plik google-oauth-config.json (Client ID z Google Cloud).');
+  }
+
+  let redirectUri = '';
+  const code = await new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      fn(value);
+    };
+
+    const server = http.createServer((req, res) => {
+      const url = new URL(req.url, 'http://127.0.0.1');
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end('<html><body style="font-family:sans-serif;padding:40px;text-align:center"><h2>Możesz zamknąć tę kartę.</h2><p>Wróć do aplikacji Sales B2B.</p></body></html>');
+      server.close();
+      if (url.pathname !== '/oauth/callback') return;
+      const authCode = url.searchParams.get('code');
+      const authError = url.searchParams.get('error');
+      if (authCode) finish(resolve, authCode);
+      else finish(reject, new Error(authError || 'Autoryzacja Google została anulowana.'));
+    });
+
+    server.on('error', (err) => finish(reject, err));
+
+    server.listen(0, '127.0.0.1', () => {
+      const port = server.address().port;
+      redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
+      const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+      authUrl.searchParams.set('client_id', oauthConfig.clientId);
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('access_type', 'offline');
+      authUrl.searchParams.set('prompt', 'consent');
+      authUrl.searchParams.set('scope', GMAIL_SCOPES.join(' '));
+      shell.openExternal(authUrl.toString());
+    });
+
+    setTimeout(() => {
+      if (settled) return;
+      finish(reject, new Error('Upłynął czas oczekiwania na autoryzację Google.'));
+      server.close();
+    }, 120000);
+  });
+
+  const { data, error } = await getClient().functions.invoke('gmail-oauth-exchange', { body: { code, redirectUri } });
   if (error) throw new Error(await functionErrorMessage(error));
   if (data?.error) throw new Error(data.error);
   return data;
@@ -751,4 +862,12 @@ module.exports = {
   syncOperioBookings,
   generateColdEmail,
   pushToInstantly,
+  connectGmail,
+  gmailStatus,
+  disconnectGmail,
+  listGmailThreads,
+  getGmailThread,
+  markGmailThreadRead,
+  sendGmailMessage,
+  downloadGmailAttachment,
 };
