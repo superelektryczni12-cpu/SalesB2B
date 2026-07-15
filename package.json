@@ -21,6 +21,7 @@
       "company-research.js",
       "preload.js",
       "supabase-config.json",
+      "google-oauth-config.json",
       "renderer/**/*",
       "assets/**/*"
     ],
