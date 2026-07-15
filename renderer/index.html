@@ -485,6 +485,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <button class="nav-pill" onclick="showPage('clients')">Klienci</button>
     <button class="nav-pill" onclick="showPage('finance')">Finanse</button>
     <button class="nav-pill" onclick="showPage('meetings')">Spotkania</button>
+    <button class="nav-pill" onclick="showPage('mail')">Maile</button>
     <button class="nav-pill" onclick="showPage('companies')">Firmy</button>
     <button class="nav-pill" onclick="showPage('brief-ai')">BriefAI</button>
     <button class="nav-pill" onclick="showPage('sales-journey')">Droga Sprzedaży</button>
@@ -781,6 +782,38 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     Brak rozmów. Kliknij "+ Nowa rozmowa", żeby zacząć.
   </div>
   <div id="brief-sessions-list"></div>
+</div>
+
+<!-- MAILE -->
+<div id="page-mail" class="page">
+  <div class="page-header">
+    <div>
+      <div class="page-title">Maile</div>
+      <div style="font-size:12px;color:var(--text2);margin-top:4px">Twoja skrzynka Gmail — bez wychodzenia z aplikacji.</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" id="mail-refresh-btn" style="display:none" onclick="refreshMailThreads()">Odśwież</button>
+      <button class="btn btn-primary" id="mail-compose-btn" style="display:none" onclick="openMailCompose()">+ Nowa wiadomość</button>
+    </div>
+  </div>
+
+  <div id="mail-disconnected" style="text-align:center;padding:48px 24px">
+    <div style="font-size:14px;color:var(--text2);margin-bottom:16px;max-width:480px;margin-left:auto;margin-right:auto">Podłącz swoją skrzynkę Gmail (operio-consulting.pl), żeby czytać i wysyłać maile bez wychodzenia z aplikacji.</div>
+    <button class="btn btn-primary" onclick="connectMailAccount()" id="mail-connect-btn">Połącz Gmail</button>
+    <div id="mail-connect-status" style="margin-top:12px;font-size:13px;color:var(--text2)"></div>
+  </div>
+
+  <div id="mail-connected" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;font-size:13px;color:var(--text2)">
+      <span id="mail-connected-email"></span>
+      <button class="btn btn-ghost btn-sm" onclick="disconnectMailAccount()">Rozłącz</button>
+    </div>
+    <div id="mail-threads-empty" style="display:none;color:var(--text2);padding:32px 0;text-align:center;font-size:14px">Brak wiadomości w Odebranych.</div>
+    <div id="mail-threads-list"></div>
+    <div style="text-align:center;margin-top:14px">
+      <button class="btn btn-ghost btn-sm" id="mail-load-more-btn" style="display:none" onclick="loadMoreMailThreads()">Załaduj więcej</button>
+    </div>
+  </div>
 </div>
 
 <!-- DROGA SPRZEDAŻY -->
@@ -1223,6 +1256,47 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   </div>
 </div>
 
+<!-- MAIL THREAD MODAL -->
+<div class="overlay" id="m-mail-thread">
+  <div class="modal modal-xl">
+    <button class="modal-close" onclick="closeM('m-mail-thread')">✕</button>
+    <h2 id="mail-thread-subject">Wątek</h2>
+    <div id="mail-thread-messages" style="max-height:48vh;overflow-y:auto;margin:12px 0;display:flex;flex-direction:column;gap:12px"></div>
+    <div class="form-group"><label>Odpowiedz</label><textarea id="mail-reply-body" rows="4" placeholder="Treść odpowiedzi..."></textarea></div>
+    <div class="form-group">
+      <label>Załączniki (max 5, do 10MB każdy)</label>
+      <input id="mail-reply-files" type="file" multiple onchange="handleMailComposeFiles(this.files,'reply');this.value=''">
+      <div id="mail-reply-attachments" style="margin-top:8px"></div>
+    </div>
+    <div id="mail-reply-status" class="sales-ai-status"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-mail-thread')">Zamknij</button>
+      <button class="btn btn-primary btn-sm" id="mail-reply-btn" onclick="sendMailReply()">Wyślij odpowiedź</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIL COMPOSE MODAL -->
+<div class="overlay" id="m-mail-compose">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('m-mail-compose')">✕</button>
+    <h2>Nowa wiadomość</h2>
+    <div class="form-group"><label>Do *</label><input id="mail-compose-to" type="email" placeholder="adres@firma.pl"></div>
+    <div class="form-group"><label>Temat</label><input id="mail-compose-subject" placeholder="Temat wiadomości"></div>
+    <div class="form-group"><label>Treść</label><textarea id="mail-compose-body" rows="8"></textarea></div>
+    <div class="form-group">
+      <label>Załączniki (max 5, do 10MB każdy)</label>
+      <input id="mail-compose-files" type="file" multiple onchange="handleMailComposeFiles(this.files,'compose');this.value=''">
+      <div id="mail-compose-attachments" style="margin-top:8px"></div>
+    </div>
+    <div id="mail-compose-status" class="sales-ai-status"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-mail-compose')">Anuluj</button>
+      <button class="btn btn-primary btn-sm" id="mail-compose-send-btn" onclick="sendMailCompose()">Wyślij</button>
+    </div>
+  </div>
+</div>
+
 <!-- SALES JOURNEY LEAD MODAL -->
 <div class="overlay" id="m-journey-lead">
   <div class="modal">
@@ -1299,6 +1373,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
       <label class="perm-check"><input type="checkbox" value="klienci" class="perm-cb"> Klienci</label>
       <label class="perm-check"><input type="checkbox" value="finanse" class="perm-cb"> Finanse</label>
       <label class="perm-check"><input type="checkbox" value="spotkania" class="perm-cb"> Spotkania</label>
+      <label class="perm-check"><input type="checkbox" value="maile" class="perm-cb"> Maile</label>
       <label class="perm-check"><input type="checkbox" value="firmy" class="perm-cb"> Firmy</label>
       <label class="perm-check"><input type="checkbox" value="droga_sprzedazy" class="perm-cb"> Droga Sprzedaży</label>
     </div>
@@ -1535,6 +1610,7 @@ function updateNav(user){
     {perm:'klienci'},
     {perm:'finanse'},
     {perm:'spotkania'},
+    {perm:'maile'},
     {perm:'firmy'},
     {perm:'firmy'},
     {perm:'droga_sprzedazy',sales:true},
@@ -1951,6 +2027,292 @@ async function openChatFile(path){
   }catch(error){setChatStatus(error.message||'Nie udało się otworzyć pliku.','error');}
 }
 
+// ══════════════════════════════
+// MAILE (Gmail)
+// ══════════════════════════════
+let mailConnected=false;
+let mailAccountEmail='';
+let mailThreads=[];
+let mailNextPageToken='';
+let mailPollTimer=null;
+let mailComposeFiles=[];
+let mailReplyFiles=[];
+let mailActiveThread=null;
+let mailLoading=false;
+
+function mailExtractEmail(value){
+  const match=/<([^>]+)>/.exec(value||'');
+  return (match?match[1]:(value||'')).trim();
+}
+function mailReplySubject(subject){
+  return /^re:/i.test(subject||'')?subject:`Re: ${subject||''}`;
+}
+function mailFormatDate(raw){
+  const date=new Date(raw);
+  if(isNaN(date.getTime()))return raw||'';
+  return date.toLocaleString('pl-PL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+}
+
+function startMailPolling(){
+  clearInterval(mailPollTimer);
+  mailPollTimer=setInterval(()=>{if(curPage==='mail'&&mailConnected)refreshMailThreads();},60000);
+}
+function stopMailPolling(){
+  clearInterval(mailPollTimer);
+  mailPollTimer=null;
+}
+
+async function renderMail(){
+  if(!window.electronAPI?.gmailStatus)return;
+  try{
+    const status=await window.electronAPI.gmailStatus();
+    mailConnected=Boolean(status.connected);
+    mailAccountEmail=status.email||'';
+  }catch{
+    mailConnected=false;
+  }
+  document.getElementById('mail-disconnected').style.display=mailConnected?'none':'block';
+  document.getElementById('mail-connected').style.display=mailConnected?'block':'none';
+  document.getElementById('mail-refresh-btn').style.display=mailConnected?'':'none';
+  document.getElementById('mail-compose-btn').style.display=mailConnected?'':'none';
+  if(mailConnected){
+    document.getElementById('mail-connected-email').textContent=mailAccountEmail;
+    await loadMailThreads(true);
+    startMailPolling();
+  }else{
+    stopMailPolling();
+  }
+}
+
+async function connectMailAccount(){
+  const btn=document.getElementById('mail-connect-btn');
+  const statusEl=document.getElementById('mail-connect-status');
+  btn.disabled=true;
+  statusEl.textContent='Otwieram okno logowania Google w przeglądarce...';
+  try{
+    await window.electronAPI.gmailConnect();
+    statusEl.textContent='';
+    await renderMail();
+  }catch(error){
+    statusEl.textContent=error.message||'Nie udało się połączyć z Gmail.';
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+async function disconnectMailAccount(){
+  if(!confirm('Odłączyć skrzynkę Gmail od aplikacji?'))return;
+  try{
+    await window.electronAPI.gmailDisconnect();
+    mailThreads=[];
+    mailNextPageToken='';
+    await renderMail();
+  }catch(error){
+    alert(error.message||'Nie udało się rozłączyć konta.');
+  }
+}
+
+async function refreshMailThreads(){
+  await loadMailThreads(true);
+}
+async function loadMoreMailThreads(){
+  await loadMailThreads(false);
+}
+
+async function loadMailThreads(reset){
+  if(mailLoading)return;
+  mailLoading=true;
+  try{
+    const data=await window.electronAPI.listGmailThreads(reset?'':mailNextPageToken);
+    const incoming=Array.isArray(data.threads)?data.threads:[];
+    mailThreads=reset?incoming:[...mailThreads,...incoming];
+    mailNextPageToken=data.nextPageToken||'';
+    renderMailThreadsList();
+  }catch(error){
+    if(/NOT_CONNECTED|nie jest podłączony/i.test(error.message||'')){
+      mailConnected=false;
+      await renderMail();
+    }
+  }finally{
+    mailLoading=false;
+  }
+}
+
+function renderMailThreadsList(){
+  const el=document.getElementById('mail-threads-list');
+  const empty=document.getElementById('mail-threads-empty');
+  if(!el)return;
+  empty.style.display=mailThreads.length?'none':'block';
+  el.innerHTML=mailThreads.map(thread=>`
+    <div class="list-row" onclick="openMailThread('${thread.id}')">
+      <div style="min-width:0;flex:1">
+        <div class="list-row-title"${thread.unread?'':' style="font-weight:400"'}>${esc(thread.from||'(nieznany nadawca)')} — ${esc(thread.subject||'(bez tematu)')}</div>
+        <div class="list-row-sub" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(thread.snippet||'')}</div>
+      </div>
+      <div style="color:var(--text2);font-size:12px;white-space:nowrap;margin-left:12px">${esc(mailFormatDate(thread.date))}</div>
+    </div>`).join('');
+  document.getElementById('mail-load-more-btn').style.display=mailNextPageToken?'':'none';
+}
+
+async function openMailThread(threadId){
+  mailReplyFiles=[];
+  renderMailAttachments('reply');
+  document.getElementById('mail-reply-body').value='';
+  document.getElementById('mail-reply-status').textContent='Ładuję wątek...';
+  document.getElementById('mail-thread-subject').textContent='';
+  document.getElementById('mail-thread-messages').innerHTML='';
+  openM('m-mail-thread');
+  try{
+    const data=await window.electronAPI.getGmailThread(threadId);
+    mailActiveThread={threadId,messages:Array.isArray(data.messages)?data.messages:[]};
+    const last=mailActiveThread.messages[mailActiveThread.messages.length-1];
+    document.getElementById('mail-thread-subject').textContent=last?.subject||'(bez tematu)';
+    renderMailThreadMessages();
+    document.getElementById('mail-reply-status').textContent='';
+    window.electronAPI.markGmailThreadRead(threadId).then(()=>{
+      const thread=mailThreads.find(item=>item.id===threadId);
+      if(thread){thread.unread=false;renderMailThreadsList();}
+    }).catch(()=>{});
+  }catch(error){
+    document.getElementById('mail-reply-status').textContent=error.message||'Nie udało się wczytać wątku.';
+  }
+}
+
+function renderMailThreadMessages(){
+  const el=document.getElementById('mail-thread-messages');
+  if(!el||!mailActiveThread)return;
+  el.innerHTML=mailActiveThread.messages.map(message=>`
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;gap:12px;font-size:12.5px;color:var(--text2);margin-bottom:8px">
+        <span>${esc(message.from||'')}</span>
+        <span>${esc(mailFormatDate(message.date))}</span>
+      </div>
+      <div style="font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere">${esc(message.body||'')}</div>
+      ${(message.attachments||[]).length?`<div class="chat-attach-list" style="margin-top:10px">${message.attachments.map((file,index)=>`<button class="chat-attach" onclick="downloadMailAttachment('${message.id}',${index})"><span>📎</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.filename||'plik')}</span></button>`).join('')}</div>`:''}
+    </div>`).join('');
+}
+
+async function downloadMailAttachment(messageId,attachmentIndex){
+  const message=mailActiveThread?.messages.find(item=>item.id===messageId);
+  const file=message?.attachments?.[attachmentIndex];
+  if(!file)return;
+  try{
+    let dataBase64=file.dataBase64;
+    let mimeType=file.mimeType;
+    let filename=file.filename;
+    if(!dataBase64){
+      const result=await window.electronAPI.downloadGmailAttachment(messageId,file.attachmentId,file.filename,file.mimeType);
+      dataBase64=result.dataBase64;
+      mimeType=result.mimeType;
+      filename=result.filename;
+    }
+    const binary=atob(dataBase64);
+    const bytes=new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+    const blob=new Blob([bytes],{type:mimeType||'application/octet-stream'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=filename||'zalacznik';
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  }catch(error){
+    alert(error.message||'Nie udało się pobrać załącznika.');
+  }
+}
+
+function renderMailAttachments(target){
+  const files=target==='compose'?mailComposeFiles:mailReplyFiles;
+  const el=document.getElementById(target==='compose'?'mail-compose-attachments':'mail-reply-attachments');
+  if(!el)return;
+  el.innerHTML=files.map((file,index)=>`<div class="chat-file-pill"><span>${esc(file.name)}</span><small>${esc(chatFileSize(file.size))}</small><button class="btn-icon" style="width:18px;height:18px;font-size:11px" onclick="removeMailAttachment('${target}',${index})">✕</button></div>`).join('');
+}
+function removeMailAttachment(target,index){
+  const files=target==='compose'?mailComposeFiles:mailReplyFiles;
+  files.splice(index,1);
+  renderMailAttachments(target);
+}
+async function handleMailComposeFiles(fileList,target){
+  const files=target==='compose'?mailComposeFiles:mailReplyFiles;
+  const list=[...(fileList||[])].slice(0,5-files.length);
+  if(!list.length)return;
+  const statusEl=document.getElementById(target==='compose'?'mail-compose-status':'mail-reply-status');
+  if(statusEl)statusEl.textContent='Wczytuję załączniki...';
+  try{
+    for(const file of list){
+      if(file.size>10*1024*1024)throw new Error(`Plik ${file.name} przekracza 10 MB.`);
+      const dataBase64=await fileToBase64(file);
+      files.push({name:file.name,type:file.type||'application/octet-stream',size:file.size,dataBase64});
+      renderMailAttachments(target);
+    }
+    if(statusEl)statusEl.textContent='';
+  }catch(error){
+    if(statusEl)statusEl.textContent=error.message||'Nie udało się wczytać pliku.';
+  }
+}
+
+function openMailCompose(){
+  document.getElementById('mail-compose-to').value='';
+  document.getElementById('mail-compose-subject').value='';
+  document.getElementById('mail-compose-body').value='';
+  document.getElementById('mail-compose-status').textContent='';
+  mailComposeFiles=[];
+  renderMailAttachments('compose');
+  openM('m-mail-compose');
+}
+
+async function sendMailCompose(){
+  const to=document.getElementById('mail-compose-to').value.trim();
+  const subject=document.getElementById('mail-compose-subject').value.trim();
+  const bodyText=document.getElementById('mail-compose-body').value.trim();
+  const statusEl=document.getElementById('mail-compose-status');
+  if(!to){statusEl.textContent='Podaj adres odbiorcy.';return;}
+  const btn=document.getElementById('mail-compose-send-btn');
+  btn.disabled=true;
+  statusEl.textContent='Wysyłam...';
+  try{
+    await window.electronAPI.sendGmailMessage({to,subject,body:bodyText,attachments:mailComposeFiles});
+    closeM('m-mail-compose');
+    await refreshMailThreads();
+  }catch(error){
+    statusEl.textContent=error.message||'Nie udało się wysłać wiadomości.';
+  }finally{
+    btn.disabled=false;
+  }
+}
+
+async function sendMailReply(){
+  if(!mailActiveThread)return;
+  const last=mailActiveThread.messages[mailActiveThread.messages.length-1];
+  const bodyText=document.getElementById('mail-reply-body').value.trim();
+  const statusEl=document.getElementById('mail-reply-status');
+  if(!bodyText&&!mailReplyFiles.length){statusEl.textContent='Wpisz treść odpowiedzi.';return;}
+  const btn=document.getElementById('mail-reply-btn');
+  btn.disabled=true;
+  statusEl.textContent='Wysyłam...';
+  try{
+    await window.electronAPI.sendGmailMessage({
+      to:mailExtractEmail(last?.from),
+      subject:mailReplySubject(last?.subject),
+      body:bodyText,
+      threadId:mailActiveThread.threadId,
+      inReplyTo:last?.messageIdHeader||'',
+      references:last?.references||'',
+      attachments:mailReplyFiles,
+    });
+    document.getElementById('mail-reply-body').value='';
+    mailReplyFiles=[];
+    renderMailAttachments('reply');
+    statusEl.textContent='Wysłano.';
+    await openMailThread(mailActiveThread.threadId);
+    await refreshMailThreads();
+  }catch(error){
+    statusEl.textContent=error.message||'Nie udało się wysłać odpowiedzi.';
+  }finally{
+    btn.disabled=false;
+  }
+}
+
 function seedUserData(){
   if(DB.get('seeded'))return;
   const cid=uid();
@@ -1995,11 +2357,12 @@ function showPage(p){
   document.querySelector('.nav-home').classList.toggle('active',p==='home');
   document.querySelector('.nav-settings').classList.toggle('active',p==='settings');
   document.getElementById('page-'+p).classList.add('active');
-  const tabs=['calendar','projects','clients','finance','meetings','companies','brief-ai','sales-journey','team-management','cold-mailing','admin-dashboard'];
+  const tabs=['calendar','projects','clients','finance','meetings','mail','companies','brief-ai','sales-journey','team-management','cold-mailing','admin-dashboard'];
   const i=tabs.indexOf(p);if(i>=0)document.querySelectorAll('.nav-pill')[i].classList.add('active');
   curPage=p;
+  if(p!=='mail')stopMailPolling();
   if(p==='admin-dashboard'&&isOrgAdmin(currentUser)){selectedDataUserId=currentUser.id;renderTeamBar();}
-  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,companies:renderCompanies,'brief-ai':renderBriefAI,'sales-journey':renderSalesJourney,'team-management':renderTeamManagement,'cold-mailing':renderColdMailing,'admin-dashboard':renderAdminDashboard})[p]?.();
+  ({home:renderHome,calendar:renderCal,projects:renderProj,clients:renderClients,finance:renderFin,settings:loadSettings,meetings:loadMeetings,mail:renderMail,companies:renderCompanies,'brief-ai':renderBriefAI,'sales-journey':renderSalesJourney,'team-management':renderTeamManagement,'cold-mailing':renderColdMailing,'admin-dashboard':renderAdminDashboard})[p]?.();
 }
 
 function renderHome(){

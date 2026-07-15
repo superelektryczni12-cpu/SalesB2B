@@ -78,6 +78,14 @@ ipcMain.handle('apollo-contacts', (_e, action, payload) => backend.apolloContact
 ipcMain.handle('sales-journey-stats', () => backend.getSalesJourneyStats());
 ipcMain.handle('cold-email-generate', (_e, payload) => backend.generateColdEmail(payload));
 ipcMain.handle('instantly-push', (_e, payload) => backend.pushToInstantly(payload));
+ipcMain.handle('gmail-connect', () => backend.connectGmail());
+ipcMain.handle('gmail-status', () => backend.gmailStatus());
+ipcMain.handle('gmail-disconnect', () => backend.disconnectGmail());
+ipcMain.handle('gmail-threads-list', (_e, pageToken) => backend.listGmailThreads(pageToken));
+ipcMain.handle('gmail-thread-get', (_e, threadId) => backend.getGmailThread(threadId));
+ipcMain.handle('gmail-thread-mark-read', (_e, threadId) => backend.markGmailThreadRead(threadId));
+ipcMain.handle('gmail-send', (_e, payload) => backend.sendGmailMessage(payload));
+ipcMain.handle('gmail-attachment-download', (_e, messageId, attachmentId, filename, mimeType) => backend.downloadGmailAttachment(messageId, attachmentId, filename, mimeType));
 ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('updates-check', (_e, manual = false) => updateManager.checkForUpdates({ manual: Boolean(manual) }));
 ipcMain.handle('updates-install', () => updateManager.downloadAndInstall());
