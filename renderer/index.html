@@ -1631,7 +1631,7 @@ function openEditEmployee(id){
   document.getElementById('emp-name').value=e.full_name||'';
   document.getElementById('emp-login').value=e.email||'';
   document.getElementById('emp-pass').value='';
-  document.getElementById('emp-pass').placeholder='Puste = bez zmiany hasła';
+  document.getElementById('emp-pass').placeholder=e.user_id?'Puste = bez zmiany hasła':'Konto oczekujące — podaj hasło, aby je dokończyć';
   document.getElementById('emp-status').value=e.status==='active'?'Konto aktywne':'Konto oczekujące';
   document.getElementById('emp-role').value=e.role||'handlowiec';
   setEmployeeRoleMode();
@@ -1775,6 +1775,7 @@ let chatMessages=[];
 let chatPendingFiles=[];
 let chatPollTimer=null;
 let chatRefreshing=false;
+let chatRenderedSignature=null;
 
 function setChatStatus(message,type=''){
   const el=document.getElementById('chat-status');if(!el)return;
@@ -1826,6 +1827,10 @@ function renderChatMessages(){
   const thread=chatThreads.find(item=>item.id===chatActiveThreadId);
   document.getElementById('chat-active-title').textContent=thread?.name||'Zespół';
   document.getElementById('chat-active-subtitle').textContent=thread?.type==='direct'?(thread.subtitle||'Rozmowa prywatna'):'Wspólny kanał pracowników';
+  const signature=chatActiveThreadId+'|'+chatMessages.map(m=>m.id).join(',');
+  if(signature===chatRenderedSignature)return;
+  const wasNearBottom=chatRenderedSignature===null||el.scrollHeight-el.scrollTop-el.clientHeight<80;
+  chatRenderedSignature=signature;
   if(!chatMessages.length){el.innerHTML='<div class="chat-empty">Brak wiadomości. Zacznij rozmowę.</div>';return;}
   el.innerHTML=chatMessages.map(message=>{
     const attachments=Array.isArray(message.attachments)?message.attachments:[];
@@ -1835,7 +1840,7 @@ function renderChatMessages(){
       ${attachments.length?`<div class="chat-attach-list">${attachments.map(file=>`<button class="chat-attach" onclick="openChatFile('${esc(file.path)}')"><span>📎</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(file.name||'plik')}</span><span style="margin-left:auto;color:var(--text3)">${esc(chatFileSize(file.size))}</span></button>`).join('')}</div>`:''}
     </div>`;
   }).join('');
-  el.scrollTop=el.scrollHeight;
+  if(wasNearBottom)el.scrollTop=el.scrollHeight;
 }
 async function refreshChat(silent=false){
   if(chatRefreshing||!currentUser||!window.electronAPI?.listChatThreads)return;
@@ -1864,6 +1869,7 @@ async function loadChatMessages(silent=false){
 }
 async function selectChatThread(threadId){
   chatActiveThreadId=threadId||'team';
+  chatRenderedSignature=null;
   renderChatThreads();
   await loadChatMessages();
 }

@@ -249,7 +249,51 @@ Deno.serve(async (request) => {
         await validateSupervisor(admin, caller.organization_id, managerMemberId);
       }
 
-      if (target.user_id) {
+      let authUserId = target.user_id || null;
+
+      if (!authUserId) {
+        // Konto utknęło jako "pending" bo poprzednie tworzenie się nie dokończyło —
+        // dokończ je tutaj zamiast wymagać usunięcia i tworzenia od nowa.
+        if (password.length < 8) {
+          return response({ error: 'To konto nie ma jeszcze dostępu do logowania — podaj hasło (min. 8 znaków), żeby je dokończyć.' }, 400);
+        }
+
+        const { data: created, error: createError } = await admin.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: { full_name: fullName },
+        });
+
+        let authUser = created?.user || null;
+        if (createError || !authUser) {
+          authUser = await findAuthUserByEmail(admin, email);
+          if (!authUser) {
+            return response({ error: createError?.message || 'Nie udało się utworzyć konta logowania.' }, 400);
+          }
+        }
+
+        const { data: linkedMember, error: linkedError } = await admin
+          .from('organization_members')
+          .select('id, organization_id')
+          .eq('user_id', authUser.id)
+          .neq('id', memberId)
+          .maybeSingle();
+        if (linkedError) return response({ error: linkedError.message }, 400);
+        if (linkedMember && linkedMember.organization_id !== caller.organization_id) {
+          return response({ error: 'Ten adres e-mail jest już przypisany do innej organizacji.' }, 400);
+        }
+
+        const { error: authUpdateError } = await admin.auth.admin.updateUserById(authUser.id, {
+          email,
+          email_confirm: true,
+          password,
+          user_metadata: { full_name: fullName },
+        });
+        if (authUpdateError) return response({ error: authUpdateError.message }, 400);
+
+        authUserId = authUser.id;
+      } else {
         const authUpdate: {
           email: string;
           email_confirm: boolean;
@@ -266,13 +310,23 @@ Deno.serve(async (request) => {
           }
           authUpdate.password = password;
         }
-        const { error } = await admin.auth.admin.updateUserById(target.user_id, authUpdate);
+        const { error } = await admin.auth.admin.updateUserById(authUserId, authUpdate);
         if (error) return response({ error: error.message }, 400);
       }
 
       const { data: member, error } = await admin
         .from('organization_members')
-        .update({ email, full_name: fullName, role, permissions, manager_member_id: managerMemberId, monthly_goals: monthlyGoals, updated_at: new Date().toISOString() })
+        .update({
+          user_id: authUserId,
+          email,
+          full_name: fullName,
+          role,
+          permissions,
+          manager_member_id: managerMemberId,
+          monthly_goals: monthlyGoals,
+          status: 'active',
+          updated_at: new Date().toISOString(),
+        })
         .eq('id', memberId)
         .select('id, user_id, email, full_name, role, permissions, status, manager_member_id, monthly_goals, created_at')
         .single();
