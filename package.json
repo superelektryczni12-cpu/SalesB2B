@@ -46,7 +46,7 @@
           ]
         }
       ],
-      "icon": "assets/icon.png",
+      "icon": "assets/icon512.png",
       "category": "public.app-category.business",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
