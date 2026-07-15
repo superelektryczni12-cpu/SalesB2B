@@ -17,6 +17,7 @@ Operio pracuje wyłącznie z firmami z aktywnym działem handlowym (min. 2 handl
 <!-- POSTS_START -->
 ## Wpisy na blogu
 
+- [Excel jako baza klientów: do kiedy działa, a od kiedy szkodzi](https://operio.com.pl/blog/excel-jako-baza-klientow.html) (2026-07-15): Excel sprawdza się w małej firmie, ale ma sygnały ostrzegawcze, po których zaczyna szkodzić sprzedaży.
 - [CRM, którego nikt nie używa: co poszło nie tak przy wdrożeniu](https://operio.com.pl/blog/crm-ktorego-nikt-nie-uzywa.html) (2026-07-14): Handlowcy wracają do Excela, bo CRM wymaga więcej pracy niż daje w zamian — trzy najczęstsze przyczyny nieudanych wdrożeń.
 - [Dlaczego leady giną, gdy firma rośnie (i jak to naprawić)](https://operio.com.pl/blog/gubione-leady-w-b2b.html) (2026-07-12): Firmy 10-80 osób tracą leady, gdy sprzedaż rośnie szybciej niż system, który ją ogarnia.
 <!-- POSTS_END -->
