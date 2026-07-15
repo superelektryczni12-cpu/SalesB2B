@@ -184,6 +184,16 @@ installer/Sales-B2B-Setup-1.5.6.exe
 
 Po pobraniu uruchom plik `.exe` i przejdz instalacje.
 
+### macOS
+
+Budowanie wersji na macOS wymaga maszyny z macOS (Apple nie pozwala zbudowac podpisanej aplikacji z innego systemu), wiec robi to za nas GitHub Actions:
+
+1. Na GitHubie wejdz w zakladke **Actions -> Build macOS installer -> Run workflow**.
+2. Po ok. kilku minutach workflow sam zbuduje `.dmg` na maszynie macOS w chmurze i wrzuci go do folderu `installer/` w repo (commit automatyczny).
+3. Pobierz `installer/Sales-B2B-Setup-x.x.x.dmg` z repo tak samo jak plik `.exe`.
+
+Aplikacja nie jest podpisana certyfikatem Apple Developer (platny, 99$/rok), wiec przy pierwszym uruchomieniu macOS pokaze ostrzezenie "aplikacja jest uszkodzona" albo "nieznany deweloper". To normalne dla wewnetrznych aplikacji spoza App Store — trzeba kliknac prawym przyciskiem na plik `.app` -> **Otworz**, albo w **Ustawienia systemowe -> Prywatnosc i bezpieczenstwo** kliknac **"Otworz mimo to"** przy komunikacie o tej aplikacji.
+
 ## Automatyczne aktualizacje
 
 Od wersji `1.5.5` aplikacja po starcie sprawdza publiczny plik `updates/latest.json` na GitHubie. Jesli pojawi sie nowsza wersja, uzytkownik zobaczy powiadomienie w aplikacji i moze pobrac oraz uruchomic instalator bez szukania pliku recznie.

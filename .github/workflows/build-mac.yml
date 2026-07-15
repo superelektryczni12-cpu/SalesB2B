@@ -1,0 +1,38 @@
+name: Build macOS installer
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build macOS installer
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npm run build:mac
+
+      - name: Copy installer into repo
+        run: |
+          mkdir -p installer
+          cp dist/*.dmg installer/
+
+      - name: Commit installer
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add installer/*.dmg
+          git diff --cached --quiet || git commit -m "Add macOS installer (automated build via GitHub Actions)"
+          git push
