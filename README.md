@@ -152,6 +152,14 @@ Zakladka `Maile` pozwala kazdemu pracownikowi podlaczyc wlasna skrzynke Google W
 
 Przycisk "Polacz Gmail" otwiera systemowa przegladarke z ekranem logowania Google (aplikacja desktopowa uruchamia tymczasowy lokalny serwer na wolnym porcie, zeby odebrac kod autoryzacji — nie wymaga to zadnej dodatkowej konfiguracji sieciowej). Po zalogowaniu aplikacja pokazuje liste watkow z Odebranych, pozwala odpowiadac w watku (z zachowaniem `In-Reply-To`/`References`, wiec odpowiedz trafia do tego samego watku w Gmailu) oraz pisac nowe wiadomosci, z zalacznikami do 10 MB/plik (max 5 na wiadomosc). Aplikacja nie przechowuje tresci maili — kazde otwarcie watku pobiera aktualne dane bezposrednio z Gmail API.
 
+### Podpis
+
+Przycisk "Podpis" w zakladce Maile pozwala kazdemu pracownikowi ustawic wlasna stopke (przechowywana lokalnie w jego `user_app_data`, w polu `settings.mailSignature` — nie w Gmailu). Stopka jest automatycznie wstawiana na dole nowej wiadomosci i kazdej odpowiedzi; mozna ja przed wyslaniem dowolnie zmienic lub usunac. Nie wymaga dodatkowej konfiguracji w Supabase.
+
+### Poprawka AI
+
+Przycisk "Poprawka AI" nad polem tresci (w nowej wiadomosci i w odpowiedzi) poprawia bledy gramatyczne, ortograficzne i interpunkcyjne w napisanym juz tekscie, bez zmiany sensu ani tonu. Wdroz `supabase/functions/text-proofread` jako funkcje `text-proofread` z **wlaczona weryfikacja JWT** — korzysta z tego samego sekretu `OPENAI_API_KEY`, ktory jest juz skonfigurowany dla `cold-email-generate`/`sales-ai`/`briefai-generate`, wiec nie trzeba dodawac nowego sekretu.
+
 ## Strona Operio (operio-site)
 
 Folder `operio-site` to publiczna strona wizytowkowa "Operio" (zewnetrzny dzial rozwoju sprzedazy dla MSP). To osobny projekt statyczny, niezalezny od apki desktopowej, mysli o wlasnej domenie. Kazdy przycisk "Umow rozmowe" otwiera modal z formularzem i kalendarzem terminow.

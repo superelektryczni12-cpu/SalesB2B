@@ -86,6 +86,7 @@ ipcMain.handle('gmail-thread-get', (_e, threadId) => backend.getGmailThread(thre
 ipcMain.handle('gmail-thread-mark-read', (_e, threadId) => backend.markGmailThreadRead(threadId));
 ipcMain.handle('gmail-send', (_e, payload) => backend.sendGmailMessage(payload));
 ipcMain.handle('gmail-attachment-download', (_e, messageId, attachmentId, filename, mimeType) => backend.downloadGmailAttachment(messageId, attachmentId, filename, mimeType));
+ipcMain.handle('text-proofread', (_e, text) => backend.proofreadText(text));
 ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('updates-check', (_e, manual = false) => updateManager.checkForUpdates({ manual: Boolean(manual) }));
 ipcMain.handle('updates-install', () => updateManager.downloadAndInstall());

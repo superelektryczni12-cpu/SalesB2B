@@ -792,6 +792,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
       <div style="font-size:12px;color:var(--text2);margin-top:4px">Twoja skrzynka Gmail — bez wychodzenia z aplikacji.</div>
     </div>
     <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" id="mail-signature-btn" style="display:none" onclick="openMailSignature()">Podpis</button>
       <button class="btn btn-ghost" id="mail-refresh-btn" style="display:none" onclick="refreshMailThreads()">Odśwież</button>
       <button class="btn btn-primary" id="mail-compose-btn" style="display:none" onclick="openMailCompose()">+ Nowa wiadomość</button>
     </div>
@@ -1262,7 +1263,10 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <button class="modal-close" onclick="closeM('m-mail-thread')">✕</button>
     <h2 id="mail-thread-subject">Wątek</h2>
     <div id="mail-thread-messages" style="max-height:48vh;overflow-y:auto;margin:12px 0;display:flex;flex-direction:column;gap:12px"></div>
-    <div class="form-group"><label>Odpowiedz</label><textarea id="mail-reply-body" rows="4" placeholder="Treść odpowiedzi..."></textarea></div>
+    <div class="form-group">
+      <div style="display:flex;align-items:center;justify-content:space-between"><label style="margin:0">Odpowiedz</label><button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px" onclick="proofreadMailText('reply')">✨ Poprawka AI</button></div>
+      <textarea id="mail-reply-body" rows="4" placeholder="Treść odpowiedzi..."></textarea>
+    </div>
     <div class="form-group">
       <label>Załączniki (max 5, do 10MB każdy)</label>
       <input id="mail-reply-files" type="file" multiple onchange="handleMailComposeFiles(this.files,'reply');this.value=''">
@@ -1283,7 +1287,10 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <h2>Nowa wiadomość</h2>
     <div class="form-group"><label>Do *</label><input id="mail-compose-to" type="email" placeholder="adres@firma.pl"></div>
     <div class="form-group"><label>Temat</label><input id="mail-compose-subject" placeholder="Temat wiadomości"></div>
-    <div class="form-group"><label>Treść</label><textarea id="mail-compose-body" rows="8"></textarea></div>
+    <div class="form-group">
+      <div style="display:flex;align-items:center;justify-content:space-between"><label style="margin:0">Treść</label><button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px" onclick="proofreadMailText('compose')">✨ Poprawka AI</button></div>
+      <textarea id="mail-compose-body" rows="8"></textarea>
+    </div>
     <div class="form-group">
       <label>Załączniki (max 5, do 10MB każdy)</label>
       <input id="mail-compose-files" type="file" multiple onchange="handleMailComposeFiles(this.files,'compose');this.value=''">
@@ -1293,6 +1300,20 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="closeM('m-mail-compose')">Anuluj</button>
       <button class="btn btn-primary btn-sm" id="mail-compose-send-btn" onclick="sendMailCompose()">Wyślij</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIL SIGNATURE MODAL -->
+<div class="overlay" id="m-mail-signature">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('m-mail-signature')">✕</button>
+    <h2>Podpis</h2>
+    <div style="font-size:12.5px;color:var(--text2);margin-bottom:12px">Ten podpis będzie automatycznie wstawiany na dole nowej wiadomości i odpowiedzi — możesz go usunąć lub zmienić przed wysłaniem.</div>
+    <div class="form-group"><textarea id="mail-signature-text" rows="6" placeholder="np. Oliwer Jórski&#10;Operio | operio.com.pl"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeM('m-mail-signature')">Anuluj</button>
+      <button class="btn btn-primary btn-sm" onclick="saveMailSignature()">Zapisz</button>
     </div>
   </div>
 </div>
@@ -2053,6 +2074,38 @@ function mailFormatDate(raw){
   return date.toLocaleString('pl-PL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
 }
 
+function openMailSignature(){
+  document.getElementById('mail-signature-text').value=gs().mailSignature||'';
+  openM('m-mail-signature');
+}
+function saveMailSignature(){
+  const value=document.getElementById('mail-signature-text').value;
+  DB.set('settings',{...gs(),mailSignature:value});
+  closeM('m-mail-signature');
+}
+function applyMailSignature(textareaId){
+  const el=document.getElementById(textareaId);
+  const signature=(gs().mailSignature||'').trim();
+  el.value=signature?`\n\n${signature}`:'';
+  el.setSelectionRange(0,0);
+}
+
+async function proofreadMailText(target){
+  const textareaId=target==='compose'?'mail-compose-body':'mail-reply-body';
+  const statusEl=document.getElementById(target==='compose'?'mail-compose-status':'mail-reply-status');
+  const el=document.getElementById(textareaId);
+  const text=el.value.trim();
+  if(!text){statusEl.textContent='Wpisz najpierw treść do poprawy.';return;}
+  statusEl.textContent='Poprawiam tekst...';
+  try{
+    const result=await window.electronAPI.proofreadText(text);
+    el.value=result.correctedText||text;
+    statusEl.textContent='Tekst poprawiony.';
+  }catch(error){
+    statusEl.textContent=error.message||'Nie udało się poprawić tekstu.';
+  }
+}
+
 function startMailPolling(){
   clearInterval(mailPollTimer);
   mailPollTimer=setInterval(()=>{if(curPage==='mail'&&mailConnected)refreshMailThreads();},60000);
@@ -2075,6 +2128,7 @@ async function renderMail(){
   document.getElementById('mail-connected').style.display=mailConnected?'block':'none';
   document.getElementById('mail-refresh-btn').style.display=mailConnected?'':'none';
   document.getElementById('mail-compose-btn').style.display=mailConnected?'':'none';
+  document.getElementById('mail-signature-btn').style.display=mailConnected?'':'none';
   if(mailConnected){
     document.getElementById('mail-connected-email').textContent=mailAccountEmail;
     await loadMailThreads(true);
@@ -2157,7 +2211,7 @@ function renderMailThreadsList(){
 async function openMailThread(threadId){
   mailReplyFiles=[];
   renderMailAttachments('reply');
-  document.getElementById('mail-reply-body').value='';
+  applyMailSignature('mail-reply-body');
   document.getElementById('mail-reply-status').textContent='Ładuję wątek...';
   document.getElementById('mail-thread-subject').textContent='';
   document.getElementById('mail-thread-messages').innerHTML='';
@@ -2254,7 +2308,7 @@ async function handleMailComposeFiles(fileList,target){
 function openMailCompose(){
   document.getElementById('mail-compose-to').value='';
   document.getElementById('mail-compose-subject').value='';
-  document.getElementById('mail-compose-body').value='';
+  applyMailSignature('mail-compose-body');
   document.getElementById('mail-compose-status').textContent='';
   mailComposeFiles=[];
   renderMailAttachments('compose');
@@ -2300,7 +2354,7 @@ async function sendMailReply(){
       references:last?.references||'',
       attachments:mailReplyFiles,
     });
-    document.getElementById('mail-reply-body').value='';
+    applyMailSignature('mail-reply-body');
     mailReplyFiles=[];
     renderMailAttachments('reply');
     statusEl.textContent='Wysłano.';
