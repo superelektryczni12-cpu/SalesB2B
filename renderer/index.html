@@ -761,6 +761,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
       <button class="filter-tab" onclick="filterCompanies('odrzucony',this)">Odrzucone</button>
     </div>
     <input id="companies-search" placeholder="Szukaj nazwy, miasta..." style="width:220px;padding:6px 12px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);font-size:13px;outline:none" oninput="renderCompanies()">
+    <button class="btn btn-ghost btn-sm" onclick="loadCompanyClaims(true).then(renderCompanies)" title="Odśwież informacje o zajętych firmach">Odśwież zajęte</button>
   </div>
 
   <div id="companies-empty" style="display:none;color:var(--text2);padding:32px 0;font-size:14px;text-align:center">
@@ -826,6 +827,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     </div>
     <div style="display:flex;gap:8px">
       <button class="btn btn-ghost" id="journey-refresh-btn" style="display:none" onclick="renderSalesJourney()">Odśwież statystyki</button>
+      <button class="btn btn-ghost" onclick="loadCompanyClaims(true).then(renderSalesJourney)" title="Odśwież informacje o zajętych firmach">Odśwież zajęte</button>
       <button class="btn btn-primary" id="journey-add-btn" onclick="openNewJourneyLead()">+ Dodaj klienta</button>
     </div>
   </div>
@@ -3114,6 +3116,7 @@ function renderSalesJourney(){
 }
 
 function renderSalesJourneySalesperson(){
+  if(Date.now()-companyClaimsLoadedAt>=30000){loadCompanyClaims().then(()=>{if(curPage==='sales-journey')renderSalesJourney();});}
   const leads=gSalesJourney().leads;
   const active=leads.filter(lead=>lead.status==='active');
   const lost=leads.filter(lead=>lead.status==='lost');
@@ -3156,8 +3159,10 @@ function renderJourneyLeadCard(lead){
   const contact=[lead.contact,lead.phone].filter(Boolean).join(' · ')||'Brak danych kontaktowych';
   const details=journeyLeadDetailLine(lead);
   const age=journeyDaysInStage(lead);
+  const claimHtml=claimBadgeHtml(journeyLeadIdentity(lead));
   return `<div class="journey-lead">
     <div class="journey-lead-name">${esc(lead.company)}</div>
+    ${claimHtml?`<div style="margin:4px 0">${claimHtml}</div>`:''}
     <div class="journey-lead-contact">${esc(contact)}</div>
     ${details?`<div class="journey-lead-contact">${esc(details)}</div>`:''}
     <div class="journey-lead-age">${age===0?'Dodano dzisiaj':journeyDaysLabel(age)}</div>
@@ -3170,8 +3175,10 @@ function renderJourneyLeadCard(lead){
   </div>`;
 }
 
-function assignJourneyLeadToPanel(id){
+async function assignJourneyLeadToPanel(id,options={}){
   const journey=gSalesJourney();const lead=journey.leads.find(item=>item.id===id);if(!lead||lead.status!=='active')return;
+  const identity=journeyLeadIdentity(lead);
+  if(!options.skipClaimCheck&&!(await confirmClaimOverride(identity)))return;
   const meetings=[...(DB.get('bookings')||[]),...(DB.get('manual_meetings')||[])];
   let meeting=lead.meetingId?meetings.find(item=>item.id===lead.meetingId):null;
   if(!meeting){
@@ -3180,6 +3187,7 @@ function assignJourneyLeadToPanel(id){
   }
   lead.assignedTo=dataOwnerId();lead.assignedAt=lead.assignedAt||new Date().toISOString();lead.meetingId=meeting.id;lead.updatedAt=new Date().toISOString();
   DB.set('manual_meetings',meetings.filter(item=>item.manual));DB.set('bookings',meetings.filter(item=>!item.manual));DB.set('sales_journey',journey);
+  if(!options.skipClaimCheck)claimCompanyIdentity(identity,dataOwnerId());
   showPage('meetings');
 }
 
@@ -3668,6 +3676,89 @@ const gCompanies = () => DB.get('companies') || [];
 let companiesFilter = 'all';
 let editCompanyId = null;
 
+// ── Zajęte firmy: współdzielony rejestr między pracownikami (company_claims) ──
+function normalizeDomain(www){
+  if(!www)return '';
+  try{
+    let host=String(www).trim().toLowerCase().replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0].split('?')[0];
+    return host||'';
+  }catch{return '';}
+}
+function normalizePhone(phone){
+  if(!phone)return '';
+  let digits=String(phone).replace(/\D/g,'');
+  if(digits.length>9&&digits.startsWith('48'))digits=digits.slice(2);
+  if(digits.length>9&&digits.startsWith('0'))digits=digits.slice(1);
+  digits=digits.slice(-9);
+  return digits.length===9?digits:'';
+}
+function companyIdentity(company){
+  if(!company)return null;
+  const domain=normalizeDomain(company.www);
+  if(domain)return{identityKey:`domain:${domain}`,identityType:'domain',companyName:company.name||domain};
+  const phone=normalizePhone(company.phone);
+  if(phone)return{identityKey:`phone:${phone}`,identityType:'phone',companyName:company.name||phone};
+  const name=(company.name||'').trim().toLowerCase();
+  if(!name)return null;
+  const city=(company.city||'').trim().toLowerCase();
+  return{identityKey:`name_city:${name}|${city}`,identityType:'name_city',companyName:company.name};
+}
+function journeyLeadIdentity(lead){
+  const source=lead?.sourceCompanyId?gCompanies().find(c=>c.id===lead.sourceCompanyId):null;
+  if(source)return companyIdentity(source);
+  return companyIdentity({name:lead?.company||'',www:'',phone:'',city:''});
+}
+let companyClaimsCache=[];
+let companyClaimsLoadedAt=0;
+async function loadCompanyClaims(force=false){
+  if(!window.electronAPI?.listCompanyClaims)return;
+  if(!force&&Date.now()-companyClaimsLoadedAt<30000)return;
+  try{
+    const result=await window.electronAPI.listCompanyClaims();
+    companyClaimsCache=Array.isArray(result?.claims)?result.claims:[];
+    companyClaimsLoadedAt=Date.now();
+  }catch{ /* badge po prostu się nie pokaże przy błędzie */ }
+}
+function claimFor(identity){
+  if(!identity)return null;
+  return companyClaimsCache.find(c=>c.identity_key===identity.identityKey)||null;
+}
+function relativeDaysLabel(iso){
+  const days=Math.floor((Date.now()-new Date(iso).getTime())/86400000);
+  if(days<=0)return'dzisiaj';
+  if(days===1)return'1 dzień temu';
+  return`${days} dni temu`;
+}
+function claimBadgeHtml(identity){
+  const claim=claimFor(identity);
+  if(!claim||claim.claimed_by_user_id===currentUser?.id)return'';
+  return`<span title="Zajęte przez ${esc(claim.claimed_by_name)}" style="background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.35);padding:4px 10px;border-radius:8px;font-size:11.5px;font-weight:600;white-space:nowrap">⚠️ Zajęte: ${esc(claim.claimed_by_name)} · ${esc(relativeDaysLabel(claim.updated_at))}</span>`;
+}
+async function confirmClaimOverride(identity){
+  if(!identity)return true;
+  await loadCompanyClaims(true);
+  const claim=claimFor(identity);
+  if(!claim||claim.claimed_by_user_id===currentUser?.id)return true;
+  return confirm(`Ta firma jest już zajęta przez: ${claim.claimed_by_name}.\nPrzypisać mimo to?`);
+}
+async function claimCompanyIdentity(identity,forUserId){
+  if(!identity)return;
+  try{
+    const result=await window.electronAPI.claimCompany({identityKey:identity.identityKey,identityType:identity.identityType,companyName:identity.companyName,forUserId:forUserId||undefined});
+    if(result?.claim){
+      companyClaimsCache=companyClaimsCache.filter(c=>c.identity_key!==result.claim.identity_key);
+      companyClaimsCache.push(result.claim);
+    }
+  }catch{ /* lokalne przypisanie już się wykonało — brak wspólnego ostrzeżenia nie blokuje pracy */ }
+}
+async function releaseCompanyIdentity(identity){
+  if(!identity)return;
+  try{
+    await window.electronAPI.releaseCompanyClaim(identity.identityKey);
+    companyClaimsCache=companyClaimsCache.filter(c=>c.identity_key!==identity.identityKey);
+  }catch{}
+}
+
 const LEAD_STATUS_LABELS = { nowy:'Nowy', zadzwoniono:'Zadzwoniono', zainteresowany:'Zainteresowany', follow_up:'Follow-up', odrzucony:'Odrzucony' };
 const LEAD_STATUS_BADGE = { nowy:'badge-new-lead', zadzwoniono:'badge-called', zainteresowany:'badge-interested', follow_up:'badge-follow', odrzucony:'badge-rejected' };
 const GOOGLE_TYPE_LABELS = {
@@ -3828,6 +3919,7 @@ function filterCompanies(f, btn) {
 }
 
 function renderCompanies() {
+  if(Date.now()-companyClaimsLoadedAt>=30000){loadCompanyClaims().then(()=>{if(curPage==='companies')renderCompanies();});}
   const all = gCompanies();
   const search = (document.getElementById('companies-search')?.value || '').toLowerCase();
   let list = companiesFilter === 'all' ? all : all.filter(c => c.status === companiesFilter);
@@ -3888,6 +3980,8 @@ function renderCompanies() {
       <option value="admin"${c.assignedTo==='admin'?' selected':''}>Admin</option>
       ${emps.filter(e=>e.role!=='admin').map(e=>`<option value="${e.id}"${c.assignedTo===e.id?' selected':''}>${e.full_name}</option>`).join('')}`;
 
+    const claimHtml = claimBadgeHtml(companyIdentity(c));
+
     return `<div class="lead-card" id="lc-${c.id}">
       <div class="lead-card-header" onclick="toggleCompany('${c.id}')">
         <div class="lead-avatar" style="background:${col}22;color:${col}">${initials}</div>
@@ -3897,6 +3991,7 @@ function renderCompanies() {
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <div class="lead-score s${estimate.leadScore}"><strong>${estimate.leadScore}/5</strong>${esc(estimate.leadScoreLabel)}</div>
+          ${claimHtml}
           ${assignedHtml}
           ${badge}
           ${c.phone?`<a href="tel:${c.phone}" onclick="event.stopPropagation()" style="background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.2);padding:5px 12px;border-radius:8px;font-size:12px;text-decoration:none;font-weight:500">📞 Zadzwoń</a>`:''}
@@ -3951,6 +4046,7 @@ function renderCompanies() {
               <select onchange="assignCompany('${c.id}',this.value)" style="background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:13px;font-family:inherit">
                 ${empOptions}
               </select>
+              ${claimHtml}
             </div>
           </div>
           <button class="btn btn-ghost btn-sm" onclick="assignCompanySelf('${c.id}')" title="Przypisz siebie">Przypisz mnie</button>
@@ -3986,20 +4082,35 @@ function updateCompanyStatus(id, status) {
   renderCompanies();
 }
 
-function assignCompany(id, empId) {
+async function assignCompany(id, empId, options={}) {
   const cs = gCompanies();
   const i = cs.findIndex(x => x.id === id);
   if (i < 0) return;
+  const identity=companyIdentity(cs[i]);
+  if(!options.skipClaimCheck&&empId){
+    if(!(await confirmClaimOverride(identity))){renderCompanies();return;}
+  }
   cs[i].assignedTo = empId || null;
   DB.set('companies', cs);
   renderCompanies();
+  if(options.skipClaimCheck||!identity)return;
+  if(empId){
+    if(empId==='admin')return; // "Admin" nie da się jednoznacznie rozwiązać na user_id — lokalny label wystarczy
+    const emp=gEmps().find(e=>e.id===empId);
+    if(emp?.user_id)claimCompanyIdentity(identity,emp.user_id);
+  }else{
+    releaseCompanyIdentity(identity);
+  }
 }
 
-function assignCompanySelf(id) {
+async function assignCompanySelf(id) {
   if(!getCurrentUserAny())return;
-  assignCompany(id,panelAssigneeId());
+  const identity=companyIdentity(gCompanies().find(c=>c.id===id));
+  if(!(await confirmClaimOverride(identity)))return;
+  await assignCompany(id,panelAssigneeId(),{skipClaimCheck:true});
+  claimCompanyIdentity(identity,dataOwnerId());
   let lead=ensureCompanyJourneyLead(id,{create:true,source:'Baza firm',stage:'cold_call'});
-  if(lead)assignJourneyLeadToPanel(lead.id);
+  if(lead)assignJourneyLeadToPanel(lead.id,{skipClaimCheck:true});
 }
 
 let activeSalesAICompanyId = null;

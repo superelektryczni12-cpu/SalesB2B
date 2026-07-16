@@ -160,6 +160,19 @@ Przycisk "Podpis" w zakladce Maile pozwala kazdemu pracownikowi ustawic wlasna s
 
 Przycisk "Poprawka AI" nad polem tresci (w nowej wiadomosci i w odpowiedzi) poprawia bledy gramatyczne, ortograficzne i interpunkcyjne w napisanym juz tekscie, bez zmiany sensu ani tonu. Wdroz `supabase/functions/text-proofread` jako funkcje `text-proofread` z **wlaczona weryfikacja JWT** — korzysta z tego samego sekretu `OPENAI_API_KEY`, ktory jest juz skonfigurowany dla `cold-email-generate`/`sales-ai`/`briefai-generate`, wiec nie trzeba dodawac nowego sekretu.
 
+## Zajete firmy (ostrzezenia miedzy pracownikami)
+
+Kazdy pracownik generuje WLASNA, prywatna liste firm przez Apollo/Google (dane w `user_app_data`) — dwoch handlowcow moze wiec niezaleznie dostac dwie osobne kopie tej samej realnej firmy i dzwonic do niej po kilka razy, bo nie widza nawzajem swoich przypisan. Zeby to naprawic bez migrowania istniejacych, prywatnych list firm, dodalismy osobna, w pelni wspoldzielona tabele `company_claims` — przy kazdym "Przypisz mnie" (w Firmy i w Drodze Sprzedazy) apka liczy znormalizowana tozsamosc firmy (domena strony -> telefon -> nazwa+miasto jako ostatecznosc) i zapisuje w tej tabeli kto ja zajal. Wszyscy pracownicy widza ta sama tabele, wiec dostaja czerwony badge "Zajete: {imie}" nawet jesli maja zupelnie inny, lokalny rekord tej samej firmy.
+
+### Jednorazowa konfiguracja (Supabase)
+
+1. W `SQL Editor` wklej i uruchom `supabase-company-claims.sql` (tworzy tabele `company_claims` z RLS: kazdy aktywny czlonek organizacji moze ja ODCZYTAC — celowo odwrotnie niz przy `gmail_accounts` — zapis idzie wylacznie przez edge function).
+2. Wdroz `supabase/functions/company-claims` jako funkcje `company-claims` z **wlaczona weryfikacja JWT**. Nie wymaga zadnego nowego sekretu.
+
+### Jak to dziala
+
+Dopasowanie firmy miedzy niezaleznymi, prywatnymi listami dwoch pracownikow odbywa sie po priorytecie: domena strony WWW > numer telefonu > nazwa+miasto (najmniej pewne, ale lepsze niz nic). Firma bez zadnego z tych pol jest cicho pomijana — bez badge'a. Kliknietie "Przypisz mnie" przy juz zajetej firmie pokazuje potwierdzenie z imieniem osoby, ktora ja ma — mozna swiadomie przypisac mimo to (ostatni zapis wygrywa, to system ostrzegawczy, nie blokada). Admin/manager moga tez przypisac firme konkretnemu pracownikowi przez dropdown "Opiekun" w Firmy — to rowniez zapisuje sie we wspoldzielonym rejestrze, wiec inni to zobacza.
+
 ## Strona Operio (operio-site)
 
 Folder `operio-site` to publiczna strona wizytowkowa "Operio" (zewnetrzny dzial rozwoju sprzedazy dla MSP). To osobny projekt statyczny, niezalezny od apki desktopowej, mysli o wlasnej domenie. Kazdy przycisk "Umow rozmowe" otwiera modal z formularzem i kalendarzem terminow.
