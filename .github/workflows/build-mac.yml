@@ -22,7 +22,7 @@ jobs:
       - name: Build macOS installer
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
-        run: npm run build:mac
+        run: npm run build:mac || (echo "Retrying after hdiutil flakiness..." && npm run build:mac)
 
       - name: Copy installer into repo
         run: |

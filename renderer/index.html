@@ -1266,6 +1266,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <div class="form-group">
       <div style="display:flex;align-items:center;justify-content:space-between"><label style="margin:0">Odpowiedz</label><button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px" onclick="proofreadMailText('reply')">✨ Poprawka AI</button></div>
       <textarea id="mail-reply-body" rows="4" placeholder="Treść odpowiedzi..."></textarea>
+      <div id="mail-reply-sig-hint" style="font-size:11px;color:var(--text2);margin-top:4px"></div>
     </div>
     <div class="form-group">
       <label>Załączniki (max 5, do 10MB każdy)</label>
@@ -1290,6 +1291,7 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
     <div class="form-group">
       <div style="display:flex;align-items:center;justify-content:space-between"><label style="margin:0">Treść</label><button class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px" onclick="proofreadMailText('compose')">✨ Poprawka AI</button></div>
       <textarea id="mail-compose-body" rows="8"></textarea>
+      <div id="mail-compose-sig-hint" style="font-size:11px;color:var(--text2);margin-top:4px"></div>
     </div>
     <div class="form-group">
       <label>Załączniki (max 5, do 10MB każdy)</label>
@@ -1309,8 +1311,8 @@ textarea{resize:vertical;min-height:72px;line-height:1.5}
   <div class="modal">
     <button class="modal-close" onclick="closeM('m-mail-signature')">✕</button>
     <h2>Podpis</h2>
-    <div style="font-size:12.5px;color:var(--text2);margin-bottom:12px">Ten podpis będzie automatycznie wstawiany na dole nowej wiadomości i odpowiedzi — możesz go usunąć lub zmienić przed wysłaniem.</div>
-    <div class="form-group"><textarea id="mail-signature-text" rows="6" placeholder="np. Oliwer Jórski&#10;Operio | operio.com.pl"></textarea></div>
+    <div style="font-size:12.5px;color:var(--text2);margin-bottom:12px">Wklej zwykły tekst albo gotowy kod HTML swojej stopki (możesz wkleić cały plik .html — zbędne znaczniki dokumentu wytniemy automatycznie). Stopka doklei się automatycznie na dole każdej nowej wiadomości i odpowiedzi.</div>
+    <div class="form-group"><textarea id="mail-signature-text" rows="10" style="font-family:'SF Mono',Consolas,monospace;font-size:12.5px" placeholder="np. Oliwer Jórski&#10;Operio | operio.com.pl&#10;&#10;...albo wklej tu pełny kod HTML stopki"></textarea></div>
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="closeM('m-mail-signature')">Anuluj</button>
       <button class="btn btn-primary btn-sm" onclick="saveMailSignature()">Zapisz</button>
@@ -2078,16 +2080,27 @@ function openMailSignature(){
   document.getElementById('mail-signature-text').value=gs().mailSignature||'';
   openM('m-mail-signature');
 }
+function extractSignatureFragment(html){
+  let value=(html||'').trim();
+  value=value.replace(/<!DOCTYPE[^>]*>/i,'');
+  value=value.replace(/<\/?html[^>]*>/gi,'');
+  value=value.replace(/<head[\s\S]*?<\/head>/i,'');
+  value=value.replace(/<\/?body[^>]*>/gi,'');
+  return value.trim();
+}
 function saveMailSignature(){
-  const value=document.getElementById('mail-signature-text').value;
+  const value=extractSignatureFragment(document.getElementById('mail-signature-text').value);
   DB.set('settings',{...gs(),mailSignature:value});
   closeM('m-mail-signature');
+  renderMailSignatureHints();
 }
-function applyMailSignature(textareaId){
-  const el=document.getElementById(textareaId);
-  const signature=(gs().mailSignature||'').trim();
-  el.value=signature?`\n\n${signature}`:'';
-  el.setSelectionRange(0,0);
+function renderMailSignatureHints(){
+  const hasSig=Boolean((gs().mailSignature||'').trim());
+  const text=hasSig?'Do wiadomości zostanie automatycznie dołączona Twoja stopka.':'Nie masz jeszcze ustawionej stopki — dodaj ją przyciskiem "Podpis".';
+  ['mail-compose-sig-hint','mail-reply-sig-hint'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.textContent=text;
+  });
 }
 
 async function proofreadMailText(target){
@@ -2211,7 +2224,8 @@ function renderMailThreadsList(){
 async function openMailThread(threadId){
   mailReplyFiles=[];
   renderMailAttachments('reply');
-  applyMailSignature('mail-reply-body');
+  document.getElementById('mail-reply-body').value='';
+  renderMailSignatureHints();
   document.getElementById('mail-reply-status').textContent='Ładuję wątek...';
   document.getElementById('mail-thread-subject').textContent='';
   document.getElementById('mail-thread-messages').innerHTML='';
@@ -2308,7 +2322,8 @@ async function handleMailComposeFiles(fileList,target){
 function openMailCompose(){
   document.getElementById('mail-compose-to').value='';
   document.getElementById('mail-compose-subject').value='';
-  applyMailSignature('mail-compose-body');
+  document.getElementById('mail-compose-body').value='';
+  renderMailSignatureHints();
   document.getElementById('mail-compose-status').textContent='';
   mailComposeFiles=[];
   renderMailAttachments('compose');
@@ -2325,7 +2340,7 @@ async function sendMailCompose(){
   btn.disabled=true;
   statusEl.textContent='Wysyłam...';
   try{
-    await window.electronAPI.sendGmailMessage({to,subject,body:bodyText,attachments:mailComposeFiles});
+    await window.electronAPI.sendGmailMessage({to,subject,body:bodyText,signatureHtml:gs().mailSignature||'',attachments:mailComposeFiles});
     closeM('m-mail-compose');
     await refreshMailThreads();
   }catch(error){
@@ -2352,9 +2367,10 @@ async function sendMailReply(){
       threadId:mailActiveThread.threadId,
       inReplyTo:last?.messageIdHeader||'',
       references:last?.references||'',
+      signatureHtml:gs().mailSignature||'',
       attachments:mailReplyFiles,
     });
-    applyMailSignature('mail-reply-body');
+    document.getElementById('mail-reply-body').value='';
     mailReplyFiles=[];
     renderMailAttachments('reply');
     statusEl.textContent='Wysłano.';
