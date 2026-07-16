@@ -1,6 +1,6 @@
 {
   "name": "sales-b2b",
-  "version": "1.5.23",
+  "version": "1.5.24",
   "description": "System zarządzania B2B dla freelancerów",
   "main": "main.js",
   "scripts": {
