@@ -24,15 +24,12 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: false
         run: npm run build:mac || (echo "Retrying after hdiutil flakiness..." && npm run build:mac)
 
-      - name: Copy installer into repo
+      - name: Publish installer to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p installer
-          cp dist/*.dmg installer/
-
-      - name: Commit installer
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add installer/*.dmg
-          git diff --cached --quiet || git commit -m "Add macOS installer (automated build via GitHub Actions)"
-          git push
+          if gh release view macos-installer >/dev/null 2>&1; then
+            gh release upload macos-installer dist/*.dmg --clobber
+          else
+            gh release create macos-installer dist/*.dmg --title "Sales B2B — macOS" --notes "Najnowszy automatyczny build macOS. Ten sam link zawsze wskazuje na najnowszą wersję."
+          fi
