@@ -244,6 +244,27 @@ async function proofreadText(text) {
   return data;
 }
 
+async function companyClaimsApi(action, payload) {
+  await currentUser();
+  const body = payload && typeof payload === 'object' ? { ...payload, action } : { action };
+  const { data, error } = await getClient().functions.invoke('company-claims', { body });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+function listCompanyClaims() {
+  return companyClaimsApi('list');
+}
+
+function claimCompany(payload) {
+  return companyClaimsApi('claim', payload);
+}
+
+function releaseCompanyClaim(identityKey) {
+  return companyClaimsApi('release', { identityKey });
+}
+
 async function getSalesJourneyStats() {
   await currentUser();
   const { data, error } = await getClient().functions.invoke('sales-journey-stats', { body: {} });
@@ -879,4 +900,7 @@ module.exports = {
   markGmailThreadRead,
   sendGmailMessage,
   downloadGmailAttachment,
+  listCompanyClaims,
+  claimCompany,
+  releaseCompanyClaim,
 };

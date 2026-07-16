@@ -87,6 +87,9 @@ ipcMain.handle('gmail-thread-mark-read', (_e, threadId) => backend.markGmailThre
 ipcMain.handle('gmail-send', (_e, payload) => backend.sendGmailMessage(payload));
 ipcMain.handle('gmail-attachment-download', (_e, messageId, attachmentId, filename, mimeType) => backend.downloadGmailAttachment(messageId, attachmentId, filename, mimeType));
 ipcMain.handle('text-proofread', (_e, text) => backend.proofreadText(text));
+ipcMain.handle('company-claims-list', () => backend.listCompanyClaims());
+ipcMain.handle('company-claims-claim', (_e, payload) => backend.claimCompany(payload));
+ipcMain.handle('company-claims-release', (_e, identityKey) => backend.releaseCompanyClaim(identityKey));
 ipcMain.handle('app-version', () => app.getVersion());
 ipcMain.handle('updates-check', (_e, manual = false) => updateManager.checkForUpdates({ manual: Boolean(manual) }));
 ipcMain.handle('updates-install', () => updateManager.downloadAndInstall());
