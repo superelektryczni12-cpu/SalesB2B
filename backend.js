@@ -236,6 +236,14 @@ async function apolloContacts(action, payload) {
   return data;
 }
 
+async function proofreadText(text) {
+  await currentUser();
+  const { data, error } = await getClient().functions.invoke('text-proofread', { body: { text: text || '' } });
+  if (error) throw new Error(await functionErrorMessage(error));
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 async function getSalesJourneyStats() {
   await currentUser();
   const { data, error } = await getClient().functions.invoke('sales-journey-stats', { body: {} });
@@ -854,6 +862,7 @@ module.exports = {
   generateBriefAI,
   generateSalesAI,
   apolloContacts,
+  proofreadText,
   getSalesJourneyStats,
   getBookings,
   addBooking,

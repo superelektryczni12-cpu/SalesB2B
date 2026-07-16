@@ -41,6 +41,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   markGmailThreadRead: (threadId) => ipcRenderer.invoke('gmail-thread-mark-read', threadId),
   sendGmailMessage: (payload) => ipcRenderer.invoke('gmail-send', payload),
   downloadGmailAttachment: (messageId, attachmentId, filename, mimeType) => ipcRenderer.invoke('gmail-attachment-download', messageId, attachmentId, filename, mimeType),
+  proofreadText: (text) => ipcRenderer.invoke('text-proofread', text),
   getAppVersion: () => ipcRenderer.invoke('app-version'),
   checkForUpdates: (manual = false) => ipcRenderer.invoke('updates-check', manual),
   installUpdate: () => ipcRenderer.invoke('updates-install'),
