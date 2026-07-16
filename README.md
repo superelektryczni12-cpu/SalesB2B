@@ -210,8 +210,8 @@ Po pobraniu uruchom plik `.exe` i przejdz instalacje.
 Budowanie wersji na macOS wymaga maszyny z macOS (Apple nie pozwala zbudowac podpisanej aplikacji z innego systemu), wiec robi to za nas GitHub Actions:
 
 1. Na GitHubie wejdz w zakladke **Actions -> Build macOS installer -> Run workflow**.
-2. Po ok. kilku minutach workflow sam zbuduje `.dmg` na maszynie macOS w chmurze i wrzuci go do folderu `installer/` w repo (commit automatyczny).
-3. Pobierz `installer/Sales-B2B-Setup-x.x.x.dmg` z repo tak samo jak plik `.exe`.
+2. Po ok. kilku minutach workflow sam zbuduje `.dmg` na maszynie macOS w chmurze. Plik jest duzy (ok. 180-190 MB, universal Intel+Apple Silicon) — za duzy na zwykly commit do repo (twardy limit GitHuba to 100 MB), wiec workflow publikuje go jako zalacznik do **GitHub Release** o stalym tagu `macos-installer` zamiast wrzucac do folderu `installer/`.
+3. Pobierz najnowszy `.dmg` z zakladki **Releases** repo (link zawsze ten sam: `https://github.com/superelektryczni12-cpu/SalesB2B/releases/tag/macos-installer` — kazde kolejne uruchomienie workflow podmienia tam plik na nowsza wersje).
 
 Aplikacja nie jest podpisana certyfikatem Apple Developer (platny, 99$/rok), wiec przy pierwszym uruchomieniu macOS pokaze ostrzezenie "aplikacja jest uszkodzona" albo "nieznany deweloper". To normalne dla wewnetrznych aplikacji spoza App Store — trzeba kliknac prawym przyciskiem na plik `.app` -> **Otworz**, albo w **Ustawienia systemowe -> Prywatnosc i bezpieczenstwo** kliknac **"Otworz mimo to"** przy komunikacie o tej aplikacji.
 
