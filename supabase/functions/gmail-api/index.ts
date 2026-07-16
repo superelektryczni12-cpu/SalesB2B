@@ -216,6 +216,14 @@ function encodeHeaderValue(value: string): string {
   return `=?UTF-8?B?${btoa(bytesToBinaryString(utf8Bytes(value)))}?=`;
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function stripScripts(html: string): string {
+  return html.replace(/<script[\s\S]*?<\/script>/gi, '');
+}
+
 type OutgoingAttachment = { name?: string; type?: string; dataBase64?: string };
 
 function buildRawMessage(options: {
@@ -223,12 +231,13 @@ function buildRawMessage(options: {
   to: string;
   subject: string;
   text: string;
+  signatureHtml?: string;
   threadId?: string;
   inReplyTo?: string;
   references?: string;
   attachments: OutgoingAttachment[];
 }) {
-  const { from, to, subject, text, inReplyTo, references, attachments } = options;
+  const { from, to, subject, text, signatureHtml, inReplyTo, references, attachments } = options;
   const boundary = `----=_Part_${crypto.randomUUID().replace(/-/g, '')}`;
   const headers = [
     `From: ${from}`,
@@ -242,17 +251,23 @@ function buildRawMessage(options: {
     headers.push(`References: ${combined}`);
   }
 
-  const textBase64 = btoa(bytesToBinaryString(utf8Bytes(text)));
+  const cleanSignature = stripScripts((signatureHtml || '').trim());
+  const isHtml = Boolean(cleanSignature);
+  const bodyContent = isHtml
+    ? escapeHtml(text).replace(/\r\n|\r|\n/g, '<br>') + (text.trim() ? '<br><br>' : '') + cleanSignature
+    : text;
+  const bodyContentType = isHtml ? 'text/html; charset="UTF-8"' : 'text/plain; charset="UTF-8"';
+  const bodyBase64 = btoa(bytesToBinaryString(utf8Bytes(bodyContent)));
 
   let message: string;
   if (attachments.length) {
     headers.push(`Content-Type: multipart/mixed; boundary="${boundary}"`);
     const parts = [
       `--${boundary}`,
-      'Content-Type: text/plain; charset="UTF-8"',
+      `Content-Type: ${bodyContentType}`,
       'Content-Transfer-Encoding: base64',
       '',
-      textBase64,
+      bodyBase64,
     ];
     for (const file of attachments) {
       const safeName = String(file.name || 'zalacznik').replace(/"/g, '');
@@ -268,8 +283,8 @@ function buildRawMessage(options: {
     parts.push(`--${boundary}--`, '');
     message = `${headers.join('\r\n')}\r\n\r\n${parts.join('\r\n')}`;
   } else {
-    headers.push('Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: base64');
-    message = `${headers.join('\r\n')}\r\n\r\n${textBase64}`;
+    headers.push(`Content-Type: ${bodyContentType}`, 'Content-Transfer-Encoding: base64');
+    message = `${headers.join('\r\n')}\r\n\r\n${bodyBase64}`;
   }
 
   return base64UrlEncode(message);
@@ -379,6 +394,7 @@ Deno.serve(async (request) => {
       const threadId = body?.threadId ? String(body.threadId) : '';
       const inReplyTo = body?.inReplyTo ? String(body.inReplyTo) : '';
       const references = body?.references ? String(body.references) : '';
+      const signatureHtml = String(body?.signatureHtml || '').slice(0, 20000);
       const attachments: OutgoingAttachment[] = Array.isArray(body?.attachments) ? body.attachments : [];
 
       if (!/.+@.+\..+/.test(to)) return json({ error: 'Nieprawidłowy adres odbiorcy.' }, 400);
@@ -387,7 +403,7 @@ Deno.serve(async (request) => {
       const totalBytes = attachments.reduce((sum, file) => sum + Math.ceil(((file.dataBase64 || '').length * 3) / 4), 0);
       if (totalBytes > 20 * 1024 * 1024) return json({ error: 'Łączny rozmiar załączników przekracza 20 MB.' }, 400);
 
-      const raw = buildRawMessage({ from: fromEmail, to, subject, text, inReplyTo, references, attachments });
+      const raw = buildRawMessage({ from: fromEmail, to, subject, text, signatureHtml, inReplyTo, references, attachments });
       const sendBody: Record<string, unknown> = { raw };
       if (threadId) sendBody.threadId = threadId;
       const result = await gmailFetch(accessToken, '/messages/send', { method: 'POST', body: JSON.stringify(sendBody) });
