@@ -17,6 +17,7 @@ Operio pracuje wyłącznie z firmami z aktywnym działem handlowym (min. 2 handl
 <!-- POSTS_START -->
 ## Wpisy na blogu
 
+- [Kiedy lead staje się szansą sprzedażową? Bez definicji prognoza to zgadywanka](https://operio.com.pl/blog/kiedy-lead-staje-sie-szansa-sprzedazowa.html) (2026-08-05): Handlowcy w tej samej firmie różnie rozumieją, kiedy lead staje się realną szansą sprzedażową, więc prognoza sprzedaży traci sens.
 - [Sprzedaż na wyczucie: co tracisz, nie mając liczb pod ręką](https://operio.com.pl/blog/sprzedaz-na-wyczucie-brak-kpi.html) (2026-07-27): Firmy 10-80 osób często zarządzają sprzedażą na wyczucie, bo nikt nie zebrał prostych liczb.
 - [Ile czasu handlowcy tracą na pracę, która nie jest sprzedażą](https://operio.com.pl/blog/reczna-praca-handlowcow.html) (2026-07-17): W firmach 10-80 osób handlowcy potrafią tracić jedną trzecią dnia na ręczne wpisywanie danych i raporty.
 - [Właściciel jako wąskie gardło sprzedaży: jak to rozpoznać i zmienić](https://operio.com.pl/blog/wlasciciel-waskie-gardlo-sprzedazy.html) (2026-07-16): Właściciel zatwierdza każdy rabat i wyjątek, więc sprzedaż zwalnia, gdy jest zajęty — jak rozpoznać to wąskie gardło i je rozdzielić.
